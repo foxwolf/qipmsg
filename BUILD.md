@@ -145,7 +145,10 @@ make
 ## Runtime notes
 
 - On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), default receive files in `recv/`, and screenshots in `screenshots/`.
-- Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8.
+- Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8, unless the datagram's command has `IPMSG_UTF8OPT` (`0x00800000`), in which case the whole datagram is decoded as UTF-8.
+- `BR_ENTRY` / `BR_ABSENCE` / `BR_EXIT` / `ANSENTRY` announce `IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT`. `ANSENTRY` previously omitted even the file-attach bit; it now uses the same capability word. Presence text stays on the configured codec and sets `IPMSG_UTF8OPT` only when that codec is UTF-8, so FeiQ 2013 keeps reading GBK nicknames. A directed `SENDMSG` sets `IPMSG_UTF8OPT` and is encoded as UTF-8 when the peer has advertised `CAPUTF8OPT` (or when our codec is already UTF-8). Clipboard images are still ordinary file attachments; the capability bit is an announcement, not a new file type on the wire (`IPMSG_FILE_CLIPBOARD` is defined but not sent, so FeiQ file receive stays unchanged).
+- Cross-subnet discovery: Preferences stores extra targets in `userSpecifiedBroadcastIp` (same `\r`-separated list). A token may be one IPv4, `start-end`, or `addr/prefix`. Each refresh expands it and unicasts `BR_ENTRY` there. One token is limited to 1024 addresses. There is no directory server.
+- Broadcast to all online sends `IPMSG_SENDMSG | IPMSG_SENDCHECKOPT | IPMSG_BROADCASTOPT` once per reachable peer (online or away). It does not also write the same text to the subnet broadcast address. Stale peers are not queued.
 - Presence refresh interval and auto-reply live in Preferences (Detail tab + Send/Receive). Tray **Leave → Away / Auto-reply** toggles absence (`BR_ABSENCE`). Tray **Leave → Stealth / Hide mode** (also Preferences → Send/Receive) skips `ANSENTRY` and own `BR_ENTRY`/`BR_ABSENCE`; turning it on sends `BR_EXIT` first.
 - Local memo nicknames are stored in `peers.json` as `"memo"` (same sidecar file, no Qt Sql). The contact tree and chat title show the memo; peer-profile **Nickname** keeps the real name.
 - Contact search matches nickname / host / login / memo / IP / group. Pinyin initials use public-domain GB2312 first-letter ranges via `QTextCodec` GBK/GB2312 (no third-party library). Full pinyin is a compact built-in table of surnames and common words in `src/pinyin.cpp` (public readings, GPL-3.0-or-later with the rest of QIpMsg).
@@ -168,7 +171,14 @@ make
 
 ## Version
 
-**2.7.0** is this slice (FeiQ/IPMSG TCP file interop, 64-bit sizes/offsets, configurable UDP/TCP port + NIC) on top of merged 2.6.0 (#28 images/emoji), 2.5.2 (#31 light discussion groups), 2.5.1 (#30 offline queue), and 2.5.0 (#29 memo/pinyin/stealth).
+**2.11.1** adds cross-subnet IPv4 ranges, broadcast-to-online, chat sealed letters, and UTF-8/clipboard capability bits on top of **2.7.0** (FeiQ/IPMSG TCP file interop, 64-bit sizes/offsets, configurable UDP/TCP port + NIC) and the merged 2.6.0 / 2.5.x line.
+
+## Trying the 2.11.1 protocol gaps
+
+1. Preferences → broadcast addresses. Add `192.168.9.10-192.168.9.12` or `192.168.9.0/30`, click Apply. On the next refresh, a capture should show unicast UDP/2425 to each host, not a new server. A `/16` is rejected (more than 1024 hosts).
+2. With two online peers, use tray **Broadcast to all online** or the main-window button. Each peer's chat shows `[Broadcast]` and the packet command includes bit `0x400`. An offline peer gets nothing and the offline queue stays empty.
+3. From a chat, check **Encap** and send. The receiver's bubble says the letter is sealed and history has no body yet. Click the bubble: the text appears, and a `READMSG` packet goes back. `SECRETOPT` (`0x200` on `SENDMSG` only — the same bit is `SERVEROPT` on entry) and the older `READCHECKOPT` seal both take this path.
+4. Default codec GBK: a FeiQ 2013 peer (no `CAPUTF8OPT`) still receives GBK without `UTF8OPT`. A peer that sets `CAPUTF8OPT` (`0x01000000`) on entry is answered in UTF-8 with `UTF8OPT` (`0x00800000`). Our entry packet itself carries `CAPUTF8OPT` and `CLIPBOARDOPT` (`0x08000000`). `qipmsgP1Check` covers range expansion and these flag helpers.
 
 ## Trying the 2.7.0 UI
 
