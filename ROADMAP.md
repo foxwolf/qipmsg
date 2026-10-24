@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.4.0 replaces the FeiQ green chrome with a modern light messenger UI (shared QSS, rounded avatars, chat bubbles, profile card). Protocol features from 2.3 stay. Remaining items stay deferred.
+2.6.0 adds inline image thumbnails in chat bubbles and a small Unicode emoji pack. 2.4.0 UI and 2.3 protocol features stay. Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -30,10 +30,12 @@
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 - [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
+- [x] Inline image preview in chat bubbles (send/receive/screenshot/clipboard)
+- [x] Basic Unicode emoji pack in the chat toolbar (wire text; FeiQ tokens rendered locally)
 
-## Later / out of scope for 2.4.0
+## Later / out of scope for 2.6.0
 
-1. **Custom emoji / face packs**
+1. **Custom emoji / face packs** (2.6.0 ships a small built-in Unicode set only)
 2. **FeiQ plugin system**
 3. **File-share / public folder server**
 4. **Group chat / 群 chat rooms**
@@ -47,11 +49,11 @@
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.4.0
+## How to try 2.6.0
 
 1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
 2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
-3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
+3. Double-click a user for the chat window. Toolbar: **Emoji**, **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat, or paste an image with `Ctrl+V`. Image attachments show a thumbnail in the bubble; click to open full size.
 4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
 5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
 6. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
