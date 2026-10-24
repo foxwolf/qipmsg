@@ -178,7 +178,9 @@ void Helper::openInternalLogFile()
 {
     if (!m_internalLogFile.isOpen()) {
         m_internalLogFile.setFileName(m_internalLogFileName);
-        m_internalLogFile.open(QIODevice::WriteOnly);
+        if (!m_internalLogFile.open(QIODevice::WriteOnly)) {
+            return;
+        }
     }
 }
 

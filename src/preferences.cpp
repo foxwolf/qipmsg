@@ -316,6 +316,8 @@ void Preferences::openLogFile()
 
     logFile.setFileName(logFilePath);
 
-    logFile.open(QIODevice::Append);
+    if (!logFile.open(QIODevice::Append)) {
+        return;
+    }
 }
 
