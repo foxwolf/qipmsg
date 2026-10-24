@@ -51,6 +51,8 @@ private slots:
     void updateTransferCount(int);
     void onNewTextMessage(QString fromName, QString preview);
     void setAway(bool away);
+    void setStealth(bool stealth);
+    void refreshLeaveActions();
 
 private slots:
     void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
@@ -86,6 +88,7 @@ private:
 
     QActionGroup *leaveActionGroup;
     QAction *awayAction;
+    QAction *stealthAction;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
 

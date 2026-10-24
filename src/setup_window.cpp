@@ -555,6 +555,10 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isAway) {
         awayCheck->setCheckState(Qt::Checked);
     }
+    stealthCheck = new QCheckBox(tr("Stealth / Hide mode (do not answer discovery)"));
+    if (Global::preferences->isStealth) {
+        stealthCheck->setCheckState(Qt::Checked);
+    }
     autoReplyCheck = new QCheckBox(tr("Enable auto-reply"));
     if (Global::preferences->isAutoReply) {
         autoReplyCheck->setCheckState(Qt::Checked);
@@ -581,6 +585,7 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
     vbox->addWidget(awayCheck);
+    vbox->addWidget(stealthCheck);
     vbox->addWidget(autoReplyCheck);
     vbox->addLayout(replyLayout);
     vbox->addLayout(cooldownLayout);
@@ -714,9 +719,15 @@ void SetupWindow::applyPreferences()
     Global::preferences->isAutoReply = autoReplyCheck->isChecked();
     Global::preferences->autoReplyText = autoReplyEdit->text();
     Global::preferences->autoReplyCooldownSecs = autoReplyCooldownSpin->value();
+    const bool stealth = stealthCheck->isChecked();
+    const bool stealthChanged = (stealth != Global::preferences->isStealth);
 
     Global::userManager->updateOurself();
-    Global::userManager->announcePresence();
+    if (stealthChanged) {
+        Global::userManager->applyStealth(stealth);
+    } else if (!stealth) {
+        Global::userManager->announcePresence();
+    }
 
     Global::preferences->save();
 }

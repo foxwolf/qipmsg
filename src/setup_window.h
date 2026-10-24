@@ -212,6 +212,7 @@ private:
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
     QCheckBox *awayCheck;
+    QCheckBox *stealthCheck;
     QCheckBox *autoReplyCheck;
     QLineEdit *autoReplyEdit;
     QSpinBox *autoReplyCooldownSpin;
