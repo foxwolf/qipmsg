@@ -1,0 +1,89 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-qt6
+            os: ubuntu-latest
+          - name: windows-qt6-msvc
+            os: windows-latest
+          - name: macos-qt6
+            os: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build \
+            qt6-base-dev qt6-5compat-dev qt6-multimedia-dev \
+            qt6-tools-dev qt6-tools-dev-tools \
+            libgl1-mesa-dev
+
+      - name: Install Qt 6 (Windows MSVC)
+        if: runner.os == 'Windows'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qt5compat qtmultimedia
+          cache: true
+
+      - name: Install Qt 6 (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake qt@6
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
+          echo "$(brew --prefix qt@6)/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Locate binary
+        shell: bash
+        run: |
+          for p in build/qipmsg build/qipmsg.exe build/Release/qipmsg.exe; do
+            if [ -f "$p" ]; then
+              ls -l "$p"
+              echo "BIN=$p" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "qipmsg binary not found under build/"
+          find build -name 'qipmsg*' | head
+          exit 1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qipmsg-${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            ${{ env.BIN }}
+            build/translations/
+            build/Release/translations/

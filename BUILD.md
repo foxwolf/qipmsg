@@ -2,6 +2,8 @@
 
 QIpMsg now uses **CMake** and supports **Qt 6 (preferred) / Qt 5.12+** on Windows, Linux and macOS.
 
+[![Build](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml/badge.svg)](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml)
+
 ---
 
 ## Requirements
@@ -109,6 +111,22 @@ Deploy app bundle (optional):
 ```bash
 /opt/homebrew/opt/qt@6/bin/macdeployqt src/qipmsg.app
 ```
+
+---
+
+## CI
+
+GitHub Actions (`.github/workflows/build.yml`) runs a CMake **Release** build on every push and pull request:
+
+| Runner | Qt 6 install |
+|--------|----------------|
+| `ubuntu-latest` | apt: `qt6-base-dev qt6-5compat-dev qt6-multimedia-dev qt6-tools-dev qt6-tools-dev-tools libgl1-mesa-dev` |
+| `windows-latest` | `jurplel/install-qt-action@v4` Qt 6.8.3 MSVC 2022 (`qt5compat` + `qtmultimedia`) |
+| `macos-latest` | Homebrew `cmake` + `qt@6`, `CMAKE_PREFIX_PATH=$(brew --prefix qt@6)` |
+
+CMake ≥ 3.16, C++17, Qt 6 + Core5Compat. No Qt Sql. Each job uploads a `qipmsg-<os>` artifact.
+
+[![Build](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml/badge.svg)](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml)
 
 ---
 

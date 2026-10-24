@@ -1,5 +1,7 @@
 # QIpMsg
 
+[![Build](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml/badge.svg)](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml)
+
 QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户端，兼容飞秋（Feiqiu / FeiQ）等同类局域网通讯工具。
 
 当前版本：**2.3.0**
