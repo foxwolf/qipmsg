@@ -33,16 +33,22 @@ QString RecvFileMap::fileNameJoin(QString sep) const
 QString RecvFileMap::transferStatsInfo() const
 {
     QString fileString;
-    if (m_dirCount < 1 && m_regularFileCount == 1) {
+    if (!m_currentChildName.isEmpty()) {
+        fileString = QObject::tr("current: %1").arg(m_currentChildName);
+    } else if (m_currentId != -1) {
         fileString = currentFile()->name();
-    } else {
-        fileString = Helper::fileCountString(m_totalRegularFileCount);
+    }
+
+    QString countString = Helper::fileCountString(m_totalRegularFileCount);
+    if (m_dirCount > 0) {
+        countString += " / " + QObject::tr("%1 folder(s)").arg(m_dirCount);
     }
 
     return (QObject::tr("Total:") + " " + Helper::sizeStringUnit(m_totalBytesReaded)
            + " (" + Helper::sizeStringUnit(totalTransferRateAvg()) + "/s)"
            + "\n" + Helper::secondStringUnit(elapse()) + "    "
-           + fileString);
+           + countString
+           + (fileString.isEmpty() ? QString() : "  " + fileString));
 }
 
 void RecvFileMap::resetStats()
@@ -52,5 +58,6 @@ void RecvFileMap::resetStats()
     m_regularFileCount = 0;
     m_totalRegularFileCount = 0;
     m_totalBytesReaded = 0;
+    m_currentChildName.clear();
 }
 

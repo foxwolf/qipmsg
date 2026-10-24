@@ -37,6 +37,7 @@
 #include "dir_dialog.h"
 #include "send_file_manager.h"
 #include "window_manager.h"
+#include "history_search_window.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -237,6 +238,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addAction(sendFileAct);
     menu.addAction(sendDirAct);
     menu.addAction(searchUserAct);
+    menu.addAction(findHistoryAct);
 
     updateSelectGroupMenu();
 
@@ -251,6 +253,9 @@ void MainWindow::createActions()
     sendFileAct = new QAction(tr("Send file"), this);
     sendDirAct = new QAction(tr("Sent directory"), this);
     searchUserAct = new QAction(tr("Search user Ctrl+F"), this);
+    findHistoryAct = new QAction(tr("Find in history..."), this);
+    connect(findHistoryAct, SIGNAL(triggered()),
+            this, SLOT(findInHistory()));
 
     setLevelOneAct = new QAction(tr("Set level 1 (user %1 / %2)")
             .arg(m_levelOneCount)
@@ -589,6 +594,14 @@ void MainWindow::openSelectedChat()
             Global::windowManager->openChat(ip, true);
         }
     }
+}
+
+void MainWindow::findInHistory()
+{
+    HistorySearchWindow *window = new HistorySearchWindow;
+    window->show();
+    window->raise();
+    window->activateWindow();
 }
 
 void MainWindow::addSendFile()

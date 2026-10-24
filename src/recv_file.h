@@ -40,6 +40,10 @@ public:
     QString fileIdString() const { return QString("%1").arg(m_fileId); }
 
     QString name() const { return m_name; }
+    void setSaveName(const QString &name) { m_saveName = name; }
+    QString saveName() const {
+        return m_saveName.isEmpty() ? m_name : m_saveName;
+    }
 
     QString sizeString() const;
     qint64 size() const { return m_size; }
@@ -53,6 +57,7 @@ public:
     int type() const { return m_type; }
 
     qint64 offset() const { return m_offset; }
+    void setOffset(qint64 offset) { m_offset = offset; }
     void addOffset(qint64 offset) { m_offset += offset; }
 
     qint64 bytesReaded() const { return m_bytesReaded; }
@@ -89,6 +94,7 @@ private:
     QString m_packetNoString;
     int m_fileId;
     QString m_name;
+    QString m_saveName;
     qint64 m_size;
     int m_type;
     QMap<int, QString> m_attrMap;

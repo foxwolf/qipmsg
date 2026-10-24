@@ -24,6 +24,9 @@ HEADERS += \
 	main_window.h \
         chat_window.h \
         message_store.h \
+        history_search_window.h \
+        resume_store.h \
+        screen_capture.h \
         search_user_dialog.h \
         msg.h \
 	msg_base.h \
@@ -76,6 +79,9 @@ SOURCES += \
 	main_window.cpp \
         chat_window.cpp \
         message_store.cpp \
+        history_search_window.cpp \
+        resume_store.cpp \
+        screen_capture.cpp \
         search_user_dialog.cpp \
         msg.cpp \
 	msg_base.cpp \

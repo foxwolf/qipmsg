@@ -51,6 +51,9 @@ public:
     void setSaveFilePath(QString path) { m_saveFilePath = path; }
     QString saveFilePath() const { return m_saveFilePath; }
 
+    void setCurrentChildName(const QString &name) { m_currentChildName = name; }
+    QString currentChildName() const { return m_currentChildName; }
+
     void incrDirCount() { ++m_dirCount; }
     int dirCount() const { return m_dirCount; }
 
@@ -102,6 +105,7 @@ private:
     QDateTime m_end;
 
     QString m_saveFilePath;
+    QString m_currentChildName;
 
     QTimer m_timer;
 

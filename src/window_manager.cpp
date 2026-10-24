@@ -19,6 +19,7 @@
 #include "constants.h"
 #include "global.h"
 #include "helper.h"
+#include "main_window.h"
 #include "message_store.h"
 #include "msg_readed_window.h"
 #include "msg_thread.h"
@@ -26,6 +27,7 @@
 #include "preferences.h"
 #include "send_msg.h"
 #include "sound_thread.h"
+#include "systray.h"
 #include "user_manager.h"
 
 #include <QPoint>
@@ -93,6 +95,16 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
     const QString text = msg->additionalInfo();
     const QString name = peerDisplayName(msg);
     const bool autoReply = msg->flags() & IPMSG_AUTORETOPT;
+    const bool isShake = !sealed && !attach && Helper::isShakeText(text);
+
+    if (isShake) {
+        recordIncomingText(msg->ip(), name, tr("[Window shake]"), !autoReply);
+        applyIncomingShake(msg->ip());
+        if (!autoReply) {
+            playNoticeSound();
+        }
+        return;
+    }
 
     if (!sealed) {
         if (!text.isEmpty()) {
@@ -118,6 +130,28 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
         createMsgWindow(msg);
     } else if (shouldPopup()) {
         openChat(msg->ip(), true);
+    }
+}
+
+void WindowManager::applyIncomingShake(const QString &ip)
+{
+    ChatWindow *w = ensureChat(ip);
+    if (shouldPopup()) {
+        openChat(ip, true);
+        w->shakeWindow();
+        return;
+    }
+    if (w->isVisible()) {
+        w->shakeWindow();
+        return;
+    }
+    if (Global::systray) {
+        foreach (MainWindow *mw, Global::systray->mainWindowList) {
+            if (mw && mw->isVisible()) {
+                Helper::shakeWidget(mw);
+                return;
+            }
+        }
     }
 }
 

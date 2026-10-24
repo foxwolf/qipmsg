@@ -33,6 +33,7 @@ public:
     friend class MainWindow;
 
     UserManager(QObject *parent = 0);
+    ~UserManager();
 
     void broadcastExit() const;
     void broadcastEntry() const;
@@ -53,6 +54,8 @@ public:
     int userCount() const;
     QString displayNameForIp(const QString &ip) const;
     QString peerCaption(const QString &ip) const;
+    QString signature(int row) const;
+    QString signatureForIp(const QString &ip) const;
 
     Owner ourself() const { return m_ourself; }
     void updateOurself();
@@ -67,6 +70,7 @@ private slots:
     void newUserMsg(Msg msg);
     void newExitMsg(Msg msg);
     void autoRefreshPresence();
+    void savePersistedPeers();
 
 private:
     void createModel();
@@ -76,11 +80,15 @@ private:
     void setRowPresence(int row, int presence);
     void sweepStaleUsers();
     quint32 presenceFlags(quint32 command) const;
+    void loadPersistedPeers();
+    void scheduleSavePeers();
+    QString peersFilePath() const;
 
     static Owner m_ourself;
 
     QStandardItemModel *m_model;
     QTimer *m_refreshTimer;
+    QTimer *m_saveTimer;
 };
 
 #endif // !USER_MANAGER_H

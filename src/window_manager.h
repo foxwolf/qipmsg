@@ -80,6 +80,7 @@ private:
     void playNoticeSound();
     bool shouldPopup() const;
     QString peerDisplayName(const Msg &msg) const;
+    void applyIncomingShake(const QString &ip);
     ChatWindow *ensureChat(const QString &ip);
     void addUnread(const QString &ip);
     void emitUnread();

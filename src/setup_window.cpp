@@ -234,6 +234,59 @@ void TransferTab::save()
     Global::transferCodec->setTransCodec(codecComboBox->currentText());
 }
 
+FileTab::FileTab(QWidget *parent)
+    : QWidget(parent)
+{
+    resumeCheckBox = new QCheckBox(tr("Resume interrupted file transfers"));
+    if (Global::preferences->isResumeTransFile) {
+        resumeCheckBox->setCheckState(Qt::Checked);
+    }
+    autoRecvCheckBox = new QCheckBox(tr("Auto-accept incoming files"));
+    if (Global::preferences->isAutoRecvFile) {
+        autoRecvCheckBox->setCheckState(Qt::Checked);
+    }
+    autoRenameCheckBox = new QCheckBox(tr("Auto-rename if the file already exists"));
+    if (Global::preferences->isAutoRecvRename) {
+        autoRenameCheckBox->setCheckState(Qt::Checked);
+    }
+
+    recvPathButton = new QPushButton(tr("Receive folder"));
+    recvPathLabel = new QLabel(Global::preferences->autoRecvPath);
+    recvPathLabel->setFrameStyle(QFrame::Sunken | QFrame::Panel);
+    connect(recvPathButton, SIGNAL(clicked()), this, SLOT(getRecvPath()));
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(resumeCheckBox);
+    mainLayout->addWidget(autoRecvCheckBox);
+    mainLayout->addWidget(autoRenameCheckBox);
+    QHBoxLayout *pathLayout = new QHBoxLayout;
+    pathLayout->addWidget(recvPathButton);
+    pathLayout->addWidget(recvPathLabel, 1);
+    mainLayout->addLayout(pathLayout);
+    mainLayout->addStretch();
+    setLayout(mainLayout);
+}
+
+void FileTab::getRecvPath()
+{
+    const QString path = QFileDialog::getExistingDirectory(
+                this, tr("Select receive folder"),
+                recvPathLabel->text());
+    if (!path.isEmpty()) {
+        recvPathLabel->setText(path);
+    }
+}
+
+void FileTab::save()
+{
+    Global::preferences->isResumeTransFile = resumeCheckBox->isChecked();
+    Global::preferences->isAutoRecvFile = autoRecvCheckBox->isChecked();
+    Global::preferences->isAutoRecvRename = autoRenameCheckBox->isChecked();
+    if (!recvPathLabel->text().isEmpty()) {
+        Global::preferences->autoRecvPath = recvPathLabel->text();
+    }
+}
+
 void LogTab::getLogFilePath()
 {
     QFileDialog::Options options = QFileDialog::DontConfirmOverwrite;
@@ -344,6 +397,7 @@ DetailSetupDialog::DetailSetupDialog(QWidget *parent)
     logTab = new LogTab;
     otherTab = new OtherTab;
     transferTab = new TransferTab;
+    fileTab = new FileTab;
 
     tabWidget = new QTabWidget;
     tabWidget->setUsesScrollButtons(true);
@@ -351,6 +405,7 @@ DetailSetupDialog::DetailSetupDialog(QWidget *parent)
     tabWidget->addTab(logTab, tr("Log"));
     tabWidget->addTab(otherTab, tr("Other"));
     tabWidget->addTab(transferTab, tr("Transfer"));
+    tabWidget->addTab(fileTab, tr("File"));
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
             | QDialogButtonBox::Apply);
@@ -387,6 +442,7 @@ void DetailSetupDialog::apply()
     otherTab->save();
     logTab->save();
     transferTab->save();
+    fileTab->save();
 
     Global::preferences->save();
 }
@@ -436,11 +492,15 @@ void SetupWindow::createNicknameGroupBox()
 
     nickNameEdit = new QLineEdit();
     nickNameEdit->setText(Global::preferences->userName);
+    personSignEdit = new QLineEdit();
+    personSignEdit->setPlaceholderText(tr("Personal signature"));
+    personSignEdit->setText(Global::preferences->personSign);
 
-    QHBoxLayout *hbox = new QHBoxLayout();
-    hbox->addWidget(nickNameEdit);
+    QVBoxLayout *vbox = new QVBoxLayout();
+    vbox->addWidget(nickNameEdit);
+    vbox->addWidget(personSignEdit);
 
-    nicknameGroupBox->setLayout(hbox);
+    nicknameGroupBox->setLayout(vbox);
 }
 
 void SetupWindow::createGroupNameGroupBox()
@@ -625,6 +685,7 @@ void SetupWindow::savePreferences()
 void SetupWindow::applyPreferences()
 {
     Global::preferences->userName = nickNameEdit->text();
+    Global::preferences->personSign = personSignEdit->text();
 
     if (!groupNameComboBox->currentText().isEmpty() &&
         groupNameComboBox->findText(groupNameComboBox->currentText())

@@ -60,6 +60,10 @@ private:
                      struct TransferFile &transferFile);
     void setLastModified(QString path, QString secondString);
     void setLastModified(RecvFileHandle h);
+    void applyResumeIfNeeded(RecvFileHandle h);
+    void persistResume(RecvFileHandle h);
+    void clearResume(RecvFileHandle h);
+    QString resumeKey(RecvFileHandle h) const;
 
     QMutex m_lock;
     QWaitCondition m_cond;

@@ -19,6 +19,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextStream>
@@ -77,6 +78,7 @@ bool MessageStore::append(const ChatRecord &record)
     obj.insert("t", record.timestamp.toString(Qt::ISODate));
     obj.insert("d", record.direction);
     obj.insert("n", record.peerName);
+    obj.insert("ip", record.peerIp);
     obj.insert("x", record.text);
 
     QTextStream ts(&file);
@@ -116,7 +118,10 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
         if (!record.timestamp.isValid()) {
             record.timestamp = QDateTime::currentDateTime();
         }
-        record.peerIp = peerIp;
+        record.peerIp = obj.value("ip").toString();
+        if (record.peerIp.isEmpty()) {
+            record.peerIp = peerIp;
+        }
         record.peerName = obj.value("n").toString();
         record.direction = obj.value("d").toString();
         record.text = obj.value("x").toString();
@@ -128,4 +133,64 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
     }
 
     return records;
+}
+
+QList<ChatRecord> MessageStore::search(const QString &needle, int limit) const
+{
+    QList<ChatRecord> matches;
+    if (needle.trimmed().isEmpty()) {
+        return matches;
+    }
+
+    QMutexLocker locker(&m_lock);
+    const QDir dir(historyDir());
+    const QFileInfoList files = dir.entryInfoList(QStringList() << "*.jsonl",
+                                                  QDir::Files, QDir::Name);
+    foreach (const QFileInfo &info, files) {
+        QFile file(info.absoluteFilePath());
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            continue;
+        }
+        const QString stem = info.completeBaseName();
+        QTextStream ts(&file);
+        while (!ts.atEnd()) {
+            const QString line = ts.readLine().trimmed();
+            if (line.isEmpty()) {
+                continue;
+            }
+            QJsonParseError error;
+            const QJsonDocument doc = QJsonDocument::fromJson(line.toUtf8(),
+                                                              &error);
+            if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+                continue;
+            }
+            const QJsonObject obj = doc.object();
+            const QString text = obj.value("x").toString();
+            const QString name = obj.value("n").toString();
+            QString ip = obj.value("ip").toString();
+            if (ip.isEmpty()) {
+                ip = stem;
+            }
+            if (!text.contains(needle, Qt::CaseInsensitive)
+                    && !name.contains(needle, Qt::CaseInsensitive)
+                    && !ip.contains(needle, Qt::CaseInsensitive)) {
+                continue;
+            }
+            ChatRecord record;
+            record.timestamp = QDateTime::fromString(obj.value("t").toString(),
+                                                     Qt::ISODate);
+            if (!record.timestamp.isValid()) {
+                record.timestamp = QDateTime::currentDateTime();
+            }
+            record.peerIp = ip;
+            record.peerName = name.isEmpty() ? ip : name;
+            record.direction = obj.value("d").toString();
+            record.text = text;
+            matches.append(record);
+            if (limit > 0 && matches.size() >= limit) {
+                return matches;
+            }
+        }
+    }
+    return matches;
 }

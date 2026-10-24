@@ -22,6 +22,8 @@
 #include <QFontMetrics>
 #include <QDateTime>
 
+class QWidget;
+
 class Helper {
 public:
     static void setAppPath(QString path);
@@ -58,6 +60,13 @@ public:
     static QString fileCountString(int fileCount);
     static QString sizeStringUnit(double size = 0.0, QString sep = "");
     static QString secondStringUnit(int second);
+
+    static QString defaultRecvPath();
+    static QString screenshotDir();
+    static QString uniqueFileName(const QString &dir, const QString &name);
+    static QString shakeToken();
+    static bool isShakeText(const QString &text);
+    static void shakeWidget(QWidget *widget);
 
 private:
     static void openInternalLogFile();

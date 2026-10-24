@@ -34,6 +34,7 @@ class WindowManager;
 class QIcon;
 class FileServer;
 class MessageStore;
+class ResumeStore;
 
 namespace Global
 {
@@ -46,6 +47,7 @@ namespace Global
     extern Preferences *preferences;
     extern TransferCodec *transferCodec;
     extern MessageStore *messageStore;
+    extern ResumeStore *resumeStore;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

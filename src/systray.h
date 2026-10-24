@@ -58,6 +58,7 @@ private slots:
     void about();
     void quit();
     void readLog();
+    void findInHistory();
     void setAllWindowVisible();
     void showTransferFile();
 
@@ -79,6 +80,7 @@ private:
     QAction *aboutAction;
     QAction *aboutQtAction;
     QAction *readMsgLogAction;
+    QAction *findHistoryAction;
     QMenu *leaveMenu;
     QAction *quitAction;
 

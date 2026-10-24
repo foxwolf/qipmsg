@@ -116,6 +116,26 @@ private:
     QLabel *codecLabel;
 };
 
+class FileTab : public QWidget
+{
+    Q_OBJECT
+
+public:
+    FileTab(QWidget *parent = 0);
+
+    void save();
+
+private slots:
+    void getRecvPath();
+
+private:
+    QCheckBox *resumeCheckBox;
+    QCheckBox *autoRecvCheckBox;
+    QCheckBox *autoRenameCheckBox;
+    QPushButton *recvPathButton;
+    QLabel *recvPathLabel;
+};
+
 class DetailSetupDialog : public QDialog
 {
     Q_OBJECT
@@ -136,6 +156,7 @@ private:
     LogTab *logTab;
     OtherTab *otherTab;
     TransferTab *transferTab;
+    FileTab *fileTab;
 
     QTabWidget *tabWidget;
     QDialogButtonBox *buttonBox;
@@ -182,6 +203,7 @@ private:
     QHBoxLayout *buttonsLayout;
 
     QLineEdit *nickNameEdit;
+    QLineEdit *personSignEdit;
     QComboBox *groupNameComboBox;
 
     QCheckBox *readCheck;

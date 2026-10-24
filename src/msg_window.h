@@ -67,6 +67,7 @@ private slots:
     void runRecvFileThread();
     void updateTransferStatsInfo();
     void retryRecvFile();
+    void maybeAutoAcceptFiles();
 
 protected:
     void closeEvent(QCloseEvent *event);

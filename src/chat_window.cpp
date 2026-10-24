@@ -18,30 +18,46 @@
 #include "constants.h"
 #include "global.h"
 #include "helper.h"
+#include "history_search_window.h"
 #include "ipmsg.h"
 #include "message_store.h"
 #include "msg.h"
 #include "msg_thread.h"
 #include "preferences.h"
+#include "screen_capture.h"
+#include "send_file_manager.h"
+#include "send_file_map.h"
+#include "send_file_window.h"
 #include "send_msg.h"
 #include "user_manager.h"
 #include "window_manager.h"
 
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QList>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
+#include <QHostAddress>
 #include <QKeySequence>
 #include <QLabel>
+#include <QMenu>
+#include <QMessageBox>
+#include <QMimeData>
 #include <QPushButton>
 #include <QShortcut>
 #include <QShowEvent>
 #include <QTextCursor>
 #include <QTextEdit>
+#include <QUrl>
 #include <QVBoxLayout>
 
 ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
     : QWidget(parent), m_peerIp(ip), m_historyLoaded(false)
 {
+    setAcceptDrops(true);
     createUi();
     refreshPeerCaption();
     setWindowIcon(*Global::iconSet.value("normal"));
@@ -49,13 +65,44 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
 
 QSize ChatWindow::sizeHint() const
 {
-    return QSize(480, 420);
+    return QSize(520, 480);
 }
 
 void ChatWindow::createUi()
 {
     m_peerLabel = new QLabel;
     m_peerLabel->setWordWrap(true);
+
+    m_shakeButton = new QPushButton(tr("Shake"));
+    connect(m_shakeButton, SIGNAL(clicked()), this, SLOT(sendShake()));
+
+    m_shotButton = new QPushButton(tr("Screenshot"));
+    QMenu *shotMenu = new QMenu(m_shotButton);
+    shotMenu->addAction(tr("Full screen"), this, SLOT(captureFullScreen()));
+    shotMenu->addAction(tr("Region"), this, SLOT(captureRegion()));
+    m_shotButton->setMenu(shotMenu);
+
+    m_attachButton = new QPushButton(tr("Attach"));
+    QMenu *attachMenu = new QMenu(m_attachButton);
+    attachMenu->addAction(tr("Files..."), this, SLOT(addSendFile()));
+    attachMenu->addAction(tr("Folder..."), this, SLOT(addSendDir()));
+    m_attachButton->setMenu(attachMenu);
+
+    m_findButton = new QPushButton(tr("Find"));
+    connect(m_findButton, SIGNAL(clicked()), this, SLOT(findInHistory()));
+
+    m_fileListButton = new QPushButton;
+    m_fileListButton->hide();
+    connect(m_fileListButton, SIGNAL(clicked()),
+            this, SLOT(showSendFileList()));
+
+    QHBoxLayout *toolLayout = new QHBoxLayout;
+    toolLayout->addWidget(m_shakeButton);
+    toolLayout->addWidget(m_shotButton);
+    toolLayout->addWidget(m_attachButton);
+    toolLayout->addWidget(m_findButton);
+    toolLayout->addWidget(m_fileListButton, 1);
+    toolLayout->addStretch();
 
     m_historyEdit = new QTextEdit;
     m_historyEdit->setReadOnly(true);
@@ -66,6 +113,7 @@ void ChatWindow::createUi()
     m_inputEdit->setAcceptRichText(false);
     m_inputEdit->setTabChangesFocus(true);
     m_inputEdit->setMaximumHeight(120);
+    m_inputEdit->setAcceptDrops(false);
 
     m_sendButton = new QPushButton(tr("&Send"));
     connect(m_sendButton, SIGNAL(clicked()),
@@ -76,6 +124,15 @@ void ChatWindow::createUi()
     connect(new QShortcut(QKeySequence("Ctrl+Enter"), this),
             SIGNAL(activated()),
             this, SLOT(sendMessage()));
+    connect(new QShortcut(QKeySequence("Ctrl+Shift+S"), this),
+            SIGNAL(activated()),
+            this, SLOT(captureFullScreen()));
+    connect(new QShortcut(QKeySequence("Ctrl+Shift+A"), this),
+            SIGNAL(activated()),
+            this, SLOT(captureRegion()));
+    connect(new QShortcut(QKeySequence("Ctrl+F"), this),
+            SIGNAL(activated()),
+            this, SLOT(findInHistory()));
 
     QHBoxLayout *buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
@@ -83,6 +140,7 @@ void ChatWindow::createUi()
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(m_peerLabel);
+    mainLayout->addLayout(toolLayout);
     mainLayout->addWidget(m_historyEdit, 3);
     mainLayout->addWidget(m_inputEdit, 1);
     mainLayout->addLayout(buttonLayout);
@@ -95,7 +153,8 @@ void ChatWindow::refreshPeerCaption()
 {
     const QString caption = Global::userManager->peerCaption(m_peerIp);
     m_peerLabel->setText(caption);
-    setWindowTitle(tr("Chat - %1").arg(caption));
+    setWindowTitle(tr("Chat - %1").arg(
+                       Global::userManager->displayNameForIp(m_peerIp)));
 }
 
 void ChatWindow::loadHistory()
@@ -149,30 +208,216 @@ QString ChatWindow::localName() const
     return Global::userManager->ourself().name();
 }
 
+bool ChatWindow::hasSendFile() const
+{
+    return m_sendFileModel.rowCount() > 0;
+}
+
 void ChatWindow::sendMessage()
 {
     const QString text = m_inputEdit->toPlainText();
-    if (text.trimmed().isEmpty()) {
+    if (text.trimmed().isEmpty() && !hasSendFile()) {
         return;
     }
 
+    sendPayload(text, m_sendFileModel.pathList());
+    m_inputEdit->clear();
+    clearSendFiles();
+    m_inputEdit->setFocus();
+}
+
+void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
+{
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     QString additionalInfo = text;
+    additionalInfo.append(QChar('\0'));
+
+    SendFileMap *sendFileMap = 0;
+    if (!pathList.isEmpty()) {
+        sendFileMap = new SendFileMap;
+        flags |= IPMSG_FILEATTACHOPT;
+        sendFileMap->addFile(pathList);
+        additionalInfo.append(sendFileMap->packetString());
+        additionalInfo.append(QChar('\0'));
+    }
+
+    SendMsg sendMsg(QHostAddress(m_peerIp), IPMSG_DEFAULT_PORT,
+                    additionalInfo, ""/* extendedInfo */, flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+
+    if (sendFileMap) {
+        const int row = Global::userManager->ipToRow(m_peerIp);
+        sendFileMap->setRecvUser(Global::userManager->displayNameForIp(m_peerIp));
+        sendFileMap->setRecvHostname(
+                    row != -1 ? Global::userManager->host(row) : QString());
+        sendFileMap->setPacketNoString(sendMsg.packetNoString());
+        Global::sendFileManager
+                ->addTransferLocked(sendFileMap->packetNoString(), sendFileMap);
+    }
+
+    QString recorded = text;
+    if (!pathList.isEmpty()) {
+        if (!recorded.isEmpty()) {
+            recorded.append('\n');
+        }
+        recorded.append(tr("[File attachment] %1")
+                        .arg(pathList.size() == 1
+                             ? QFileInfo(pathList.first()).fileName()
+                             : Global::fileCountString(pathList.size())));
+    }
+
+    if (Global::preferences->isLogMsg && !recorded.isEmpty()) {
+        logOutgoing(recorded);
+    }
+
+    if (!recorded.isEmpty()) {
+        Global::windowManager->recordOutgoing(m_peerIp,
+                Global::userManager->displayNameForIp(m_peerIp), recorded);
+    }
+}
+
+void ChatWindow::sendShake()
+{
+    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
 
     SendMsg sendMsg(QHostAddress(m_peerIp), IPMSG_DEFAULT_PORT,
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
 
-    if (Global::preferences->isLogMsg) {
-        logOutgoing(text);
-    }
-
     Global::windowManager->recordOutgoing(m_peerIp,
-            Global::userManager->displayNameForIp(m_peerIp), text);
+            Global::userManager->displayNameForIp(m_peerIp),
+            tr("[Window shake]"));
+    shakeWindow();
+}
 
-    m_inputEdit->clear();
-    m_inputEdit->setFocus();
+void ChatWindow::shakeWindow()
+{
+    Helper::shakeWidget(this);
+}
+
+void ChatWindow::captureFullScreen()
+{
+    sendScreenshot(ScreenCapture::capturePrimaryScreen(), "screen");
+}
+
+void ChatWindow::captureRegion()
+{
+    sendScreenshot(ScreenCapture::captureRegion(), "region");
+}
+
+void ChatWindow::sendScreenshot(const QPixmap &pixmap, const QString &prefix)
+{
+    if (pixmap.isNull()) {
+        QMessageBox::information(this, tr("Screenshot"),
+                tr("Could not capture the screen."));
+        return;
+    }
+    const QString path = ScreenCapture::savePixmap(pixmap, prefix);
+    if (path.isEmpty()) {
+        QMessageBox::information(this, tr("Screenshot"),
+                tr("Could not save the screenshot."));
+        return;
+    }
+    sendPayload(tr("[Screenshot] %1").arg(QFileInfo(path).fileName()),
+                QStringList() << path);
+}
+
+void ChatWindow::addSendFile()
+{
+    const QStringList pathList = QFileDialog::getOpenFileNames(
+                this, tr("Select files to send"),
+                Global::preferences->lastSendFilePath);
+    if (pathList.isEmpty()) {
+        return;
+    }
+    m_sendFileModel.addFile(pathList);
+    Global::preferences->lastSendFilePath = pathList.at(0);
+    updateFileCount();
+}
+
+void ChatWindow::addSendDir()
+{
+    const QString path = QFileDialog::getExistingDirectory(
+                this, tr("Select folder to send"),
+                Global::preferences->lastSendDirPath);
+    if (path.isEmpty()) {
+        return;
+    }
+    m_sendFileModel.addFile(path);
+    Global::preferences->lastSendDirPath = path;
+    updateFileCount();
+}
+
+void ChatWindow::showSendFileList()
+{
+    SendFileWindow *sendFileWindow = new SendFileWindow(&m_sendFileModel, this);
+    connect(sendFileWindow, SIGNAL(addFileFinished()),
+            this, SLOT(updateFileCount()));
+    sendFileWindow->setWindowFlags(Qt::Dialog);
+    sendFileWindow->setWindowModality(Qt::WindowModal);
+    sendFileWindow->show();
+}
+
+void ChatWindow::updateFileCount()
+{
+    if (!hasSendFile()) {
+        m_fileListButton->hide();
+        return;
+    }
+    m_fileListButton->setText(tr("Show send file list (%1)")
+                              .arg(Global::fileCountString(
+                                       m_sendFileModel.rowCount())));
+    m_fileListButton->show();
+}
+
+void ChatWindow::clearSendFiles()
+{
+    QList<int> rows;
+    for (int i = 0; i < m_sendFileModel.rowCount(); ++i) {
+        rows << i;
+    }
+    if (!rows.isEmpty()) {
+        m_sendFileModel.removeRows(rows);
+    }
+    updateFileCount();
+}
+
+void ChatWindow::findInHistory()
+{
+    HistorySearchWindow *window = new HistorySearchWindow;
+    window->show();
+    window->raise();
+    window->activateWindow();
+}
+
+void ChatWindow::addDroppedUrls(const QList<QUrl> &urls)
+{
+    foreach (const QUrl &url, urls) {
+        if (url.scheme() == "file") {
+            const QString filePath = url.toLocalFile();
+            if (!filePath.isEmpty()) {
+                m_sendFileModel.addFile(filePath);
+            }
+        }
+    }
+    updateFileCount();
+}
+
+void ChatWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+    }
+}
+
+void ChatWindow::dropEvent(QDropEvent *event)
+{
+    if (event->mimeData()->hasUrls()) {
+        addDroppedUrls(event->mimeData()->urls());
+        event->acceptProposedAction();
+    }
 }
 
 void ChatWindow::logOutgoing(const QString &text)

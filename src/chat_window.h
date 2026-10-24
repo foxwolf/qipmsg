@@ -18,11 +18,16 @@
 #define CHAT_WINDOW_H
 
 #include <QDateTime>
+#include <QList>
+#include <QUrl>
 #include <QWidget>
+
+#include "send_file_model.h"
 
 class QLabel;
 class QPushButton;
 class QTextEdit;
+class QPixmap;
 
 class ChatWindow : public QWidget
 {
@@ -38,6 +43,7 @@ public:
     void loadHistory();
     void setDraft(const QString &text);
     void refreshPeerCaption();
+    void shakeWindow();
 
     virtual QSize sizeHint() const;
 
@@ -47,20 +53,41 @@ signals:
 protected:
     void closeEvent(QCloseEvent *event);
     void showEvent(QShowEvent *event);
+    void dragEnterEvent(QDragEnterEvent *event);
+    void dropEvent(QDropEvent *event);
 
 private slots:
     void sendMessage();
+    void sendShake();
+    void captureFullScreen();
+    void captureRegion();
+    void addSendFile();
+    void addSendDir();
+    void showSendFileList();
+    void updateFileCount();
+    void findInHistory();
 
 private:
     void createUi();
     QString localName() const;
     void logOutgoing(const QString &text);
+    bool hasSendFile() const;
+    void sendPayload(const QString &text, const QStringList &pathList);
+    void sendScreenshot(const QPixmap &pixmap, const QString &prefix);
+    void addDroppedUrls(const QList<QUrl> &urls);
+    void clearSendFiles();
 
     QString m_peerIp;
     QLabel *m_peerLabel;
     QTextEdit *m_historyEdit;
     QTextEdit *m_inputEdit;
     QPushButton *m_sendButton;
+    QPushButton *m_fileListButton;
+    QPushButton *m_shakeButton;
+    QPushButton *m_shotButton;
+    QPushButton *m_attachButton;
+    QPushButton *m_findButton;
+    SendFileModel m_sendFileModel;
     bool m_historyLoaded;
 };
 

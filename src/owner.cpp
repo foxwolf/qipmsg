@@ -66,9 +66,13 @@ void Owner::initOwner(QString &packet)
     m_loginName = list.at(MSG_LOG_NAME_POS);
 
     quint32 flag = list.at(MSG_FLAGS_POS).toUInt();
-    if (flag & IPMSG_BR_ENTRY || flag & IPMSG_BR_ABSENCE) {
-        m_group = packet.section(QChar(EXTEND_INFO_SEPERATOR), 1, 1);
-        m_name = parseAdditionalInfo(packet);
+    const quint32 mode = GET_MODE(flag);
+    if (mode == IPMSG_BR_ENTRY || mode == IPMSG_ANSENTRY
+            || mode == IPMSG_BR_ABSENCE) {
+        QString additional = parseAdditionalInfo(packet);
+        m_name = additional.section(QChar(EXTEND_INFO_SEPERATOR), 0, 0);
+        m_group = additional.section(QChar(EXTEND_INFO_SEPERATOR), 1, 1);
+        m_signature = additional.section(QChar(EXTEND_INFO_SEPERATOR), 2, 2);
         if (m_name.isEmpty()) {
             m_name = m_loginName;
         }
@@ -96,8 +100,6 @@ QString Owner::parseAdditionalInfo(QString &packet)
         index = id + 1;
     }
 
-    QString s = packet.right(packet.size() - index);
-
-    return s.section(QChar(EXTEND_INFO_SEPERATOR), 0, 0);
+    return packet.right(packet.size() - index);
 }
 

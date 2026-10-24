@@ -90,6 +90,13 @@ void Preferences::reset()
     isNoPopupWhenAway = true;
 
     isTrayNotify = true;
+
+    isResumeTransFile = true;
+    isAutoRecvFile = false;
+    isAutoRecvRename = true;
+    autoRecvPath = Helper::defaultRecvPath();
+
+    personSign = "";
 }
 
 void Preferences::load()
@@ -189,6 +196,19 @@ void Preferences::load()
                                    isNoPopupWhenAway).toBool();
     set->endGroup();
 
+    set->beginGroup("FileRecv");
+    isResumeTransFile = set->value("isResumeTransFile",
+                                   isResumeTransFile).toBool();
+    isAutoRecvFile = set->value("isAutoRecvFile", isAutoRecvFile).toBool();
+    isAutoRecvRename = set->value("isAutoRecvRename",
+                                  isAutoRecvRename).toBool();
+    autoRecvPath = set->value("autoRecvPath", autoRecvPath).toString();
+    set->endGroup();
+
+    set->beginGroup("Profile");
+    personSign = set->value("personSign", personSign).toString();
+    set->endGroup();
+
 }
 
 void Preferences::save()
@@ -264,6 +284,17 @@ void Preferences::save()
     set->setValue("autoReplyText", autoReplyText);
     set->setValue("autoReplyCooldownSecs", autoReplyCooldownSecs);
     set->setValue("isNoPopupWhenAway", isNoPopupWhenAway);
+    set->endGroup();
+
+    set->beginGroup("FileRecv");
+    set->setValue("isResumeTransFile", isResumeTransFile);
+    set->setValue("isAutoRecvFile", isAutoRecvFile);
+    set->setValue("isAutoRecvRename", isAutoRecvRename);
+    set->setValue("autoRecvPath", autoRecvPath);
+    set->endGroup();
+
+    set->beginGroup("Profile");
+    set->setValue("personSign", personSign);
     set->endGroup();
 }
 

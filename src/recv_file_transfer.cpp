@@ -22,8 +22,11 @@
 #include "global.h"
 #include "user_manager.h"
 #include "transfer_codec.h"
+#include "preferences.h"
+#include "resume_store.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
 #include <QTextCodec>
 
@@ -65,6 +68,7 @@ void RecvFileTransfer::startTransfer()
         }
 
         if (h->type() == IPMSG_FILE_REGULAR) {
+            applyResumeIfNeeded(h);
             if (!recvFileRegular(h)) {
                 goto transfer_fail;
             }
@@ -104,7 +108,8 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
         return false;
     }
 
-    QFile file(m_recvFileMap->saveFilePath() + "/" + h->name());
+    m_recvFileMap->setCurrentChildName(h->saveName());
+    QFile file(m_recvFileMap->saveFilePath() + "/" + h->saveName());
     QFlags<QIODevice::OpenModeFlag> flags;
     if (m_recvFileMap->state() == RecvFileMap::Retry) {
         flags = QIODevice::WriteOnly | QIODevice::Append;
@@ -117,12 +122,14 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     }
 
     qint64 bytesReaded = 0;
+    const qint64 startOffset = h->offset();
     qint64 bytesToRead;
     if (m_recvFileMap->state() == RecvFileMap::Retry) {
-        bytesToRead = h->size() - h->offset();
+        bytesToRead = h->size() - startOffset;
     } else {
         bytesToRead = h->size();
     }
+    qint64 lastPersist = 0;
     while (bytesReaded < bytesToRead) {
         if (!m_tcpSocket.waitForReadyRead(3000)) {
             m_errorString = m_tcpSocket.errorString();
@@ -137,8 +144,12 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
         }
 
         // we need this because QTcpSocket error signal may happend any time
-        h->setBytesReaded(bytesReaded);
-        h->addOffset(bytesAvailable);
+        h->setOffset(startOffset + bytesReaded);
+        h->setBytesReaded(startOffset + bytesReaded);
+        if (bytesReaded - lastPersist >= 256 * 1024) {
+            persistResume(h);
+            lastPersist = bytesReaded;
+        }
 
         if (isStopTransfer) {
             m_lock.lock();
@@ -155,6 +166,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     // set modify time
     setLastModified(h);
     h->setState(RecvFile::RecvOk);
+    clearResume(h);
     m_recvFileMap->addBytesReaded(bytesReaded);
 
     h->incrRegularFileCount();
@@ -166,6 +178,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
 recv_file_error:
     file.close();
     h->setState(RecvFile::RecvFail);
+    persistResume(h);
     m_recvFileMap->addBytesReaded(bytesReaded);
 
     return false;
@@ -188,7 +201,7 @@ void RecvFileTransfer::setLastModified(QString path, QString secondString)
 
 void RecvFileTransfer::setLastModified(RecvFileHandle h)
 {
-    QString path = m_recvFileMap->saveFilePath() + "/" + h->name();
+    QString path = m_recvFileMap->saveFilePath() + "/" + h->saveName();
     QString s = h->attrMap().value(IPMSG_FILE_MTIME);
     if (!s.isEmpty()) {
         bool ok;
@@ -268,6 +281,7 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
 
             if (transferFile.type == IPMSG_FILE_REGULAR) {
                 bytesToWrite = transferFile.size;
+                m_recvFileMap->setCurrentChildName(transferFile.name);
                 file.setFileName(dir.absolutePath() + "/" + transferFile.name);
                 if (!file.open(QIODevice::WriteOnly)) {
                     m_errorString = "RecvFileTransfer::recvFileDir:"
@@ -452,6 +466,77 @@ QByteArray RecvFileTransfer::constructRecvFileDatagram(RecvFileHandle h)
     }
 
     return Global::transferCodec->encode(s);
+}
+
+QString RecvFileTransfer::resumeKey(RecvFileHandle h) const
+{
+    return ResumeStore::makeKey(h->ip(), h->packetNoString(), h->fileId(),
+                                h->name(), h->size());
+}
+
+void RecvFileTransfer::applyResumeIfNeeded(RecvFileHandle h)
+{
+    if (!Global::preferences->isResumeTransFile || !Global::resumeStore) {
+        return;
+    }
+    if (h->type() != IPMSG_FILE_REGULAR) {
+        return;
+    }
+
+    const QString key = resumeKey(h);
+    const ResumeRecord record = Global::resumeStore->lookup(key);
+    const QString dir = m_recvFileMap->saveFilePath();
+    QString localName = h->saveName();
+    QFileInfo info(dir + "/" + localName);
+    qint64 existing = info.exists() ? info.size() : 0;
+
+    if (record.offset > 0 && existing > 0 && existing < h->size()) {
+        h->setOffset(existing);
+        h->setBytesReaded(existing);
+        m_recvFileMap->setState(RecvFileMap::Retry);
+        return;
+    }
+
+    if (existing > 0 && existing < h->size()
+            && Global::preferences->isResumeTransFile) {
+        h->setOffset(existing);
+        h->setBytesReaded(existing);
+        m_recvFileMap->setState(RecvFileMap::Retry);
+        return;
+    }
+
+    if (existing > 0 && Global::preferences->isAutoRecvRename) {
+        localName = Helper::uniqueFileName(dir, h->name());
+        h->setSaveName(localName);
+        h->setOffset(0);
+    }
+}
+
+void RecvFileTransfer::persistResume(RecvFileHandle h)
+{
+    if (!Global::preferences->isResumeTransFile || !Global::resumeStore) {
+        return;
+    }
+    if (h->type() != IPMSG_FILE_REGULAR || h->offset() <= 0) {
+        return;
+    }
+    ResumeRecord record;
+    record.key = resumeKey(h);
+    record.ip = h->ip();
+    record.packetNo = h->packetNoString();
+    record.fileId = h->fileId();
+    record.name = h->name();
+    record.size = h->size();
+    record.offset = h->offset();
+    record.saveDir = m_recvFileMap->saveFilePath();
+    Global::resumeStore->save(record);
+}
+
+void RecvFileTransfer::clearResume(RecvFileHandle h)
+{
+    if (Global::resumeStore) {
+        Global::resumeStore->remove(resumeKey(h));
+    }
 }
 
 void RecvFileTransfer::stopTransfer()

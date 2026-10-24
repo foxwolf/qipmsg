@@ -42,6 +42,7 @@ public:
     bool append(const ChatRecord &record);
     QList<ChatRecord> loadHistory(const QString &peerIp,
                                   int limit = CHAT_HISTORY_LOAD_LIMIT) const;
+    QList<ChatRecord> search(const QString &needle, int limit) const;
     QString historyDir() const;
 
 private:

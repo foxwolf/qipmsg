@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.1.0 LANGUAGES CXX)
+project(qipmsg VERSION 2.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,6 +24,7 @@ set(SOURCES
     src/file_server.cpp
     src/global.cpp
     src/helper.cpp
+    src/history_search_window.cpp
     src/lockfile.cpp
     src/main.cpp
     src/main_window.cpp
@@ -45,9 +46,11 @@ set(SOURCES
     src/recv_file_thread.cpp
     src/recv_file_transfer.cpp
     src/recv_file_window.cpp
+    src/resume_store.cpp
     src/recvfilesortfilterproxymodel.cpp
     src/recv_msg.cpp
     src/retry_recv_file_dialog.cpp
+    src/screen_capture.cpp
     src/search_user_dialog.cpp
     src/send_file.cpp
     src/send_file_handle.cpp
@@ -78,6 +81,7 @@ set(HEADERS
     src/file_server.h
     src/global.h
     src/helper.h
+    src/history_search_window.h
     src/ipmsg.h
     src/lockfile.h
     src/main_window.h
@@ -100,6 +104,8 @@ set(HEADERS
     src/recv_file_transfer.h
     src/recv_file_window.h
     src/recvfilesortfilterproxymodel.h
+    src/resume_store.h
+    src/screen_capture.h
     src/recv_msg.h
     src/retry_recv_file_dialog.h
     src/search_user_dialog.h

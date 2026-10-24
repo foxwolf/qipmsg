@@ -23,6 +23,7 @@
 #include "user_manager.h"
 #include "helper.h"
 #include "about_dialog.h"
+#include "history_search_window.h"
 #include "transfer_file_window.h"
 #include "constants.h"
 
@@ -132,6 +133,7 @@ void Systray::createActions()
     aboutAction = new QAction(tr("About..."), 0);
     aboutQtAction = new QAction(tr("About Qt"), 0);
     readMsgLogAction = new QAction(tr("Read message log file"), 0);
+    findHistoryAction = new QAction(tr("Find in history..."), 0);
     quitAction = new QAction(tr("Quit IP Messenger"), 0);
 }
 
@@ -149,6 +151,7 @@ void Systray::createMenus()
     trayIconMenu->addAction(setupAction);
     trayIconMenu->addAction(aboutAction);
     trayIconMenu->addAction(readMsgLogAction);
+    trayIconMenu->addAction(findHistoryAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
@@ -195,6 +198,8 @@ void Systray::createConnections()
             this, SLOT(setAllWindowVisible()));
     connect(readMsgLogAction, SIGNAL(triggered()),
             this, SLOT(readLog()));
+    connect(findHistoryAction, SIGNAL(triggered()),
+            this, SLOT(findInHistory()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
@@ -268,6 +273,14 @@ void Systray::destroyMainWindowList()
 }
 
 // XXX NOTE: We do not use external editor.
+void Systray::findInHistory()
+{
+    HistorySearchWindow *window = new HistorySearchWindow;
+    window->show();
+    window->raise();
+    window->activateWindow();
+}
+
 void Systray::readLog()
 {
     if (Global::preferences->logFilePath.isEmpty()) {

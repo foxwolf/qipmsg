@@ -25,6 +25,10 @@
 
 #include <QColor>
 #include <QDateTime>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardItemModel>
 #include <QStringList>
 #include <QTimer>
@@ -32,15 +36,26 @@
 Owner UserManager::m_ourself;
 
 UserManager::UserManager(QObject *parent)
-    : QObject(parent), m_refreshTimer(0)
+    : QObject(parent), m_refreshTimer(0), m_saveTimer(0)
 {
     updateOurself();
     createModel();
+    loadPersistedPeers();
 
     m_refreshTimer = new QTimer(this);
     connect(m_refreshTimer, SIGNAL(timeout()),
             this, SLOT(autoRefreshPresence()));
     applyRefreshTimer();
+
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    connect(m_saveTimer, SIGNAL(timeout()),
+            this, SLOT(savePersistedPeers()));
+}
+
+UserManager::~UserManager()
+{
+    savePersistedPeers();
 }
 
 void UserManager::updateOurself()
@@ -55,6 +70,7 @@ void UserManager::updateOurself()
     m_ourself.setLoginName(Helper::loginName());
     m_ourself.setHost(Helper::hostname());
     m_ourself.setDisplayLevel(Global::preferences->displayLevel);
+    m_ourself.setSignature(Global::preferences->personSign);
 }
 
 void UserManager::createModel()
@@ -82,11 +98,13 @@ void UserManager::newUserMsg(Msg msg)
     if (contains(msg->ip())) {
         updateUser(msg->owner(), ipToRow(msg->ip()));
         touchUser(ipToRow(msg->ip()), absence);
+        scheduleSavePeers();
     } else {
         int row = m_model->rowCount();
         m_model->insertRow(row);
         addUser(msg->owner(), row);
         touchUser(row, absence);
+        scheduleSavePeers();
 
         emit userCountUpdated(m_model->rowCount());
     }
@@ -96,9 +114,8 @@ void UserManager::newExitMsg(Msg msg)
 {
     int row;
     if ((row = ipToRow(msg->ip())) != -1) {
-        m_model->removeRow(row);
-
-        emit userCountUpdated(m_model->rowCount());
+        setRowPresence(row, PRESENCE_STALE);
+        scheduleSavePeers();
     }
 }
 
@@ -116,6 +133,13 @@ void UserManager::updateUser(const Owner &owner, int row)
                        owner.loginName());
     m_model->setData(m_model->index(row, USER_VIEW_DISPLAY_LEVEL_COLUMN),
                        owner.displayLevel());
+    m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                     owner.signature(), Qt::UserRole + 2);
+    const QString tip = owner.signature().isEmpty()
+            ? owner.name()
+            : QString("%1\n%2").arg(owner.name(), owner.signature());
+    m_model->setData(m_model->index(row, USER_VIEW_NAME_COLUMN),
+                     tip, Qt::ToolTipRole);
 }
 
 void UserManager::addUser(const Owner &owner, int row)
@@ -183,10 +207,8 @@ void UserManager::sweepStaleUsers()
     const int interval = qMax(5, Global::preferences->autoRefreshSeconds);
     const int missed = qMax(1, Global::preferences->staleMissedRefreshCount);
     const qint64 staleMs = qint64(interval) * missed * 1000;
-    const qint64 removeMs = staleMs * 2;
     const QDateTime now = QDateTime::currentDateTime();
 
-    bool removed = false;
     for (int row = m_model->rowCount() - 1; row >= 0; --row) {
         QDateTime lastSeen = m_model->data(
                     m_model->index(row, USER_VIEW_IP_COLUMN),
@@ -198,10 +220,7 @@ void UserManager::sweepStaleUsers()
         }
 
         const qint64 age = lastSeen.msecsTo(now);
-        if (age >= removeMs) {
-            m_model->removeRow(row);
-            removed = true;
-        } else if (age >= staleMs) {
+        if (age >= staleMs) {
             const int presence = m_model->data(
                         m_model->index(row, USER_VIEW_IP_COLUMN),
                         Qt::UserRole + 1).toInt();
@@ -209,10 +228,6 @@ void UserManager::sweepStaleUsers()
                 setRowPresence(row, PRESENCE_STALE);
             }
         }
-    }
-
-    if (removed) {
-        emit userCountUpdated(m_model->rowCount());
     }
 }
 
@@ -238,9 +253,12 @@ void UserManager::broadcastExit() const
 
 QString UserManager::entryMessage() const
 {
-    return QString("%1%2%3%4").arg(m_ourself.name())
+    return QString("%1%2%3%4%5%6")
+        .arg(m_ourself.name())
         .arg(QChar('\0'))
         .arg(m_ourself.group())
+        .arg(QChar('\0'))
+        .arg(Global::preferences->personSign)
         .arg(QChar('\0'));
 }
 
@@ -361,5 +379,100 @@ QString UserManager::peerCaption(const QString &ip) const
     const QString extra = groupName.isEmpty()
             ? hostName
             : groupName + "/" + hostName;
-    return QString("%1 (%2) %3").arg(name(row), extra, ip);
+    QString caption = QString("%1 (%2) %3").arg(name(row), extra, ip);
+    const QString sign = signature(row);
+    if (!sign.isEmpty()) {
+        caption += "\n" + sign;
+    }
+    return caption;
+}
+
+QString UserManager::signature(int row) const
+{
+    return m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         Qt::UserRole + 2).toString();
+}
+
+QString UserManager::signatureForIp(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    return row == -1 ? QString() : signature(row);
+}
+
+QString UserManager::peersFilePath() const
+{
+    return Helper::appHomePath() + "/peers.json";
+}
+
+void UserManager::scheduleSavePeers()
+{
+    if (m_saveTimer) {
+        m_saveTimer->start(800);
+    }
+}
+
+void UserManager::loadPersistedPeers()
+{
+    QFile file(peersFilePath());
+    if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return;
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isArray()) {
+        return;
+    }
+
+    const QJsonArray array = doc.array();
+    for (int i = 0; i < array.size(); ++i) {
+        const QJsonObject obj = array.at(i).toObject();
+        const QString ip = obj.value("ip").toString();
+        if (ip.isEmpty() || contains(ip)) {
+            continue;
+        }
+        Owner owner;
+        owner.setIp(ip);
+        owner.setName(obj.value("name").toString());
+        owner.setGroup(obj.value("group").toString());
+        owner.setHost(obj.value("host").toString());
+        owner.setLoginName(obj.value("login").toString());
+        owner.setSignature(obj.value("sign").toString());
+        const int row = m_model->rowCount();
+        m_model->insertRow(row);
+        addUser(owner, row);
+        const QDateTime lastSeen = QDateTime::fromString(
+                    obj.value("lastSeen").toString(), Qt::ISODate);
+        m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         lastSeen.isValid() ? lastSeen
+                                            : QDateTime::currentDateTime(),
+                         Qt::UserRole);
+        setRowPresence(row, PRESENCE_STALE);
+    }
+
+    if (m_model->rowCount() > 0) {
+        emit userCountUpdated(m_model->rowCount());
+    }
+}
+
+void UserManager::savePersistedPeers()
+{
+    QJsonArray array;
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        QJsonObject obj;
+        obj.insert("ip", ip(row));
+        obj.insert("name", name(row));
+        obj.insert("group", group(row));
+        obj.insert("host", host(row));
+        obj.insert("login", loginName(row));
+        obj.insert("sign", signature(row));
+        obj.insert("lastSeen",
+                   m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                                 Qt::UserRole).toDateTime().toString(Qt::ISODate));
+        array.append(obj);
+    }
+
+    QFile file(peersFilePath());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        return;
+    }
+    file.write(QJsonDocument(array).toJson(QJsonDocument::Compact));
 }

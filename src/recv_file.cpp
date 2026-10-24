@@ -87,8 +87,8 @@ QString RecvFile::transferStatsInfo() const
         return (fileSizeString + " " + transferRateString
                 + " " + transferPercentString);
     } else if (m_type == IPMSG_FILE_DIR) {
-            return (QObject::tr("Total") + " "
-                    + Helper::sizeStringUnit((double)m_bytesReaded) + "/"
+            return (QObject::tr("Folder") + " "
+                    + Helper::sizeStringUnit((double)m_bytesReaded) + " / "
                     + Helper::fileCountString(m_regularFileCount) + " ("
                     + Helper::sizeStringUnit(transferRateAvg()) + "/s)");
     }

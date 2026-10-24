@@ -84,6 +84,13 @@ public:
     bool isNoPopupWhenAway;
 
     bool isTrayNotify;
+
+    bool isResumeTransFile;
+    bool isAutoRecvFile;
+    bool isAutoRecvRename;
+    QString autoRecvPath;
+
+    QString personSign;
 };
 
 #endif // !PREFERENCES_H

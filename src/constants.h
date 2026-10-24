@@ -79,6 +79,8 @@
 #define DEFAULT_AUTO_REPLY_COOLDOWN        60
 #define CHAT_HISTORY_LOAD_LIMIT            500
 #define TRAY_NOTIFY_MS                     4000
+#define SHAKE_TOKEN                        "#@#shake#@#"
+#define HISTORY_SEARCH_LIMIT               800
 
 #define TRANSFER_FILE_VIEW_NO_COLUMN       0
 #define TRANSFER_FILE_VIEW_FILE_COLUMN     1

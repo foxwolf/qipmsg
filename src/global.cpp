@@ -34,6 +34,7 @@
 #include "send_file_manager.h"
 #include "sound_thread.h"
 #include "message_store.h"
+#include "resume_store.h"
 
 SendFileManager *Global::sendFileManager = 0;
 QSettings *Global::settings = 0;
@@ -42,6 +43,7 @@ WindowManager *Global::windowManager = 0;
 Preferences *Global::preferences = 0;
 TransferCodec *Global::transferCodec = 0;
 MessageStore *Global::messageStore = 0;
+ResumeStore *Global::resumeStore = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -75,6 +77,7 @@ void Global::globalInit(QString path)
     transferCodec = new TransferCodec;
 
     messageStore = new MessageStore;
+    resumeStore = new ResumeStore;
 
     fileServer = new FileServer;
 
@@ -107,6 +110,7 @@ void Global::globalEnd()
     delete transferCodec;
 
     delete messageStore;
+    delete resumeStore;
 
     // We must delete settings after delete preferences, preferences need
     // to save settings when delete.

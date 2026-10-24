@@ -80,6 +80,7 @@ private slots:
     void showSearchDialog();
     void openSelectedChat();
     void onUserDoubleClicked(const QModelIndex &index);
+    void findInHistory();
 
 signals:
     void messageReplyed();
@@ -124,6 +125,7 @@ private:
     QAction *sendFileAct;
     QAction *sendDirAct;
     QAction *searchUserAct;
+    QAction *findHistoryAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;
