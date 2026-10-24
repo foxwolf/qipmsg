@@ -81,6 +81,8 @@
 #define TRAY_NOTIFY_MS                     4000
 #define SHAKE_TOKEN                        "#@#shake#@#"
 #define HISTORY_SEARCH_LIMIT               800
+#define CHAT_IMAGE_THUMB_WIDTH             240
+#define CHAT_IMAGE_THUMB_HEIGHT            180
 
 #define TRANSFER_FILE_VIEW_NO_COLUMN       0
 #define TRANSFER_FILE_VIEW_FILE_COLUMN     1

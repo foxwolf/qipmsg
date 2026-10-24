@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.4.0 LANGUAGES CXX)
+project(qipmsg VERSION 2.6.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ set(SOURCES
     src/chat_window.cpp
     src/contactDelegate.cpp
     src/dir_dialog.cpp
+    src/emoji_pack.cpp
     src/file_server.cpp
     src/global.cpp
     src/helper.cpp
@@ -80,6 +81,7 @@ set(HEADERS
     src/contactDelegate.h
     src/constants.h
     src/dir_dialog.h
+    src/emoji_pack.h
     src/file_server.h
     src/global.h
     src/helper.h

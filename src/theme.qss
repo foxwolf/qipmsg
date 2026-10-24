@@ -154,6 +154,16 @@ QToolTip {
     padding: 4px 8px;
 }
 
+#emojiMenu QToolButton {
+    font-size: 18px;
+    padding: 2px;
+    border-radius: 6px;
+}
+
+#emojiMenu QToolButton:hover {
+    background: #EEF2FF;
+}
+
 #historyView {
     background: #F5F7FA;
     border: none;

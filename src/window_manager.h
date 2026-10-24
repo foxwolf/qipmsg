@@ -21,6 +21,7 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QStringList>
 
 #include "owner.h"
 #include "msg.h"
@@ -45,9 +46,11 @@ public:
     ChatWindow *openChat(const QString &ip, bool raiseWindow = true,
                          const QString &draft = QString());
     void recordOutgoing(const QString &ip, const QString &peerName,
-                        const QString &text);
+                        const QString &text,
+                        const QStringList &imagePaths = QStringList());
     void recordIncomingText(const QString &ip, const QString &peerName,
-                            const QString &text, bool notifyUser);
+                            const QString &text, bool notifyUser,
+                            const QStringList &imagePaths = QStringList());
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);

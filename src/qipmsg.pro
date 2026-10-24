@@ -24,6 +24,7 @@ HEADERS += \
 	main_window.h \
         chat_window.h \
         contactDelegate.h \
+        emoji_pack.h \
         message_store.h \
         history_search_window.h \
         resume_store.h \
@@ -80,6 +81,7 @@ SOURCES += \
 	main_window.cpp \
         chat_window.cpp \
         contactDelegate.cpp \
+        emoji_pack.cpp \
         message_store.cpp \
         history_search_window.cpp \
         resume_store.cpp \

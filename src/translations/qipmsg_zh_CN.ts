@@ -98,6 +98,14 @@
         <translation>浏览共享</translation>
     </message>
     <message>
+        <source>Emoji</source>
+        <translation>表情</translation>
+    </message>
+    <message>
+        <source>Insert emoji</source>
+        <translation>插入表情</translation>
+    </message>
+    <message>
         <location filename="../chat_window.cpp" line="131"/>
         <location filename="../chat_window.cpp" line="132"/>
         <source>Window shake</source>
@@ -836,6 +844,109 @@ QIpMsg is distributed in the hope that it will be useful,You should have receive
         <location filename="../msg_window.cpp" line="578"/>
         <source>Stop transfer?</source>
         <translation>是否要终止传送？</translation>
+    </message>
+    <message>
+        <source>[Received image] %1</source>
+        <translation>[已接收图片] %1</translation>
+    </message>
+</context>
+<context>
+    <name>EmojiPack</name>
+    <message>
+        <source>Smile</source>
+        <translation>微笑</translation>
+    </message>
+    <message>
+        <source>Happy</source>
+        <translation>开心</translation>
+    </message>
+    <message>
+        <source>Grin</source>
+        <translation>偷笑</translation>
+    </message>
+    <message>
+        <source>Blush</source>
+        <translation>害羞</translation>
+    </message>
+    <message>
+        <source>Heart eyes</source>
+        <translation>色</translation>
+    </message>
+    <message>
+        <source>Smirk</source>
+        <translation>得意</translation>
+    </message>
+    <message>
+        <source>Tear</source>
+        <translation>流泪</translation>
+    </message>
+    <message>
+        <source>Sob</source>
+        <translation>大哭</translation>
+    </message>
+    <message>
+        <source>Sweat smile</source>
+        <translation>尴尬</translation>
+    </message>
+    <message>
+        <source>Angry</source>
+        <translation>发怒</translation>
+    </message>
+    <message>
+        <source>Wink</source>
+        <translation>调皮</translation>
+    </message>
+    <message>
+        <source>Surprised</source>
+        <translation>惊讶</translation>
+    </message>
+    <message>
+        <source>Sad</source>
+        <translation>难过</translation>
+    </message>
+    <message>
+        <source>Cool</source>
+        <translation>酷</translation>
+    </message>
+    <message>
+        <source>Cold sweat</source>
+        <translation>冷汗</translation>
+    </message>
+    <message>
+        <source>Tired</source>
+        <translation>抓狂</translation>
+    </message>
+    <message>
+        <source>Sleep</source>
+        <translation>睡</translation>
+    </message>
+    <message>
+        <source>Zipper</source>
+        <translation>闭嘴</translation>
+    </message>
+    <message>
+        <source>Thumbs up</source>
+        <translation>强</translation>
+    </message>
+    <message>
+        <source>Thumbs down</source>
+        <translation>弱</translation>
+    </message>
+    <message>
+        <source>Clap</source>
+        <translation>鼓掌</translation>
+    </message>
+    <message>
+        <source>Heart</source>
+        <translation>爱心</translation>
+    </message>
+    <message>
+        <source>Rose</source>
+        <translation>玫瑰</translation>
+    </message>
+    <message>
+        <source>Party</source>
+        <translation>庆祝</translation>
     </message>
 </context>
 <context>

@@ -23,6 +23,7 @@
 #include <QList>
 #include <QMutex>
 #include <QString>
+#include <QStringList>
 
 class ChatRecord
 {
@@ -32,6 +33,7 @@ public:
     QString peerName;
     QString direction;
     QString text;
+    QStringList imagePaths;
 };
 
 class MessageStore

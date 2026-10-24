@@ -19,14 +19,18 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QStringList>
 #include <QUrl>
 #include <QWidget>
 
 #include "send_file_model.h"
 
+class QEvent;
 class QLabel;
 class QPushButton;
+class QTextBrowser;
 class QTextEdit;
+class QTextCursor;
 class QPixmap;
 class QToolButton;
 
@@ -40,7 +44,8 @@ public:
     QString peerIp() const { return m_peerIp; }
 
     void appendMessage(const QDateTime &when, const QString &name,
-                       const QString &text, bool incoming);
+                       const QString &text, bool incoming,
+                       const QStringList &imagePaths = QStringList());
     void loadHistory();
     void setDraft(const QString &text);
     void refreshPeerCaption();
@@ -56,6 +61,7 @@ protected:
     void showEvent(QShowEvent *event);
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
+    bool eventFilter(QObject *watched, QEvent *event);
 
 private slots:
     void sendMessage();
@@ -69,6 +75,8 @@ private slots:
     void findInHistory();
     void showTransferMonitor();
     void cancelAttachments();
+    void showEmojiPicker();
+    void openChatLink(const QUrl &url);
 
 private:
     void createUi();
@@ -84,6 +92,12 @@ private:
     void clearSendFiles();
     void refreshProfile();
     QPixmap peerAvatar(const QString &name, int size) const;
+    QStringList imagePathsFromText(const QString &text) const;
+    QStringList existingImagePaths(const QStringList &paths) const;
+    void insertBubbleImages(QTextCursor &cursor, const QStringList &paths);
+    void insertEmoji(const QString &glyph);
+    bool pasteClipboardImage();
+    QStringList imagePathsFromFiles(const QStringList &pathList) const;
 
     QString m_peerIp;
     QLabel *m_peerLabel;
@@ -97,7 +111,7 @@ private:
     QLabel *m_profileLogin;
     QLabel *m_profileGroup;
     QLabel *m_profileIp;
-    QTextEdit *m_historyEdit;
+    QTextBrowser *m_historyEdit;
     QTextEdit *m_inputEdit;
     QPushButton *m_sendButton;
     QPushButton *m_fileListButton;
