@@ -21,9 +21,11 @@
 #include "send_file_manager.h"
 #include "transfer_file_model.h"
 #include "constants.h"
+#include "helper.h"
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
 TransferFileWindow::TransferFileWindow(QWidget *parent)
     : QWidget(parent)
@@ -61,7 +63,7 @@ void TransferFileWindow::createTransferFileView()
 
     transferFileView->setSortingEnabled(false);
     transferFileView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    transferFileView->horizontalHeader()->setMovable(false);
+    transferFileView->horizontalHeader()->setSectionsMovable(false);
     transferFileView->verticalHeader()->hide();
     transferFileView->setSelectionBehavior(QAbstractItemView::SelectRows);
     transferFileView->setTabKeyNavigation(false);
@@ -74,17 +76,18 @@ void TransferFileWindow::createTransferFileView()
     QFontMetrics fm = fontMetrics();
     QHeaderView *header = transferFileView->horizontalHeader();
     header->resizeSection(TRANSFER_FILE_VIEW_NO_COLUMN,
-            fm.width(tr("00000")));
+            Helper::fontTextWidth(fm, tr("00000")));
     header->resizeSection(TRANSFER_FILE_VIEW_FILE_COLUMN,
-            fm.width(tr("length-of-a-file-name.txt")));
+            Helper::fontTextWidth(fm, tr("length-of-a-file-name.txt")));
     header->resizeSection(TRANSFER_FILE_VIEW_SIZE_COLUMN,
-            qMax(fm.width(tr("Size")), fm.width(" 1000000 MB ")));
+            qMax(Helper::fontTextWidth(fm, tr("Size")),
+                 Helper::fontTextWidth(fm, " 1000000 MB ")));
     header->resizeSection(TRANSFER_FILE_VIEW_STATS_COLUMN,
-            fm.width(Global::sendFileManager->transferFileModel
+            Helper::fontTextWidth(fm, Global::sendFileManager->transferFileModel
                 .m_model->headerData(TRANSFER_FILE_VIEW_STATS_COLUMN,
                     Qt::Horizontal).toString() + "  "));
     header->resizeSection(TRANSFER_FILE_VIEW_USER_COLUMN,
-            fm.width(tr("default-user-name")));
+            Helper::fontTextWidth(fm, tr("default-user-name")));
 }
 
 void TransferFileWindow::createButtonLayout()

@@ -30,7 +30,8 @@
 #include <QSystemTrayIcon>
 #include <QApplication>
 #include <QMessageBox>
-#include <QProcess>
+#include <QDesktopServices>
+#include <QUrl>
 #include <QStandardItemModel>
 #include <QtDebug>
 
@@ -216,19 +217,13 @@ void Systray::destroyMainWindowList()
 // XXX NOTE: We do not use external editor.
 void Systray::readLog()
 {
-    // XXX NOTE: Qt use 'xdg-open' to open url, but 'xdg-open' not work
-    // properly, so we use the 'qipmsg-xdg-open' to open url. 'qipmsg-xdg-open'
-    // use gvfs-open to open url if gvfs-open exist.
-
     if (Global::preferences->logFilePath.isEmpty()) {
         QMessageBox::information(0, tr("Read Message Log"),
                 tr("No message log file specified.")
                 );
         return;
     }
-    QProcess editor;
-    editor.startDetached(Helper::openUrlProgram(),
-            QStringList() << Global::preferences->logFilePath);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(Global::preferences->logFilePath));
 }
 
 void Systray::setAllWindowVisible()

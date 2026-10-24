@@ -17,6 +17,8 @@
 #ifndef RECV_FILE_H
 #define RECV_FILE_H
 
+#include "helper.h"
+
 #include <QString>
 #include <QtGlobal>
 #include <QMap>
@@ -67,8 +69,8 @@ public:
     void setEndTime() { m_end = QDateTime::currentDateTime(); }
     int elapse() const
     {
-        return qMax(QDateTime::currentDateTime().toTime_t()
-                    - m_begin.toTime_t(), (unsigned int)1);
+        return qMax(static_cast<uint>(Helper::dateTimeToSecsSinceEpoch(QDateTime::currentDateTime())
+                    - Helper::dateTimeToSecsSinceEpoch(m_begin)), 1U);
     }
 
     void incrRegularFileCount() { ++m_regularFileCount; }

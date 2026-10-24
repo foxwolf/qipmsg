@@ -1,0 +1,24 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# qmake generated files
+src/.ui/
+src/.moc/
+src/.obj/
+src/Makefile
+src/qipmsg
+src/.qmake_build/
+*.qm
+
+# IDE
+.idea/
+.vscode/
+*.user
+*.user.*
+*.autosave
+
+# OS
+.DS_Store
+Thumbs.db

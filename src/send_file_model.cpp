@@ -19,6 +19,7 @@
 #include "helper.h"
 
 #include <QFileInfo>
+#include <algorithm>
 
 void SendFileModel::createModel()
 {
@@ -115,7 +116,7 @@ QString SendFileModel::fileName(int row) const
 
 void SendFileModel::removeRows(QList<int> rowList)
 {
-    qSort(rowList.begin(), rowList.end(), qGreater<int>());
+    std::sort(rowList.begin(), rowList.end(), std::greater<int>());
     foreach (int row, rowList) {
         m_model->removeRow(row);
     }

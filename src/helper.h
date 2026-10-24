@@ -17,8 +17,10 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QFile>
+#include <QFontMetrics>
+#include <QDateTime>
 
 class Helper {
 public:
@@ -41,7 +43,10 @@ public:
     static QString loginName();
     static QString hostname();
 
-    static QString getEnvironmentVariable(QRegExp regExp);
+    static QString getEnvironmentVariable(const QRegularExpression &regExp);
+
+    static qint64 dateTimeToSecsSinceEpoch(const QDateTime &dt);
+    static int fontTextWidth(const QFontMetrics &fm, const QString &text);
 
     static void setPacketNo(qint64 n);
     static QString packetNoString();
@@ -49,8 +54,6 @@ public:
 
     static void setInternalLogFileName(QString filePath);
     static void writeInternalLog(QString line);
-
-    static QString openUrlProgram();
 
     static QString fileCountString(int fileCount);
     static QString sizeStringUnit(double size = 0.0, QString sep = "");

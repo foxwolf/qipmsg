@@ -20,6 +20,7 @@
 #include "send_file_map.h"
 #include "send_file_manager.h"
 #include "global.h"
+#include "helper.h"
 
 #include <QDir>
 #include <QDateTime>
@@ -362,10 +363,10 @@ QByteArray ServeSocket::constructDirSendBlock(QString filePath,
     }
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_MTIME, 0, 16)
-            .arg(fi.lastModified().toTime_t(), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(fi.lastModified()), 0, 16));
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_CREATETIME, 0, 16)
-            .arg(fi.created().toTime_t(), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(fi.created()), 0, 16));
     str.append(":");
 
     QByteArray block = Global::transferCodec->codec()->fromUnicode(str);
@@ -392,10 +393,10 @@ QByteArray ServeSocket::constructFileSendBlock(QString filePath) const
     str.append(QString("%1").arg(IPMSG_FILE_REGULAR, 0, 16));
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_MTIME, 0, 16)
-            .arg(fi.lastModified().toTime_t(), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(fi.lastModified()), 0, 16));
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_CREATETIME, 0, 16)
-            .arg(fi.created().toTime_t(), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(fi.created()), 0, 16));
     str.append(":");
 
     QByteArray block = Global::transferCodec->codec()->fromUnicode(str);

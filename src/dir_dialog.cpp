@@ -21,6 +21,8 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
+#include <QFileSystemModel>
 
 DirDialog::DirDialog(SendFileModel *sendFileModel, QWidget *parent)
     : QDialog(parent), m_sendFileModel(sendFileModel)
@@ -28,10 +30,9 @@ DirDialog::DirDialog(SendFileModel *sendFileModel, QWidget *parent)
     // Delete when close
     setAttribute(Qt::WA_DeleteOnClose, true);
 
-    QStringList nameFilter;
-    model = new QDirModel(nameFilter,
-            QDir::Dirs | QDir::Readable | QDir::NoDotAndDotDot,
-            QDir::Name);
+    model = new QFileSystemModel(this);
+    model->setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
+    model->setRootPath(QDir::rootPath());
     tree = new QTreeView;
 
     tree->setModel(model);
@@ -45,12 +46,13 @@ DirDialog::DirDialog(SendFileModel *sendFileModel, QWidget *parent)
 
     // Expanded to the last send directory
     expandTree();
+    QModelIndex lastIndex = model->index(Global::preferences->lastSendDirPath);
     // Scroll to last dir path
     tree->verticalScrollBar()
-        ->setValue(model->index(Global::preferences->lastSendDirPath).row());
+        ->setValue(lastIndex.row());
 
     // Set the default selected directory
-    selectionModel->select(model->index(Global::preferences->lastSendDirPath),
+    selectionModel->select(lastIndex,
             QItemSelectionModel::Select | QItemSelectionModel::Rows);
 
     QLabel *label = new QLabel(tr("Select folder to send"));

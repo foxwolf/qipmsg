@@ -22,6 +22,7 @@
 
 #include <QtCore>
 #include <QStandardItemModel>
+#include <algorithm>
 
 
 TransferFileModel::TransferFileModel(QObject *parent)
@@ -102,6 +103,8 @@ int TransferFileModel::keyToRow(QString key) const
             return row;
         }
     }
+
+    return -1;
 }
 
 QString TransferFileModel::packetNoString(int row) const
@@ -119,7 +122,7 @@ void TransferFileModel::removeRow(const QString &key)
         }
     }
 
-    qSort(rowList.begin(), rowList.end(), qGreater<int>());
+    std::sort(rowList.begin(), rowList.end(), std::greater<int>());
     foreach (int row, rowList) {
         m_model->removeRow(row);
     }

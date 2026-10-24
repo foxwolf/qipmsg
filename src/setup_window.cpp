@@ -19,9 +19,13 @@
 #include "setup_window.h"
 #include "user_manager.h"
 #include "transfer_codec.h"
+#include "helper.h"
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
+#include <QRegularExpression>
+#include <QScreen>
 
 DetailTab::DetailTab(QWidget *parent)
     : QWidget(parent)
@@ -140,10 +144,13 @@ TransferTab::TransferTab(QWidget *parent)
 void TransferTab::createCodecComboBox()
 {
     QMap<QString, QString> codecMap;
-    QRegExp iso8859RegExp("ISO[- ]8859-([0-9]+).*");
+    QRegularExpression iso8859RegExp("ISO[- ]8859-([0-9]+).*");
 
     foreach (QByteArray name, QTextCodec::availableCodecs()) {
         QTextCodec *codec = QTextCodec::codecForName(name);
+        if (!codec) {
+            continue;
+        }
 
         QString sortKey = codec->name().toUpper();
         int rank;
@@ -152,8 +159,9 @@ void TransferTab::createCodecComboBox()
             rank = 1;
         } else if (sortKey.startsWith("UTF-16")) {
             rank = 2;
-        } else if (iso8859RegExp.exactMatch(sortKey)) {
-            if (iso8859RegExp.cap(1).size() == 1)
+        } else if (iso8859RegExp.match(sortKey).hasMatch()) {
+            QRegularExpressionMatch match = iso8859RegExp.match(sortKey);
+            if (match.captured(1).size() == 1)
                 rank = 3;
             else
                 rank = 4;
@@ -371,7 +379,7 @@ SetupWindow::SetupWindow(QWidget *parent)
     adjustSize();
 
     // Put the dialog in the middle of screen
-    QRect rect(QApplication::desktop()->screenGeometry());
+    QRect rect = QGuiApplication::primaryScreen()->geometry();
     move((rect.width() - width()) / 2, (rect.height() - height()) / 2);
 }
 
@@ -467,8 +475,10 @@ void SetupWindow::createBroadcastGroupBox()
     QPushButton* add_button = new QPushButton(">>");
     QPushButton* del_button = new QPushButton("<<");
     QFontMetrics fm = fontMetrics();
-    add_button->setFixedSize(fm.width(">>") + 6, fm.width(">>") + 2);
-    del_button->setFixedSize(fm.width(">>") + 6, fm.width(">>") + 2);
+    add_button->setFixedSize(Helper::fontTextWidth(fm, ">>") + 6,
+                             Helper::fontTextWidth(fm, ">>") + 2);
+    del_button->setFixedSize(Helper::fontTextWidth(fm, ">>") + 6,
+                             Helper::fontTextWidth(fm, ">>") + 2);
     connect(add_button, SIGNAL(clicked()), this, SLOT(AddBroadcast()));
     connect(del_button, SIGNAL(clicked()), this, SLOT(DelBroadcast()));
     QVBoxLayout* button_layout = new QVBoxLayout;

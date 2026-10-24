@@ -22,7 +22,6 @@
 #include "constants.h"
 #include "helper.h"
 #include "sound_thread.h"
-#include "sound.h"
 #include "preferences.h"
 
 #include <QPoint>
@@ -63,13 +62,7 @@ void WindowManager::createMsgWindow(Msg msg)
         // play sound
         if (!Global::preferences->isNoSoundAlarm) {
             QString soundFile = Global::preferences->noticeSound;
-#ifdef Q_OS_LINUX
             Global::soundThread->play(soundFile);
-#else // !Q_OS_LINUX
-            if (QSound::isAvailable()) {
-                QSound::play();
-            }
-#endif
         }
 
         if (!Global::preferences->isNoAutoPopupMsg) {

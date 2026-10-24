@@ -16,11 +16,14 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
 #include <QModelIndex>
+#include <algorithm>
 #include <QHostAddress>
 #include <QStringList>
 
 #include "main_window.h"
+#include "helper.h"
 #include "user_manager.h"
 #include "msg_thread.h"
 #include "send_msg.h"
@@ -116,7 +119,7 @@ void MainWindow::createPeerWidget()
     userView->setModel(proxyUserModel);
     userView->setSortingEnabled(true);
     userView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    userView->horizontalHeader()->setMovable(true);
+    userView->horizontalHeader()->setSectionsMovable(true);
     userView->verticalHeader()->hide();
     userView->setSelectionBehavior(QAbstractItemView::SelectRows);
     userView->setTabKeyNavigation(false);
@@ -125,7 +128,7 @@ void MainWindow::createPeerWidget()
     QFontMetrics fm = fontMetrics();
     QHeaderView *hHeader = userView->horizontalHeader();
     hHeader->resizeSection(USER_VIEW_IP_COLUMN,
-            fm.width(" 255.255.255.255 "));
+            Helper::fontTextWidth(fm, " 255.255.255.255 "));
 
     QHeaderView *vHeader = userView->verticalHeader();
     vHeader->setDefaultSectionSize(fm.height() + 6);
@@ -541,7 +544,7 @@ void MainWindow::logSendMsg(QString text, int row)
     s.append(text);
     s.append("\n\n");
 
-    ts << s << flush;
+    ts << s << Qt::flush;
 }
 
 void MainWindow::refreshUserList()
@@ -633,7 +636,7 @@ void MainWindow::search(QString searchString)
             rowList << index.row();
         }
     }
-    qSort(rowList.begin(), rowList.end());
+    std::sort(rowList.begin(), rowList.end());
 
     if (!isContinueSearch) {
         selections->clearSelection();

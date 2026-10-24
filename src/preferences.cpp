@@ -146,7 +146,7 @@ void Preferences::load()
         set->value("userSpecifiedBroadcastIp",
                    userSpecifiedBroadcastIp).toString();
     userSpecifiedBroadcastIpList =
-        userSpecifiedBroadcastIp.split(QChar('\r'), QString::SkipEmptyParts);
+        userSpecifiedBroadcastIp.split(QChar('\r'), Qt::SkipEmptyParts);
     set->endGroup();
 
     set->beginGroup("Transfer");

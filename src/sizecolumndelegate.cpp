@@ -18,6 +18,7 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
 
 SizeColumnDelegate::SizeColumnDelegate(QObject *parent)

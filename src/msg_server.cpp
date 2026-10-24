@@ -283,9 +283,9 @@ void MsgServer::updateAddresses()
     }
 
     // NOTE: Just to remove duplicate entries.
-    QSet<QHostAddress> set = m_broadcastAddresses.toSet();
+    QSet<QHostAddress> set(m_broadcastAddresses.begin(), m_broadcastAddresses.end());
     m_broadcastAddresses.clear();
-    m_broadcastAddresses = set.toList();
+    m_broadcastAddresses = QList<QHostAddress>(set.begin(), set.end());
 }
 
 void MsgServer::broadcastUserMsg(Msg &msg)

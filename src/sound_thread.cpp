@@ -15,49 +15,22 @@
 //
 
 #include "sound_thread.h"
-#include "sound.h"
 
-void SoundThread::run()
+SoundThread::SoundThread(QObject *parent)
+    : QObject(parent), m_effect(new QSoundEffect(this))
 {
-    forever {
-        m_mutex.lock();
-        QString path = m_soundFile;
-        m_mutex.unlock();
-
-        Sound sound(path);
-
-        sound.play();
-
-        m_mutex.lock();
-        condition.wait(&m_mutex);
-        m_mutex.unlock();
-
-        if (abort) {
-            return;
-        }
-    }
 }
 
 SoundThread::~SoundThread()
 {
-    m_mutex.lock();
-    abort = true;
-    condition.wakeOne();
-    m_mutex.unlock();
-
-    wait();
 }
 
 void SoundThread::play(QString path)
 {
-    QMutexLocker locker(&m_mutex);
-
-    m_soundFile = path;
-
-    if (!isRunning()) {
-        start(LowPriority);
-    } else {
-        condition.wakeOne();
+    if (!m_effect) {
+        return;
     }
-}
 
+    m_effect->setSource(QUrl::fromLocalFile(path));
+    m_effect->play();
+}

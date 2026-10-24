@@ -20,6 +20,7 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
 
 #define USER_SEARCH_HISTORY_COUNT   50
 

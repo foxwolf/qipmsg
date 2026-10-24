@@ -17,6 +17,9 @@
 #include <QSettings>
 #include <QIcon>
 #include <QtGui>
+#include <QtWidgets>
+#include <QRandomGenerator>
+#include <QScreen>
 
 #include "global.h"
 #include "helper.h"
@@ -126,9 +129,9 @@ QString Global::fileCountString(int i)
 
 QPoint Global::randomNearMiddlePoint()
 {
-    QRect rect(QApplication::desktop()->screenGeometry());
-    int x = qrand() % (rect.width() / 4);
-    int y = qrand() % (rect.height() / 6);
+    QRect rect = QGuiApplication::primaryScreen()->geometry();
+    int x = QRandomGenerator::global()->bounded(rect.width() / 4);
+    int y = QRandomGenerator::global()->bounded(rect.height() / 6);
     return QPoint(rect.width()/6 + x, rect.height()/8 + y);
 }
 
