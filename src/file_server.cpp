@@ -34,7 +34,7 @@ FileServer::~FileServer()
 {
 }
 
-void FileServer::incomingConnection(int socketDescriptor)
+void FileServer::incomingConnection(qintptr socketDescriptor)
 {
     SendFileThread *sendFileThread
         = new SendFileThread(socketDescriptor, this);

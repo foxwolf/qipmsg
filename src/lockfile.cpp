@@ -16,10 +16,7 @@
 
 #include "lockfile.h"
 
-#include <QFile>
-
-#include <fcntl.h>
-#include <unistd.h>
+#include <QLockFile>
 
 Q_GLOBAL_STATIC(LockFile, lockFile);
 
@@ -35,39 +32,26 @@ LockFile *LockFile::instance()
 
 bool LockFile::lock()
 {
-#define LOCKMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
-    int fd = open(fileName.toUtf8().data(), O_RDWR|O_CREAT, LOCKMODE);
-    if (fd < 0) {
-        qWarning("LockFile::lock: can not open %s for writing.",
+    if (m_lockFile && m_lockFile->isLocked()) {
+        return true;
+    }
+
+    if (fileName.isEmpty()) {
+        qWarning("LockFile::lock: lock file name is empty.");
+        return false;
+    }
+
+    m_lockFile.reset(new QLockFile(fileName));
+    if (!m_lockFile->tryLock()) {
+        qWarning("LockFile::lock: can not lock %s.",
                  fileName.toUtf8().data());
         return false;
     }
 
-    if (lockfile(fd) < 0) {
-        return false;
-    }
-
-    ftruncate(fd, 0);
-    char *str = "qipmsg lock file";
-    write(fd, str, strlen(str));
-
     return true;
-}
-
-int LockFile::lockfile(int fd)
-{
-    struct flock fl;
-
-    fl.l_type = F_WRLCK;
-    fl.l_start = 0;
-    fl.l_whence = SEEK_SET;
-    fl.l_len = 0;
-
-    return (fcntl(fd, F_SETLK, &fl));
 }
 
 void LockFile::setLockFile(QString name)
 {
     fileName = name;
 }
-

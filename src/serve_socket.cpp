@@ -14,6 +14,13 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#endif
+
 #include "serve_socket.h"
 #include "constants.h"
 #include "transfer_codec.h"
@@ -25,12 +32,12 @@
 #include <QDir>
 #include <QDateTime>
 #include <QTextCodec>
+
+#ifndef _WIN32
 #include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/types.h>
+#endif
 
 #define REQUST_FILE_PACKET_ID_POSITION      5
 #define REQUST_FILE_FILE_ID_POSITION        6
@@ -48,7 +55,7 @@ struct RequsetFile
     int fileId;
 };
 
-ServeSocket::ServeSocket(int socketDescriptor, QObject *parent)
+ServeSocket::ServeSocket(qintptr socketDescriptor, QObject *parent)
     : QObject(parent)
 {
   m_sockfd = socketDescriptor;
@@ -61,7 +68,11 @@ ServeSocket::ServeSocket(int socketDescriptor, QObject *parent)
 }
 ServeSocket::~ServeSocket()
 {
-  close( m_sockfd );
+#ifdef _WIN32
+  closesocket(static_cast<SOCKET>(m_sockfd));
+#else
+  close(m_sockfd);
+#endif
 }
 
 bool ServeSocket::startSendFile()
@@ -73,6 +84,12 @@ bool ServeSocket::startSendFile()
     int  readlen = 0;
     char buff[MAXBUFF];
     while ( 1 ) {
+#ifdef _WIN32
+      readlen = recv(static_cast<SOCKET>(m_sockfd), buff, MAXBUFF-1, 0);
+      if (readlen == SOCKET_ERROR || readlen <= 0) {
+        return false;
+      }
+#else
       readlen = read( m_sockfd, buff, MAXBUFF-1 );
       if ( errno == EINTR ) {
         continue;
@@ -80,6 +97,7 @@ bool ServeSocket::startSendFile()
       if ( readlen <= 0 ) {
         return false;
       }
+#endif
       buff[readlen] = '\0';
       recvBlock.append( buff );
       if ( canParsePacket(recvBlock) ) {
@@ -258,9 +276,16 @@ bool ServeSocket::tcpWriteBlock(QByteArray &block)
   char*   buff   = block.data();
 
   size_t  sent = 0;
-  ssize_t n    = 0;
   while ( sent < nbytes ) {
-    n = send(m_sockfd, buff+sent, nbytes-sent, 0);
+#ifdef _WIN32
+    int n = send(static_cast<SOCKET>(m_sockfd), buff + sent,
+                 static_cast<int>(nbytes - sent), 0);
+    if (n == SOCKET_ERROR || n <= 0) {
+      return false;
+    }
+    sent += static_cast<size_t>(n);
+#else
+    ssize_t n = send(m_sockfd, buff+sent, nbytes-sent, 0);
     if ( n > 0 ) {
       sent += n;
     } else if ( n < 0 ) {
@@ -271,6 +296,7 @@ bool ServeSocket::tcpWriteBlock(QByteArray &block)
     } else {
       return false;
     }
+#endif
   }
   return true;
 //    qint32 bytesToWrite = block.size();

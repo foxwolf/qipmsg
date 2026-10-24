@@ -19,8 +19,7 @@
 #include <QtWidgets>
 
 #include <QRandomGenerator>
-
-#include <unistd.h>     // For usleep()
+#include <QThread>
 
 #include "qipmsg.h"
 #include "helper.h"
@@ -80,7 +79,7 @@ int main(int argc, char *argv[])
     Global::msgThread->start();
     // this make sure thead started
     while (!Global::msgThread->isRunning()) {
-        usleep(200000);
+        QThread::msleep(200);
     }
 
     Global::userManager->broadcastEntry();

@@ -22,6 +22,7 @@
 #include <QTextStream>
 #include <QSysInfo>
 #include <QRegularExpression>
+#include <QtGlobal>
 
 #include "helper.h"
 #include "constants.h"
@@ -85,12 +86,21 @@ QString Helper::iniPath()
 
 QString Helper::loginName()
 {
-    return getEnvironmentVariable(QRegularExpression("^LOGNAME=.*"));
+    const QRegularExpression::PatternOptions opts
+        = QRegularExpression::CaseInsensitiveOption;
+    QString name = getEnvironmentVariable(QRegularExpression("^LOGNAME$", opts));
+    if (name.isEmpty()) {
+        name = getEnvironmentVariable(QRegularExpression("^USER$", opts));
+    }
+    if (name.isEmpty()) {
+        name = getEnvironmentVariable(QRegularExpression("^USERNAME$", opts));
+    }
+    return name;
 }
 
 QString Helper::hostname()
 {
-    QString name = getEnvironmentVariable(QRegularExpression("^HOSTNAME=.*"));
+    QString name = getEnvironmentVariable(QRegularExpression("^HOSTNAME$"));
 
     // QSysInfo::machineHostName() works across Windows / Linux / macOS.
     if (name.isEmpty()) {
@@ -133,11 +143,7 @@ QString Helper::getEnvironmentVariable(const QRegularExpression &regExp)
     QStringList keys = env.keys().filter(regExp);
 
     if (!keys.isEmpty()) {
-        QString key = keys.first();
-        if (key.compare("LOGNAME", Qt::CaseInsensitive) == 0
-            || key.compare("HOSTNAME", Qt::CaseInsensitive) == 0) {
-            return env.value(key);
-        }
+        return env.value(keys.first());
     }
 
     return QString();
@@ -178,7 +184,11 @@ void Helper::writeInternalLog(QString line)
     openInternalLogFile();
     QTextStream ts(&m_internalLogFile);
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    ts << line << Qt::endl;
+#else
     ts << line << endl;
+#endif
 }
 
 QString Helper::soundPath()

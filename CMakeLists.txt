@@ -151,6 +151,10 @@ else()
     )
 endif()
 
+if (WIN32)
+    target_link_libraries(qipmsg PRIVATE ws2_32)
+endif()
+
 # Installation
 include(GNUInstallDirs)
 install(TARGETS qipmsg RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

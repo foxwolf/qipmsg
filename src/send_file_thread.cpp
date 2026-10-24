@@ -28,7 +28,7 @@
 #include <QDir>
 #include <QDateTime>
 
-SendFileThread::SendFileThread(int socketDescriptor, QObject *parent)
+SendFileThread::SendFileThread(qintptr socketDescriptor, QObject *parent)
     : QThread(parent), m_socketDescriptor(socketDescriptor)
 {
 }
