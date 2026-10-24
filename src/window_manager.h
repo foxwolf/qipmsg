@@ -23,10 +23,13 @@
 #include <QObject>
 #include <QStringList>
 
+class QWidget;
+
 #include "owner.h"
 #include "msg.h"
 
 class ChatWindow;
+class DiscussionWindow;
 class MsgWindow;
 class MsgReadedWindow;
 
@@ -45,9 +48,13 @@ public:
 
     ChatWindow *openChat(const QString &ip, bool raiseWindow = true,
                          const QString &draft = QString());
+    DiscussionWindow *openDiscussion(const QString &id, bool raiseWindow = true);
     void recordOutgoing(const QString &ip, const QString &peerName,
                         const QString &text,
                         const QStringList &imagePaths = QStringList());
+    void deliverText(const QString &ip, const QString &text);
+    bool queueOrDeliverText(const QString &ip, const QString &text,
+                            QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
                             const QString &text, bool notifyUser,
                             const QStringList &imagePaths = QStringList());
@@ -74,6 +81,8 @@ public slots:
 private slots:
     void newMsg(Msg msg);
     void destroyMsgReadedWindowList();
+    void flushOfflineQueue();
+    void refreshChatCaptions();
 
 private:
     void createMsgWindow(Msg msg);
@@ -90,10 +99,12 @@ private:
 
     void destroyMsgWindowList();
     void destroyChatWindows();
+    void destroyDiscussionWindows();
 
     QList<MsgWindow *> m_msgWindowList;
     QList<MsgReadedWindow *> m_msgReadedWindowList;
     QMap<QString, ChatWindow *> m_chatWindows;
+    QMap<QString, DiscussionWindow *> m_discussionWindows;
     QMap<QString, int> m_unreadByIp;
     QMap<QString, QDateTime> m_lastAutoReply;
 };

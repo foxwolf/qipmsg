@@ -24,7 +24,10 @@ HEADERS += \
 	main_window.h \
         chat_window.h \
         contactDelegate.h \
+        discussion_store.h \
+        discussion_window.h \
         emoji_pack.h \
+        mention_highlighter.h \
         message_store.h \
         history_search_window.h \
         resume_store.h \
@@ -37,6 +40,7 @@ HEADERS += \
 	msg_thread.h \
 	msg_readed_window.h \
 	msg_window.h \
+	offline_queue.h \
 	preferences.h \
 	qipmsg.h \
         recv_file.h \
@@ -63,6 +67,7 @@ HEADERS += \
 	transfer_codec.h \
 	translator.h \
 	owner.h \
+	pinyin.h \
 	sound_thread.h \
 	user_manager.h \
 	transfer_file_window.h \
@@ -81,7 +86,10 @@ SOURCES += \
 	main_window.cpp \
         chat_window.cpp \
         contactDelegate.cpp \
+        discussion_store.cpp \
+        discussion_window.cpp \
         emoji_pack.cpp \
+        mention_highlighter.cpp \
         message_store.cpp \
         history_search_window.cpp \
         resume_store.cpp \
@@ -94,6 +102,7 @@ SOURCES += \
 	msg_thread.cpp \
 	msg_readed_window.cpp \
 	msg_window.cpp \
+	offline_queue.cpp \
 	preferences.cpp \
 	qipmsg.cpp \
         recv_file.cpp \
@@ -120,6 +129,7 @@ SOURCES += \
 	transfer_codec.cpp \
 	translator.cpp \
 	owner.cpp \
+	pinyin.cpp \
 	sound_thread.cpp \
 	user_manager.cpp \
 	transfer_file_window.cpp \

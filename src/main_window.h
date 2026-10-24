@@ -84,6 +84,11 @@ private slots:
     void saveSignature();
     void applyContactFilter(const QString &text);
     void toggleBlacklist();
+    void createDiscussion();
+    void renameDiscussion();
+    void deleteDiscussion();
+    void addSelectedToDiscussion();
+    void editPeerMemo();
 
 signals:
     void messageReplyed();
@@ -102,7 +107,10 @@ private:
     QTreeWidgetItem *makeGroupItem(const QString &title, const QString &key);
     void addPeerItem(QTreeWidgetItem *parent, int row);
     void addSelfItem(QTreeWidgetItem *parent);
+    void addDiscussionItem(QTreeWidgetItem *parent, const QString &id);
     QStringList selectedPeerIps() const;
+    QStringList selectedDiscussionIds() const;
+    bool isDiscussionItem(const QTreeWidgetItem *item) const;
     QList<QTreeWidgetItem *> allPeerItems() const;
     bool isBlacklisted(const QString &ip) const;
     void applyFilterToItem(QTreeWidgetItem *item, const QString &needle);
@@ -132,11 +140,16 @@ private:
     QCheckBox *lockCheckBox;
 
     QAction *openChatAct;
+    QAction *createDiscussionAct;
+    QAction *renameDiscussionAct;
+    QAction *deleteDiscussionAct;
+    QAction *addToDiscussionAct;
     QAction *sendFileAct;
     QAction *sendDirAct;
     QAction *searchUserAct;
     QAction *findHistoryAct;
     QAction *blacklistAct;
+    QAction *setMemoAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;
