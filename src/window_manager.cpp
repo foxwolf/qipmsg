@@ -168,7 +168,8 @@ void WindowManager::applyIncomingShake(const QString &ip)
 void WindowManager::recordIncomingText(const QString &ip,
                                        const QString &peerName,
                                        const QString &text,
-                                       bool notifyUser)
+                                       bool notifyUser,
+                                       const QStringList &imagePaths)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -176,11 +177,13 @@ void WindowManager::recordIncomingText(const QString &ip,
     record.peerName = peerName;
     record.direction = "in";
     record.text = text;
+    record.imagePaths = imagePaths;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
-        w->appendMessage(record.timestamp, peerName, text, true);
+        w->appendMessage(record.timestamp, peerName, text, true,
+                         record.imagePaths);
         if (!w->isVisible()) {
             addUnread(ip);
         }
@@ -258,7 +261,8 @@ void WindowManager::flushOfflineQueue()
 }
 
 void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
-                                   const QString &text)
+                                   const QString &text,
+                                   const QStringList &imagePaths)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -266,12 +270,13 @@ void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
     record.peerName = peerName;
     record.direction = "out";
     record.text = text;
+    record.imagePaths = imagePaths;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
-                         text, false);
+                         text, false, record.imagePaths);
     }
 }
 

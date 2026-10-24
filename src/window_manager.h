@@ -21,6 +21,7 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QStringList>
 
 class QWidget;
 
@@ -49,12 +50,14 @@ public:
                          const QString &draft = QString());
     DiscussionWindow *openDiscussion(const QString &id, bool raiseWindow = true);
     void recordOutgoing(const QString &ip, const QString &peerName,
-                        const QString &text);
+                        const QString &text,
+                        const QStringList &imagePaths = QStringList());
     void deliverText(const QString &ip, const QString &text);
     bool queueOrDeliverText(const QString &ip, const QString &text,
                             QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
-                            const QString &text, bool notifyUser);
+                            const QString &text, bool notifyUser,
+                            const QStringList &imagePaths = QStringList());
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);

@@ -26,6 +26,7 @@ HEADERS += \
         contactDelegate.h \
         discussion_store.h \
         discussion_window.h \
+        emoji_pack.h \
         mention_highlighter.h \
         message_store.h \
         history_search_window.h \
@@ -87,6 +88,7 @@ SOURCES += \
         contactDelegate.cpp \
         discussion_store.cpp \
         discussion_window.cpp \
+        emoji_pack.cpp \
         mention_highlighter.cpp \
         message_store.cpp \
         history_search_window.cpp \

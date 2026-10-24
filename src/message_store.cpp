@@ -20,9 +20,35 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QTextStream>
+
+namespace {
+
+QStringList imagePathsFromJson(const QJsonValue &value)
+{
+    QStringList paths;
+    if (value.isArray()) {
+        const QJsonArray array = value.toArray();
+        for (int i = 0; i < array.size(); ++i) {
+            const QString path = array.at(i).toString();
+            if (!path.isEmpty()) {
+                paths << path;
+            }
+        }
+    } else if (value.isString()) {
+        const QString path = value.toString();
+        if (!path.isEmpty()) {
+            paths << path;
+        }
+    }
+    return paths;
+}
+
+} // namespace
 
 MessageStore::MessageStore()
 {
@@ -80,6 +106,13 @@ bool MessageStore::append(const ChatRecord &record)
     obj.insert("n", record.peerName);
     obj.insert("ip", record.peerIp);
     obj.insert("x", record.text);
+    if (!record.imagePaths.isEmpty()) {
+        QJsonArray images;
+        foreach (const QString &path, record.imagePaths) {
+            images.append(path);
+        }
+        obj.insert("img", images);
+    }
 
     QTextStream ts(&file);
     ts << QJsonDocument(obj).toJson(QJsonDocument::Compact) << '\n';
@@ -125,6 +158,7 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
         record.peerName = obj.value("n").toString();
         record.direction = obj.value("d").toString();
         record.text = obj.value("x").toString();
+        record.imagePaths = imagePathsFromJson(obj.value("img"));
         records.append(record);
     }
 
@@ -186,6 +220,7 @@ QList<ChatRecord> MessageStore::search(const QString &needle, int limit) const
             record.peerName = name.isEmpty() ? ip : name;
             record.direction = obj.value("d").toString();
             record.text = text;
+            record.imagePaths = imagePathsFromJson(obj.value("img"));
             matches.append(record);
             if (limit > 0 && matches.size() >= limit) {
                 return matches;
