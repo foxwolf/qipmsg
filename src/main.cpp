@@ -149,19 +149,20 @@ static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
 
 static void checkTcpServerError()
 {
-    // Check tcp server
-    if (!Global::fileServer->isListening()) {
-        QString errorString(QObject::tr("Start tcp server error!"));
-
-        QMessageBox::critical(0, QObject::tr("Start QIpMsg"),
-                          errorString + ":\n"
-                          + Global::fileServer->errorString());
-
-
-        qDebug() << "main::checkTcpServerError:"
-            << Global::fileServer->errorString();
-
-        exit(-1);
+    if (Global::fileServer->isListening()) {
+        return;
     }
+
+    const QString errorString = QObject::tr(
+        "TCP file server failed to listen. File receive will not work "
+        "until the port or bind address is free. Change it in "
+        "Preferences → Detail → Network, then restart.");
+
+    QMessageBox::warning(0, QObject::tr("Start QIpMsg"),
+                         errorString + "\n\n"
+                         + Global::fileServer->errorString());
+
+    qWarning() << "main::checkTcpServerError:"
+               << Global::fileServer->errorString();
 }
 

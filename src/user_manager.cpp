@@ -138,6 +138,10 @@ void UserManager::updateUser(const Owner &owner, int row)
                        owner.displayLevel());
     m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
                      owner.signature(), Qt::UserRole + 2);
+    if (owner.port() != 0) {
+        m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         owner.port(), Qt::UserRole + 3);
+    }
     const QString tip = owner.signature().isEmpty()
             ? owner.name()
             : QString("%1\n%2").arg(owner.name(), owner.signature());
@@ -432,6 +436,26 @@ QString UserManager::signatureForIp(const QString &ip) const
     return row == -1 ? QString() : signature(row);
 }
 
+quint16 UserManager::peerPort(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    if (row == -1) {
+        return 0;
+    }
+    return static_cast<quint16>(m_model->data(
+                m_model->index(row, USER_VIEW_IP_COLUMN),
+                Qt::UserRole + 3).toUInt());
+}
+
+quint16 UserManager::sendPortForIp(const QString &ip) const
+{
+    const quint16 port = peerPort(ip);
+    if (port != 0) {
+        return port;
+    }
+    return IPMSG_DEFAULT_PORT;
+}
+
 QString UserManager::peersFilePath() const
 {
     return Helper::appHomePath() + "/peers.json";
@@ -469,6 +493,7 @@ void UserManager::loadPersistedPeers()
         owner.setHost(obj.value("host").toString());
         owner.setLoginName(obj.value("login").toString());
         owner.setSignature(obj.value("sign").toString());
+        owner.setPort(static_cast<quint16>(obj.value("port").toInt()));
         const int row = m_model->rowCount();
         m_model->insertRow(row);
         addUser(owner, row);
@@ -498,6 +523,7 @@ void UserManager::savePersistedPeers()
         obj.insert("host", host(row));
         obj.insert("login", loginName(row));
         obj.insert("sign", signature(row));
+        obj.insert("port", peerPort(ip(row)));
         obj.insert("lastSeen",
                    m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
                                  Qt::UserRole).toDateTime().toString(Qt::ISODate));

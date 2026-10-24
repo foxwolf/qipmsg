@@ -84,22 +84,16 @@ void MsgThread::handleError(QAbstractSocket::SocketError errorCode, QString s)
 {
     qDebug() << "MsgThread::handleError" << errorCode << s;
 
-    const bool fatalBindError =
+    const bool bindError =
         errorCode == QAbstractSocket::AddressInUseError
         || errorCode == QAbstractSocket::SocketAddressNotAvailableError
         || errorCode == QAbstractSocket::SocketAccessError;
 
-    if (!fatalBindError) {
-        qWarning() << "MsgThread::handleError: transient UDP error:" << s;
+    if (bindError) {
+        qWarning() << "MsgThread::handleError: UDP bind failed (soft-fail):" << s;
         return;
     }
 
-    QString errorString(QObject::tr("udp server error"));
-
-    QMessageBox::critical(0, QObject::tr("QIpMsg"),
-                          errorString + ":\n" + s + ".");
-
-    qWarning() << "MsgThread::handleError: fatal UDP bind error:" << s;
-    ::exit(-1);
+    qWarning() << "MsgThread::handleError: transient UDP error:" << s;
 }
 

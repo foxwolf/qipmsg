@@ -18,8 +18,11 @@
 #include "file_server.h"
 #include "constants.h"
 #include "global.h"
+#include "preferences.h"
 #include "send_file_model.h"
 #include "send_file_manager.h"
+
+#include <QtDebug>
 
 #include <QMessageBox>
 #include <QApplication>
@@ -47,6 +50,13 @@ void FileServer::incomingConnection(qintptr socketDescriptor)
 
 void FileServer::startListening()
 {
-    listen(QHostAddress::Any, IPMSG_DEFAULT_PORT);
+    const QHostAddress listenAddress = Global::preferences->listenAddress();
+    const quint16 listenPort = Global::preferences->listenPort();
+    if (!listen(listenAddress, listenPort)) {
+        qWarning() << "FileServer::startListening: listen"
+                   << listenAddress.toString() << listenPort
+                   << "failed:" << errorString()
+                   << "(continuing without TCP file listen)";
+    }
 }
 

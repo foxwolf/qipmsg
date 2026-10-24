@@ -23,6 +23,7 @@
 #include "constants.h"
 #include "global.h"
 #include "helper.h"
+#include "ipmsg.h"
 
 Preferences::Preferences()
 {
@@ -95,6 +96,9 @@ void Preferences::reset()
     isAutoRecvFile = false;
     isAutoRecvRename = true;
     autoRecvPath = Helper::defaultRecvPath();
+
+    udpPort = IPMSG_DEFAULT_PORT;
+    bindAddress.clear();
 
     personSign = "";
     blacklistIps.clear();
@@ -206,6 +210,14 @@ void Preferences::load()
     autoRecvPath = set->value("autoRecvPath", autoRecvPath).toString();
     set->endGroup();
 
+    set->beginGroup("Network");
+    udpPort = set->value("udpPort", udpPort).toInt();
+    if (udpPort < 1 || udpPort > 65535) {
+        udpPort = IPMSG_DEFAULT_PORT;
+    }
+    bindAddress = set->value("bindAddress", bindAddress).toString();
+    set->endGroup();
+
     set->beginGroup("Profile");
     personSign = set->value("personSign", personSign).toString();
     set->endGroup();
@@ -299,6 +311,11 @@ void Preferences::save()
     set->setValue("autoRecvPath", autoRecvPath);
     set->endGroup();
 
+    set->beginGroup("Network");
+    set->setValue("udpPort", udpPort);
+    set->setValue("bindAddress", bindAddress);
+    set->endGroup();
+
     set->beginGroup("Profile");
     set->setValue("personSign", personSign);
     set->endGroup();
@@ -306,6 +323,30 @@ void Preferences::save()
     set->beginGroup("Blacklist");
     set->setValue("ips", blacklistIps.join("\r"));
     set->endGroup();
+}
+
+quint16 Preferences::listenPort() const
+{
+    if (udpPort < 1 || udpPort > 65535) {
+        return IPMSG_DEFAULT_PORT;
+    }
+    return static_cast<quint16>(udpPort);
+}
+
+QHostAddress Preferences::listenAddress() const
+{
+    const QString text = bindAddress.trimmed();
+    if (text.isEmpty()
+            || text == QLatin1String("0.0.0.0")
+            || text.compare(QLatin1String("any"), Qt::CaseInsensitive) == 0) {
+        return QHostAddress(QHostAddress::AnyIPv4);
+    }
+
+    const QHostAddress address(text);
+    if (address.isNull()) {
+        return QHostAddress(QHostAddress::AnyIPv4);
+    }
+    return address;
 }
 
 void Preferences::openLogFile()

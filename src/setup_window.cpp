@@ -27,6 +27,9 @@
 #include <QRegularExpression>
 #include <QScreen>
 #include <QSpinBox>
+#include <QNetworkInterface>
+#include <QHostAddress>
+#include <QAbstractSocket>
 
 DetailTab::DetailTab(QWidget *parent)
     : QWidget(parent)
@@ -287,6 +290,94 @@ void FileTab::save()
     }
 }
 
+NetworkTab::NetworkTab(QWidget *parent)
+    : QWidget(parent)
+{
+    portSpin = new QSpinBox;
+    portSpin->setRange(1, 65535);
+    portSpin->setValue(Global::preferences->listenPort());
+
+    bindCombo = new QComboBox;
+    bindCombo->setEditable(true);
+    fillBindCombo();
+
+    QLabel *portLabel = new QLabel(tr("UDP listen port"));
+    QLabel *bindLabel = new QLabel(tr("Bind address"));
+    QLabel *hint = new QLabel(tr(
+        "Changes take effect after restart. UDP discovery and TCP file "
+        "transfer use the same port (IPMSG / FeiQ, default 2425). "
+        "Empty / 0.0.0.0 binds any IPv4 NIC. Bind failure is logged and "
+        "the app continues (soft-fail)."));
+    hint->setWordWrap(true);
+
+    QGridLayout *layout = new QGridLayout;
+    layout->addWidget(portLabel, 0, 0);
+    layout->addWidget(portSpin, 0, 1);
+    layout->addWidget(bindLabel, 1, 0);
+    layout->addWidget(bindCombo, 1, 1);
+    layout->addWidget(hint, 2, 0, 1, 2);
+    layout->setColumnStretch(0, 10);
+    layout->setColumnStretch(1, 30);
+    setLayout(layout);
+}
+
+void NetworkTab::fillBindCombo()
+{
+    bindCombo->addItem(tr("Any IPv4 (0.0.0.0)"), QString());
+
+    foreach (const QNetworkInterface networkInterface,
+             QNetworkInterface::allInterfaces()) {
+        const QNetworkInterface::InterfaceFlags flags = networkInterface.flags();
+        if (!(flags & QNetworkInterface::IsUp)
+                || (flags & QNetworkInterface::IsLoopBack)) {
+            continue;
+        }
+        foreach (const QNetworkAddressEntry entry,
+                 networkInterface.addressEntries()) {
+            const QHostAddress ip = entry.ip();
+            if (ip.protocol() != QAbstractSocket::IPv4Protocol
+                    || ip.isLoopback()
+                    || ip.isNull()) {
+                continue;
+            }
+            const QString text = QString("%1 (%2)")
+                    .arg(ip.toString(), networkInterface.humanReadableName());
+            bindCombo->addItem(text, ip.toString());
+        }
+    }
+
+    const QString current = Global::preferences->bindAddress.trimmed();
+    if (current.isEmpty()) {
+        bindCombo->setCurrentIndex(0);
+        return;
+    }
+
+    int index = bindCombo->findData(current);
+    if (index < 0) {
+        bindCombo->addItem(current, current);
+        index = bindCombo->findData(current);
+    }
+    bindCombo->setCurrentIndex(index);
+}
+
+void NetworkTab::save()
+{
+    Global::preferences->udpPort = portSpin->value();
+
+    const QString typed = bindCombo->currentText().trimmed();
+    QString address = bindCombo->currentData().toString();
+    if (bindCombo->currentIndex() == 0
+            && (typed.isEmpty()
+                || typed == bindCombo->itemText(0)
+                || typed == QLatin1String("0.0.0.0"))) {
+        address.clear();
+    } else if (address.isEmpty()) {
+        QHostAddress parsed(typed);
+        address = parsed.isNull() ? QString() : parsed.toString();
+    }
+    Global::preferences->bindAddress = address;
+}
+
 void LogTab::getLogFilePath()
 {
     QFileDialog::Options options = QFileDialog::DontConfirmOverwrite;
@@ -398,6 +489,7 @@ DetailSetupDialog::DetailSetupDialog(QWidget *parent)
     otherTab = new OtherTab;
     transferTab = new TransferTab;
     fileTab = new FileTab;
+    networkTab = new NetworkTab;
 
     tabWidget = new QTabWidget;
     tabWidget->setUsesScrollButtons(true);
@@ -406,6 +498,7 @@ DetailSetupDialog::DetailSetupDialog(QWidget *parent)
     tabWidget->addTab(otherTab, tr("Other"));
     tabWidget->addTab(transferTab, tr("Transfer"));
     tabWidget->addTab(fileTab, tr("File"));
+    tabWidget->addTab(networkTab, tr("Network"));
 
     buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok
             | QDialogButtonBox::Apply);
@@ -443,6 +536,7 @@ void DetailSetupDialog::apply()
     logTab->save();
     transferTab->save();
     fileTab->save();
+    networkTab->save();
 
     Global::preferences->save();
 }
