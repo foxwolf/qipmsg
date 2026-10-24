@@ -63,7 +63,7 @@ void WindowManager::newMsg(Msg msg)
         handleIncomingSendMsg(msg);
         break;
     case IPMSG_READMSG:
-        createMsgReadedWindow(msg);
+        handleReadMsg(msg);
         break;
 
     default:
@@ -83,6 +83,11 @@ QString WindowManager::peerDisplayName(const Msg &msg) const
 
 bool WindowManager::shouldPopup() const
 {
+    // Do-not-disturb is independent of BR_ABSENCE / auto-reply. It only
+    // stops auto-raising windows. History and the unread counter still run.
+    if (Global::preferences->isDoNotDisturb) {
+        return false;
+    }
     if (Global::preferences->isNoAutoPopupMsg) {
         return false;
     }
@@ -221,6 +226,9 @@ void WindowManager::applyIncomingShake(const QString &ip)
         w->shakeWindow();
         return;
     }
+    if (Global::preferences->isDoNotDisturb) {
+        return;
+    }
     if (Global::systray) {
         foreach (MainWindow *mw, Global::systray->mainWindowList) {
             if (mw && mw->isVisible()) {
@@ -296,7 +304,8 @@ int WindowManager::broadcastTextToOnline(const QString &text)
                         additionalInfo, ""/* extendedInfo */, flags);
         Global::msgThread->addSendMsg(Msg(sendMsg));
         recordOutgoing(ip, Global::userManager->displayNameForIp(ip),
-                       tr("[Broadcast] %1").arg(text));
+                       tr("[Broadcast] %1").arg(text), QStringList(),
+                       sendMsg.packetNoString(), false);
         ++sent;
     }
     return sent;
@@ -312,7 +321,8 @@ void WindowManager::deliverText(const QString &ip, const QString &text)
                     Global::userManager->sendPortForIp(ip),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
-    recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text);
+    recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text,
+                   QStringList(), sendMsg.packetNoString(), false);
 }
 
 bool WindowManager::queueOrDeliverText(const QString &ip, const QString &text,
@@ -365,7 +375,9 @@ void WindowManager::flushOfflineQueue()
 
 void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
                                    const QString &text,
-                                   const QStringList &imagePaths)
+                                   const QStringList &imagePaths,
+                                   const QString &packetNo,
+                                   bool expectRead)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -374,12 +386,41 @@ void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
     record.direction = "out";
     record.text = text;
     record.imagePaths = imagePaths;
+    record.packetNo = packetNo;
+    record.expectRead = expectRead;
+    record.readReceipt = false;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
-                         text, false, record.imagePaths);
+                         text, false, record.imagePaths, packetNo, expectRead,
+                         false);
+    }
+}
+
+void WindowManager::handleReadMsg(Msg msg)
+{
+    const QString packetNo = ProtocolUtil::readReceiptPacketNo(
+                msg->additionalInfo(), msg->packetNoString());
+    const QString ip = msg->ip();
+    bool bubbleUpdated = false;
+    if (!packetNo.isEmpty() && Global::messageStore) {
+        Global::messageStore->markRead(ip, packetNo);
+    }
+    ChatWindow *chat = m_chatWindows.value(ip, 0);
+    if (chat && !packetNo.isEmpty()) {
+        bubbleUpdated = chat->markPacketRead(packetNo);
+    }
+
+    // The classic "envelope opened" dialog stays for the case where the
+    // sender is not looking at that chat. Do-not-disturb suppresses it
+    // inside createMsgReadedWindow. A visible bubble is enough feedback.
+    if (chat && chat->isVisible() && bubbleUpdated) {
+        return;
+    }
+    if (Global::preferences->isReadCheck) {
+        createMsgReadedWindow(msg);
     }
 }
 
@@ -415,7 +456,8 @@ void WindowManager::maybeAutoReply(const Msg &msg)
     Global::msgThread->addSendMsg(Msg(sendMsg));
 
     m_lastAutoReply.insert(ip, now);
-    recordOutgoing(ip, peerDisplayName(msg), text);
+    recordOutgoing(ip, peerDisplayName(msg), text, QStringList(),
+                   sendMsg.packetNoString(), false);
 }
 
 ChatWindow *WindowManager::ensureChat(const QString &ip)
@@ -537,6 +579,9 @@ void WindowManager::createMsgWindow(Msg msg)
 
 void WindowManager::createMsgReadedWindow(Msg msg)
 {
+        if (Global::preferences->isDoNotDisturb) {
+            return;
+        }
         MsgReadedWindow *window = new MsgReadedWindow(msg->owner().name());
 
         m_msgReadedWindowList.insert(0, window);

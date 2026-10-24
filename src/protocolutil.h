@@ -60,6 +60,12 @@ public:
     // SECRETOPT shares its bit with SERVEROPT. Only SENDMSG is an envelope.
     // READCHECKOPT matches the existing seal (MsgWindow::isSealed).
     static bool isSecretEnvelope(quint32 flags);
+
+    // READMSG carries the original SENDMSG packet number in the message body
+    // (IPMSG "extended area"). Some peers leave the body empty and reuse the
+    // READMSG packet-number field. Returns empty when neither is a packet id.
+    static QString readReceiptPacketNo(const QString &additionalInfo,
+                                       const QString &packetNoField);
 };
 
 #endif // !PROTOCOLUTIL_H

@@ -1,6 +1,7 @@
 // Self-check for cross-subnet range tokens and IPMSG option helpers.
 // Not a GUI test: it links protocolutil.cpp and Qt Core/Network only.
 
+#include "autostart.h"
 #include "protocolutil.h"
 
 #include <QCoreApplication>
@@ -93,6 +94,24 @@ int main(int argc, char **argv)
     CHECK(ProtocolUtil::isSecretEnvelope(IPMSG_SENDMSG | IPMSG_READCHECKOPT));
     CHECK(!ProtocolUtil::isSecretEnvelope(IPMSG_BR_ENTRY | IPMSG_SERVEROPT));
     CHECK(!ProtocolUtil::isSecretEnvelope(IPMSG_SENDMSG));
+
+    CHECK(ProtocolUtil::readReceiptPacketNo("4321", "99") == QLatin1String("4321"));
+    CHECK(ProtocolUtil::readReceiptPacketNo(QString("4321") + QChar('\0') + "extra", "99")
+          == QLatin1String("4321"));
+    CHECK(ProtocolUtil::readReceiptPacketNo("4321 extra", "99") == QLatin1String("4321"));
+    CHECK(ProtocolUtil::readReceiptPacketNo(QString(), "77") == QLatin1String("77"));
+    CHECK(ProtocolUtil::readReceiptPacketNo("opened", "77").isEmpty());
+
+    const QString desktop = AutoStart::xdgDesktopText("/tmp/my app/qipmsg");
+    CHECK(desktop.contains("X-QIpMsg-Autostart=true"));
+    CHECK(desktop.contains("X-GNOME-Autostart-enabled=true"));
+    CHECK(desktop.contains("Exec=\"/tmp/my app/qipmsg\""));
+    CHECK(AutoStart::xdgFileName() == QLatin1String("qipmsg-autostart.desktop"));
+    const QString agent = AutoStart::macAgentText("/Applications/QIpMsg.app/Contents/MacOS/qipmsg");
+    CHECK(agent.contains("org.qipmsg.login"));
+    CHECK(agent.contains("<key>RunAtLoad</key>"));
+    CHECK(agent.contains("/Applications/QIpMsg.app/Contents/MacOS/qipmsg"));
+    CHECK(AutoStart::windowsValueName() == QLatin1String("QIpMsg"));
 
     if (g_fails != 0) {
         std::fprintf(stderr, "%d checks failed\n", g_fails);

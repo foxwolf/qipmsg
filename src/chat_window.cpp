@@ -70,6 +70,7 @@
 #include <QTextBlock>
 #include <QTextBrowser>
 #include <QTextCursor>
+#include <QTextFormat>
 #include <QTextDocument>
 #include <QVariant>
 #include <QTextEdit>
@@ -444,7 +445,8 @@ void ChatWindow::loadHistory()
         const bool incoming = (record.direction != QLatin1String("out"));
         const QString name = incoming ? record.peerName : localName();
         appendMessage(record.timestamp, name, record.text, incoming,
-                      record.imagePaths);
+                      record.imagePaths, record.packetNo, record.expectRead,
+                      record.readReceipt);
     }
 }
 
@@ -460,7 +462,10 @@ void ChatWindow::setDraft(const QString &text)
 
 void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
                                const QString &text, bool incoming,
-                               const QStringList &imagePaths)
+                               const QStringList &imagePaths,
+                               const QString &packetNo,
+                               bool expectRead,
+                               bool readReceipt)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -519,8 +524,64 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     }
 
     cursor.movePosition(QTextCursor::End);
+    if (!incoming && !packetNo.isEmpty()) {
+        QTextBlockFormat statusBlock;
+        statusBlock.setAlignment(Qt::AlignRight);
+        statusBlock.setTopMargin(0);
+        statusBlock.setBottomMargin(2);
+        statusBlock.setRightMargin(8);
+        cursor.insertBlock(statusBlock);
+
+        QTextCharFormat statusFmt;
+        statusFmt.setFontPointSize(8);
+        statusFmt.setProperty(QTextFormat::UserProperty + 21, packetNo);
+        QString statusText;
+        if (readReceipt) {
+            statusFmt.setForeground(QColor("#059669"));
+            statusText = tr("Read");
+        } else if (expectRead) {
+            statusFmt.setForeground(QColor("#9CA3AF"));
+            statusText = tr("Unread");
+        } else {
+            statusFmt.setForeground(QColor("#9CA3AF"));
+            statusText = QString(QChar(0x200B));
+        }
+        cursor.insertText(statusText, statusFmt);
+    }
+    cursor.movePosition(QTextCursor::End);
     m_historyEdit->setTextCursor(cursor);
     m_historyEdit->ensureCursorVisible();
+}
+
+bool ChatWindow::markPacketRead(const QString &packetNo)
+{
+    if (packetNo.isEmpty() || !m_historyEdit) {
+        return false;
+    }
+    QTextDocument *doc = m_historyEdit->document();
+    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (!frag.isValid()) {
+                continue;
+            }
+            const QString marked = frag.charFormat()
+                    .property(QTextFormat::UserProperty + 21).toString();
+            if (marked != packetNo) {
+                continue;
+            }
+            QTextCursor edit(doc);
+            edit.setPosition(frag.position());
+            edit.setPosition(frag.position() + frag.length(),
+                             QTextCursor::KeepAnchor);
+            QTextCharFormat fmt = frag.charFormat();
+            fmt.setForeground(QColor("#059669"));
+            fmt.setProperty(QTextFormat::UserProperty + 21, packetNo);
+            edit.insertText(tr("Read"), fmt);
+            return true;
+        }
+    }
+    return false;
 }
 
 QString ChatWindow::sealedHref(const QString &packetNo) const
@@ -691,7 +752,8 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
     }
 
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
-    if (m_encapCheck && m_encapCheck->isChecked()) {
+    const bool expectRead = m_encapCheck && m_encapCheck->isChecked();
+    if (expectRead) {
         flags |= IPMSG_SECRETOPT | IPMSG_READCHECKOPT;
     }
     flags = Global::userManager->sendFlagsForIp(m_peerIp, flags);
@@ -740,7 +802,8 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
     if (!recorded.isEmpty()) {
         Global::windowManager->recordOutgoing(m_peerIp,
                 Global::userManager->displayNameForIp(m_peerIp), recorded,
-                imagePathsFromFiles(pathList));
+                imagePathsFromFiles(pathList),
+                sendMsg.packetNoString(), expectRead);
     }
 }
 
@@ -763,7 +826,8 @@ void ChatWindow::sendShake()
 
     Global::windowManager->recordOutgoing(m_peerIp,
             Global::userManager->displayNameForIp(m_peerIp),
-            tr("[Window shake]"));
+            tr("[Window shake]"), QStringList(), sendMsg.packetNoString(),
+            false);
     shakeWindow();
 }
 

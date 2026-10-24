@@ -23,6 +23,7 @@
 #include "constants.h"
 #include "msg_thread.h"
 #include "transfer_codec.h"
+#include "sound_thread.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -38,11 +39,17 @@
 Owner UserManager::m_ourself;
 
 UserManager::UserManager(QObject *parent)
-    : QObject(parent), m_refreshTimer(0), m_saveTimer(0)
+    : QObject(parent), m_refreshTimer(0), m_saveTimer(0),
+      m_presenceSoundArmed(false)
 {
     updateOurself();
     createModel();
     loadPersistedPeers();
+
+    // Persisted peers and the first discovery burst must not beep.
+    QTimer::singleShot(PRESENCE_SOUND_ARM_MS, this, [this]() {
+        m_presenceSoundArmed = true;
+    });
 
     m_refreshTimer = new QTimer(this);
     connect(m_refreshTimer, SIGNAL(timeout()),
@@ -166,6 +173,10 @@ void UserManager::touchUser(int row, bool absence)
 
 void UserManager::setRowPresence(int row, int presence)
 {
+    const QModelIndex ipIndex = m_model->index(row, USER_VIEW_IP_COLUMN);
+    const QVariant previous = m_model->data(ipIndex, Qt::UserRole + 1);
+    const int oldPresence = previous.isValid() ? previous.toInt() : -1;
+
     QString text;
     QColor color;
     switch (presence) {
@@ -190,6 +201,53 @@ void UserManager::setRowPresence(int row, int presence)
     for (int col = 0; col < m_model->columnCount(); ++col) {
         m_model->setData(m_model->index(row, col), fg, Qt::ForegroundRole);
     }
+
+    if (oldPresence != presence) {
+        notePresenceSound(ip(row), oldPresence, presence);
+    }
+}
+
+void UserManager::notePresenceSound(const QString &ip, int oldPresence,
+                                    int newPresence)
+{
+    if (!m_presenceSoundArmed || ip.isEmpty()) {
+        return;
+    }
+    if (!Global::preferences || !Global::preferences->isPresenceSound) {
+        return;
+    }
+    if (!Global::soundThread) {
+        return;
+    }
+
+    const bool wasHere = oldPresence == PRESENCE_ONLINE
+            || oldPresence == PRESENCE_AWAY;
+    const bool nowHere = newPresence == PRESENCE_ONLINE
+            || newPresence == PRESENCE_AWAY;
+    if (wasHere == nowHere) {
+        return;
+    }
+
+    const QDateTime now = QDateTime::currentDateTime();
+    if (m_lastPresenceSoundAt.isValid()
+            && m_lastPresenceSoundAt.msecsTo(now) < PRESENCE_SOUND_GLOBAL_GAP_MS) {
+        return;
+    }
+    if (m_peerPresenceSoundAt.contains(ip)
+            && m_peerPresenceSoundAt.value(ip).msecsTo(now)
+            < PRESENCE_SOUND_PEER_GAP_MS) {
+        return;
+    }
+
+    const QString path = nowHere
+            ? Global::preferences->onlineSound
+            : Global::preferences->offlineSound;
+    if (path.isEmpty()) {
+        return;
+    }
+    Global::soundThread->play(path);
+    m_lastPresenceSoundAt = now;
+    m_peerPresenceSoundAt.insert(ip, now);
 }
 
 void UserManager::applyRefreshTimer()

@@ -38,6 +38,7 @@ public:
     ~Systray();
 
     void show();
+    void syncActions();
 
     QList<MainWindow *> mainWindowList;
     void notifyNewMessage(const QString &fromName, const QString &preview);
@@ -52,6 +53,7 @@ private slots:
     void onNewTextMessage(QString fromName, QString preview);
     void setAway(bool away);
     void setStealth(bool stealth);
+    void setDoNotDisturb(bool enabled);
     void refreshLeaveActions();
 
 private slots:
@@ -94,6 +96,7 @@ private:
     QActionGroup *leaveActionGroup;
     QAction *awayAction;
     QAction *stealthAction;
+    QAction *doNotDisturbAction;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
 

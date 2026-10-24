@@ -52,6 +52,7 @@ private:
     QCheckBox *noPopupMessageWhenAway;
     QCheckBox *autoRefreshCheckBox;
     QCheckBox *trayNotifyCheckBox;
+    QCheckBox *startWithOsCheck;
     QSpinBox *refreshIntervalSpin;
     QSpinBox *staleMissedSpin;
 };
@@ -229,6 +230,8 @@ private:
     QCheckBox *readCheck;
     QCheckBox *noAutoPopupMsg;
     QCheckBox *noSoundAlarm;
+    QCheckBox *presenceSoundCheck;
+    QCheckBox *doNotDisturbCheck;
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
     QCheckBox *offlineQueueCheck;

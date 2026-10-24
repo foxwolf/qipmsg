@@ -53,7 +53,9 @@ public:
     DiscussionWindow *openDiscussion(const QString &id, bool raiseWindow = true);
     void recordOutgoing(const QString &ip, const QString &peerName,
                         const QString &text,
-                        const QStringList &imagePaths = QStringList());
+                        const QStringList &imagePaths = QStringList(),
+                        const QString &packetNo = QString(),
+                        bool expectRead = false);
     void deliverText(const QString &ip, const QString &text);
     int broadcastTextToOnline(const QString &text);
     bool openSealedLetter(const QString &ip, const QString &packetNo);
@@ -92,6 +94,7 @@ private:
     void createMsgWindow(Msg msg);
     void createMsgReadedWindow(Msg msg);
     void handleIncomingSendMsg(Msg msg);
+    void handleReadMsg(Msg msg);
     void maybeAutoReply(const Msg &msg);
     void playNoticeSound();
     bool shouldPopup() const;

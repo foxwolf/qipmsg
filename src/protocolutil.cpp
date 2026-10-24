@@ -17,6 +17,8 @@
 #include "protocolutil.h"
 #include "constants.h"
 
+#include <QRegularExpression>
+
 namespace {
 
 bool parseHost(const QString &text, quint32 *host)
@@ -279,4 +281,49 @@ bool ProtocolUtil::isSecretEnvelope(quint32 flags)
         return false;
     }
     return (flags & IPMSG_SECRETOPT) || (flags & IPMSG_READCHECKOPT);
+}
+
+namespace {
+
+bool isDecimalPacket(const QString &text)
+{
+    if (text.isEmpty() || text.size() > 20) {
+        return false;
+    }
+    for (int i = 0; i < text.size(); ++i) {
+        if (!text.at(i).isDigit()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+} // namespace
+
+QString ProtocolUtil::readReceiptPacketNo(const QString &additionalInfo,
+                                          const QString &packetNoField)
+{
+    QString body = additionalInfo;
+    const int nul = body.indexOf(QChar(QLatin1Char('\0')));
+    if (nul >= 0) {
+        body = body.left(nul);
+    }
+    body = body.trimmed();
+
+    QString token;
+    const int space = body.indexOf(QRegularExpression(QStringLiteral("\\s")));
+    if (space < 0) {
+        token = body;
+    } else {
+        token = body.left(space);
+    }
+    if (isDecimalPacket(token)) {
+        return token;
+    }
+
+    const QString field = packetNoField.trimmed();
+    if (body.isEmpty() && isDecimalPacket(field)) {
+        return field;
+    }
+    return QString();
 }
