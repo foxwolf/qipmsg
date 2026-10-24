@@ -14,6 +14,13 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#endif
+
 #include "msg_server.h"
 #include "send_msg.h"
 #include "global.h"
@@ -29,6 +36,70 @@
 #include <QNetworkInterface>
 #include <QAbstractSocket>
 #include <QSet>
+#include <QtDebug>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#endif
+
+namespace {
+
+bool isUsableIpv4Interface(const QNetworkInterface &networkInterface)
+{
+    const QNetworkInterface::InterfaceFlags flags = networkInterface.flags();
+    if (!(flags & QNetworkInterface::IsUp)) {
+        return false;
+    }
+    if (flags & QNetworkInterface::IsLoopBack) {
+        return false;
+    }
+    return true;
+}
+
+bool isUsableIpv4Broadcast(const QNetworkAddressEntry &entry)
+{
+    const QHostAddress ip = entry.ip();
+    if (ip.protocol() != QAbstractSocket::IPv4Protocol
+        || ip.isLoopback()
+        || ip.isNull()) {
+        return false;
+    }
+
+    const QHostAddress broadcastAddress = entry.broadcast();
+    if (broadcastAddress.isNull()
+        || broadcastAddress == QHostAddress::AnyIPv4
+        || broadcastAddress == QHostAddress::LocalHost) {
+        return false;
+    }
+
+    return true;
+}
+
+void enableUdpBroadcast(QUdpSocket &udpSocket)
+{
+    const qintptr socketDescriptor = udpSocket.socketDescriptor();
+    if (socketDescriptor == -1) {
+        return;
+    }
+
+    int broadcastEnabled = 1;
+#ifdef _WIN32
+    if (::setsockopt(static_cast<SOCKET>(socketDescriptor), SOL_SOCKET,
+                     SO_BROADCAST,
+                     reinterpret_cast<const char *>(&broadcastEnabled),
+                     sizeof(broadcastEnabled)) == SOCKET_ERROR) {
+        qWarning() << "MsgServer: SO_BROADCAST failed:" << WSAGetLastError();
+    }
+#else
+    if (::setsockopt(static_cast<int>(socketDescriptor), SOL_SOCKET,
+                     SO_BROADCAST, &broadcastEnabled,
+                     sizeof(broadcastEnabled)) != 0) {
+        qWarning() << "MsgServer: SO_BROADCAST failed";
+    }
+#endif
+}
+
+} // namespace
 
 MsgServer::MsgServer(QObject *parent)
     : QObject(parent)
@@ -45,7 +116,21 @@ MsgServer::MsgServer(QObject *parent)
 
 void MsgServer::start()
 {
-    m_udpSocket.bind(QHostAddress::Any, IPMSG_DEFAULT_PORT);
+    // IPMSG is IPv4-centric. QHostAddress::Any is IPv6 :: on Windows, and
+    // writing IPv4 broadcasts from that socket fails with NetworkError.
+    const QAbstractSocket::BindMode bindMode =
+        QAbstractSocket::ShareAddress | QAbstractSocket::ReuseAddressHint;
+    if (!m_udpSocket.bind(QHostAddress::AnyIPv4, IPMSG_DEFAULT_PORT, bindMode)) {
+        qWarning() << "MsgServer::start: bind 0.0.0.0:" << IPMSG_DEFAULT_PORT
+                   << "failed:" << m_udpSocket.errorString();
+        return;
+    }
+
+    enableUdpBroadcast(m_udpSocket);
+
+    qInfo() << "MsgServer::start: UDP listen"
+            << m_udpSocket.localAddress().toString()
+            << m_udpSocket.localPort();
 }
 
 void MsgServer::readPacket()
@@ -261,31 +346,41 @@ void MsgServer::updateAddresses()
     m_broadcastAddresses.clear();
     m_ipAddresses.clear();
 
-    foreach (QNetworkInterface interface, QNetworkInterface::allInterfaces()) {
-        foreach (QNetworkAddressEntry entry, interface.addressEntries()) {
-            QHostAddress broadcastAddress = entry.broadcast();
-            if (broadcastAddress != QHostAddress::Null &&
-                entry.ip() != QHostAddress::LocalHost) {
-                m_broadcastAddresses << broadcastAddress;
-                m_ipAddresses << entry.ip();
+    foreach (QNetworkInterface networkInterface, QNetworkInterface::allInterfaces()) {
+        if (!isUsableIpv4Interface(networkInterface)) {
+            continue;
+        }
+
+        foreach (QNetworkAddressEntry entry, networkInterface.addressEntries()) {
+            if (!isUsableIpv4Broadcast(entry)) {
+                continue;
             }
+
+            m_broadcastAddresses << entry.broadcast();
+            m_ipAddresses << entry.ip();
         }
     }
 
-    // Add broadcast address specified by user.
-    foreach(QString s, Global::preferences->userSpecifiedBroadcastIpList) {
-        QHostAddress h(s);
-        if (h != QHostAddress::Null &&
-            h != QHostAddress::LocalHost &&
-            h != QHostAddress::LocalHostIPv6) {
-            m_broadcastAddresses << h;
+    foreach (QString specifiedAddress, Global::preferences->userSpecifiedBroadcastIpList) {
+        QHostAddress hostAddress(specifiedAddress);
+        if (hostAddress.protocol() == QAbstractSocket::IPv4Protocol
+            && !hostAddress.isNull()
+            && !hostAddress.isLoopback()) {
+            m_broadcastAddresses << hostAddress;
         }
     }
 
-    // NOTE: Just to remove duplicate entries.
-    QSet<QHostAddress> set(m_broadcastAddresses.begin(), m_broadcastAddresses.end());
-    m_broadcastAddresses.clear();
-    m_broadcastAddresses = QList<QHostAddress>(set.begin(), set.end());
+    const QHostAddress limitedBroadcast(QHostAddress::Broadcast);
+    if (!m_broadcastAddresses.contains(limitedBroadcast)) {
+        m_broadcastAddresses << limitedBroadcast;
+    }
+
+    QSet<QHostAddress> uniqueAddresses(m_broadcastAddresses.begin(),
+                                       m_broadcastAddresses.end());
+    m_broadcastAddresses = QList<QHostAddress>(uniqueAddresses.begin(),
+                                               uniqueAddresses.end());
+
+    qDebug() << "MsgServer::updateAddresses:" << m_broadcastAddresses;
 }
 
 void MsgServer::broadcastUserMsg(Msg &msg)
@@ -296,15 +391,26 @@ void MsgServer::broadcastUserMsg(Msg &msg)
 
     QByteArray datagram = Global::transferCodec->codec()
         ->fromUnicode(msg->packet());
-    bool validBroadcastAddresses = true;
+
+    if (m_broadcastAddresses.isEmpty()) {
+        qWarning() << "MsgServer::broadcastUserMsg: no usable IPv4 broadcast address";
+        return;
+    }
+
+    int successCount = 0;
     foreach (QHostAddress address, m_broadcastAddresses) {
         if (m_udpSocket.writeDatagram(datagram, address,
                                        IPMSG_DEFAULT_PORT) == -1) {
-            validBroadcastAddresses = false;
+            qWarning() << "MsgServer::broadcastUserMsg: send failed"
+                       << address.toString()
+                       << m_udpSocket.errorString();
+        } else {
+            ++successCount;
         }
     }
 
-    if (!validBroadcastAddresses) {
+    if (successCount == 0) {
+        qWarning() << "MsgServer::broadcastUserMsg: all IPv4 broadcasts failed";
         updateAddresses();
     }
 }

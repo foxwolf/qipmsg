@@ -25,6 +25,7 @@
 
 #include <QTimer>
 #include <QMessageBox>
+#include <QtDebug>
 
 
 MsgThread::~MsgThread()
@@ -81,17 +82,24 @@ void MsgThread::removeSendMsgNotLock(QString packetNoString)
 
 void MsgThread::handleError(QAbstractSocket::SocketError errorCode, QString s)
 {
-    qDebug() << "MsgThread::handleError";
+    qDebug() << "MsgThread::handleError" << errorCode << s;
+
+    const bool fatalBindError =
+        errorCode == QAbstractSocket::AddressInUseError
+        || errorCode == QAbstractSocket::SocketAddressNotAvailableError
+        || errorCode == QAbstractSocket::SocketAccessError;
+
+    if (!fatalBindError) {
+        qWarning() << "MsgThread::handleError: transient UDP error:" << s;
+        return;
+    }
 
     QString errorString(QObject::tr("udp server error"));
 
     QMessageBox::critical(0, QObject::tr("QIpMsg"),
                           errorString + ":\n" + s + ".");
 
-    qDebug() << "MsgThread::handleError:" << s;
-
-    if (errorCode == QAbstractSocket::AddressInUseError) {
-        ::exit(-1);
-    }
+    qWarning() << "MsgThread::handleError: fatal UDP bind error:" << s;
+    ::exit(-1);
 }
 
