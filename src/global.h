@@ -35,6 +35,7 @@ class QIcon;
 class FileServer;
 class MessageStore;
 class ResumeStore;
+class OfflineQueue;
 
 namespace Global
 {
@@ -48,6 +49,7 @@ namespace Global
     extern TransferCodec *transferCodec;
     extern MessageStore *messageStore;
     extern ResumeStore *resumeStore;
+    extern OfflineQueue *offlineQueue;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

@@ -550,6 +550,10 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isQuoteMsg) {
         quoteMsg->setCheckState(Qt::Checked);
     }
+    offlineQueueCheck = new QCheckBox(tr("Queue messages when peer is offline"));
+    if (Global::preferences->isOfflineQueue) {
+        offlineQueueCheck->setCheckState(Qt::Checked);
+    }
 
     awayCheck = new QCheckBox(tr("Away"));
     if (Global::preferences->isAway) {
@@ -580,6 +584,7 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(noSoundAlarm);
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
+    vbox->addWidget(offlineQueueCheck);
     vbox->addWidget(awayCheck);
     vbox->addWidget(autoReplyCheck);
     vbox->addLayout(replyLayout);
@@ -709,6 +714,7 @@ void SetupWindow::applyPreferences()
     Global::preferences->isNoSoundAlarm = noSoundAlarm->isChecked();
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
+    Global::preferences->isOfflineQueue = offlineQueueCheck->isChecked();
     Global::preferences->isNoAutoPopupMsg = noAutoPopupMsg->isChecked();
     Global::preferences->isAway = awayCheck->isChecked();
     Global::preferences->isAutoReply = autoReplyCheck->isChecked();

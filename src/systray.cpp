@@ -25,6 +25,7 @@
 #include "about_dialog.h"
 #include "history_search_window.h"
 #include "transfer_file_window.h"
+#include "offline_queue.h"
 #include "constants.h"
 
 #include <QAction>
@@ -85,11 +86,18 @@ void Systray::refreshTooltip()
 {
     const int unread = Global::windowManager
             ? Global::windowManager->unreadCount() : 0;
+    const int queued = Global::offlineQueue
+            ? Global::offlineQueue->count() : 0;
     if (unread > 0) {
         trayIcon->setToolTip(tr("IP Messenger (%1 users, %2 unread)")
                              .arg(m_userCount).arg(unread));
     } else {
         trayIcon->setToolTip(tr("IP Messenger (%1)").arg(m_userCount));
+    }
+    if (queued > 0) {
+        trayIcon->setToolTip(trayIcon->toolTip()
+                             + QString(" · ")
+                             + tr("%n queued", "", queued));
     }
 }
 
@@ -134,6 +142,7 @@ void Systray::createActions()
     aboutQtAction = new QAction(tr("About Qt"), 0);
     readMsgLogAction = new QAction(tr("Read message log file"), 0);
     findHistoryAction = new QAction(tr("Find in history..."), 0);
+    offlineQueueAction = new QAction(tr("Offline message queue"), 0);
     quitAction = new QAction(tr("Quit IP Messenger"), 0);
 }
 
@@ -152,6 +161,7 @@ void Systray::createMenus()
     trayIconMenu->addAction(aboutAction);
     trayIconMenu->addAction(readMsgLogAction);
     trayIconMenu->addAction(findHistoryAction);
+    trayIconMenu->addAction(offlineQueueAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
@@ -200,6 +210,8 @@ void Systray::createConnections()
             this, SLOT(readLog()));
     connect(findHistoryAction, SIGNAL(triggered()),
             this, SLOT(findInHistory()));
+    connect(offlineQueueAction, SIGNAL(triggered()),
+            this, SLOT(showOfflineQueue()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
@@ -207,6 +219,11 @@ void Systray::createConnections()
             this, SLOT(refreshTooltip()));
     connect(Global::windowManager, SIGNAL(newTextMessage(QString,QString)),
             this, SLOT(onNewTextMessage(QString,QString)));
+    if (Global::offlineQueue) {
+        connect(Global::offlineQueue, SIGNAL(queueChanged()),
+                this, SLOT(refreshOfflineQueueAction()));
+    }
+    refreshOfflineQueueAction();
 }
 
 void Systray::setup()
@@ -290,6 +307,22 @@ void Systray::readLog()
         return;
     }
     QDesktopServices::openUrl(QUrl::fromLocalFile(Global::preferences->logFilePath));
+}
+
+void Systray::showOfflineQueue()
+{
+    OfflineQueueDialog *dialog = new OfflineQueueDialog;
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
+}
+
+void Systray::refreshOfflineQueueAction()
+{
+    const int n = Global::offlineQueue ? Global::offlineQueue->count() : 0;
+    if (offlineQueueAction) {
+        offlineQueueAction->setText(tr("Offline message queue (%1)").arg(n));
+    }
+    refreshTooltip();
 }
 
 void Systray::setAllWindowVisible()

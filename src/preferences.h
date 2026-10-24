@@ -84,6 +84,7 @@ public:
     bool isNoPopupWhenAway;
 
     bool isTrayNotify;
+    bool isOfflineQueue;
 
     bool isResumeTransFile;
     bool isAutoRecvFile;

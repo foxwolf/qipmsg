@@ -36,6 +36,7 @@ HEADERS += \
 	msg_thread.h \
 	msg_readed_window.h \
 	msg_window.h \
+	offline_queue.h \
 	preferences.h \
 	qipmsg.h \
         recv_file.h \
@@ -92,6 +93,7 @@ SOURCES += \
 	msg_thread.cpp \
 	msg_readed_window.cpp \
 	msg_window.cpp \
+	offline_queue.cpp \
 	preferences.cpp \
 	qipmsg.cpp \
         recv_file.cpp \

@@ -29,13 +29,19 @@
 #include "sound_thread.h"
 #include "systray.h"
 #include "user_manager.h"
+#include "offline_queue.h"
 
+#include <QHostAddress>
+#include <QMessageBox>
 #include <QPoint>
+#include <QSet>
 #include <QSize>
 
 WindowManager::WindowManager(QObject *parent)
     : QObject(parent)
 {
+    connect(Global::userManager, SIGNAL(usersChanged()),
+            this, SLOT(flushOfflineQueue()));
 }
 
 WindowManager::~WindowManager()
@@ -185,6 +191,65 @@ void WindowManager::recordIncomingText(const QString &ip,
             preview = preview.left(80) + "...";
         }
         emit newTextMessage(peerName, preview);
+    }
+}
+
+void WindowManager::deliverText(const QString &ip, const QString &text)
+{
+    QString additionalInfo = text;
+    additionalInfo.append(QChar('\0'));
+    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    SendMsg sendMsg(QHostAddress(ip), IPMSG_DEFAULT_PORT,
+                    additionalInfo, ""/* extendedInfo */, flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+    recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text);
+}
+
+bool WindowManager::queueOrDeliverText(const QString &ip, const QString &text,
+                                       QWidget *askParent)
+{
+    if (text.isEmpty()) {
+        return false;
+    }
+    if (Global::userManager->isReachable(ip)) {
+        deliverText(ip, text);
+        return true;
+    }
+    if (!Global::preferences->isOfflineQueue) {
+        const int ret = QMessageBox::question(
+                    askParent,
+                    tr("Peer offline"),
+                    tr("%1 is offline. Queue this message and send when they come online?")
+                    .arg(Global::userManager->displayNameForIp(ip)),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::Yes);
+        if (ret != QMessageBox::Yes) {
+            return false;
+        }
+    }
+    Global::offlineQueue->enqueue(ip, text);
+    return true;
+}
+
+void WindowManager::flushOfflineQueue()
+{
+    if (!Global::offlineQueue || !Global::userManager) {
+        return;
+    }
+
+    QSet<QString> ips;
+    foreach (const OfflineItem &item, Global::offlineQueue->items()) {
+        ips.insert(item.ip);
+    }
+
+    foreach (const QString &ip, ips) {
+        if (!Global::userManager->isReachable(ip)) {
+            continue;
+        }
+        const QList<OfflineItem> pending = Global::offlineQueue->takeForIp(ip);
+        foreach (const OfflineItem &item, pending) {
+            deliverText(ip, item.text);
+        }
     }
 }
 

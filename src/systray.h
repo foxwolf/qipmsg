@@ -61,6 +61,8 @@ private slots:
     void findInHistory();
     void setAllWindowVisible();
     void showTransferFile();
+    void showOfflineQueue();
+    void refreshOfflineQueueAction();
 
 private:
     void createActions();
@@ -81,6 +83,7 @@ private:
     QAction *aboutQtAction;
     QAction *readMsgLogAction;
     QAction *findHistoryAction;
+    QAction *offlineQueueAction;
     QMenu *leaveMenu;
     QAction *quitAction;
 

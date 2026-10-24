@@ -29,6 +29,7 @@
 #include "send_file_map.h"
 #include "send_file_window.h"
 #include "send_msg.h"
+#include "offline_queue.h"
 #include "user_manager.h"
 #include "window_manager.h"
 
@@ -47,6 +48,8 @@
 #include <QHostAddress>
 #include <QKeySequence>
 #include <QLabel>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
@@ -70,6 +73,11 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
     setAcceptDrops(true);
     createUi();
     refreshPeerCaption();
+    refreshQueuePanel();
+    if (Global::offlineQueue) {
+        connect(Global::offlineQueue, SIGNAL(queueChanged()),
+                this, SLOT(refreshQueuePanel()));
+    }
     setWindowIcon(*Global::iconSet.value("normal"));
 }
 
@@ -226,6 +234,32 @@ void ChatWindow::createUi()
     composerLayout->addWidget(m_inputEdit);
     composerLayout->addLayout(buttonLayout);
 
+    m_queuePanel = new QWidget;
+    m_queuePanel->setObjectName("offlineQueuePanel");
+    m_queueBanner = new QLabel;
+    m_queueBanner->setObjectName("offlineQueueBanner");
+    m_queueBanner->setWordWrap(true);
+    m_queueList = new QListWidget;
+    m_queueList->setMaximumHeight(96);
+    m_cancelQueuedButton = new QPushButton(tr("Cancel selected"));
+    m_clearQueueButton = new QPushButton(tr("Clear queue"));
+    connect(m_cancelQueuedButton, SIGNAL(clicked()),
+            this, SLOT(cancelSelectedQueued()));
+    connect(m_clearQueueButton, SIGNAL(clicked()),
+            this, SLOT(clearQueued()));
+    QHBoxLayout *queueButtons = new QHBoxLayout;
+    queueButtons->setContentsMargins(0, 0, 0, 0);
+    queueButtons->addWidget(m_cancelQueuedButton);
+    queueButtons->addWidget(m_clearQueueButton);
+    queueButtons->addStretch();
+    QVBoxLayout *queueLayout = new QVBoxLayout(m_queuePanel);
+    queueLayout->setContentsMargins(12, 8, 12, 4);
+    queueLayout->setSpacing(4);
+    queueLayout->addWidget(m_queueBanner);
+    queueLayout->addWidget(m_queueList);
+    queueLayout->addLayout(queueButtons);
+    m_queuePanel->hide();
+
     QWidget *chatPane = new QWidget;
     QVBoxLayout *chatLayout = new QVBoxLayout(chatPane);
     chatLayout->setContentsMargins(0, 0, 0, 0);
@@ -233,6 +267,7 @@ void ChatWindow::createUi()
     chatLayout->addWidget(header);
     chatLayout->addWidget(toolbar);
     chatLayout->addWidget(m_historyEdit, 3);
+    chatLayout->addWidget(m_queuePanel);
     chatLayout->addWidget(composer);
 
     QWidget *profilePanel = new QWidget;
@@ -460,8 +495,67 @@ void ChatWindow::sendMessage()
     m_inputEdit->setFocus();
 }
 
+void ChatWindow::refreshQueuePanel()
+{
+    if (!m_queuePanel || !Global::offlineQueue) {
+        return;
+    }
+    const QList<OfflineItem> items = Global::offlineQueue->itemsForIp(m_peerIp);
+    m_queueList->clear();
+    foreach (const OfflineItem &item, items) {
+        QListWidgetItem *row = new QListWidgetItem(
+                    QString("%1  %2")
+                    .arg(item.created.toString("hh:mm:ss"), item.text));
+        row->setData(Qt::UserRole, item.id);
+        row->setToolTip(item.text);
+        m_queueList->addItem(row);
+    }
+    if (items.isEmpty()) {
+        m_queuePanel->hide();
+        return;
+    }
+    m_queueBanner->setText(tr("Offline queue · %n message(s) — send when the peer comes online",
+                              "", items.size()));
+    m_queuePanel->show();
+}
+
+void ChatWindow::cancelSelectedQueued()
+{
+    if (!Global::offlineQueue) {
+        return;
+    }
+    foreach (QListWidgetItem *row, m_queueList->selectedItems()) {
+        Global::offlineQueue->removeById(row->data(Qt::UserRole).toString());
+    }
+}
+
+void ChatWindow::clearQueued()
+{
+    if (!Global::offlineQueue) {
+        return;
+    }
+    Global::offlineQueue->removeForIp(m_peerIp);
+}
+
 void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 {
+    if (!Global::userManager->isReachable(m_peerIp)) {
+        if (!pathList.isEmpty()) {
+            QMessageBox::information(this, tr("Offline queue"),
+                    tr("File attachments cannot be queued (no transfer server). "
+                       "The text will be queued if present."));
+        }
+        const QString body = text;
+        if (body.trimmed().isEmpty()) {
+            return;
+        }
+        if (!Global::windowManager->queueOrDeliverText(m_peerIp, body, this)) {
+            return;
+        }
+        refreshQueuePanel();
+        return;
+    }
+
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
@@ -512,6 +606,11 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 
 void ChatWindow::sendShake()
 {
+    if (!Global::userManager->isReachable(m_peerIp)) {
+        QMessageBox::information(this, tr("Offline queue"),
+                tr("Window shake is not queued for offline peers."));
+        return;
+    }
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
