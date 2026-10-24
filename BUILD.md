@@ -144,7 +144,7 @@ make
 
 ## Runtime notes
 
-- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), default receive files in `recv/`, and screenshots in `screenshots/`.
+- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, default receive files in `recv/`, and screenshots in `screenshots/`.
 - Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8, unless the datagram's command has `IPMSG_UTF8OPT` (`0x00800000`), in which case the whole datagram is decoded as UTF-8.
 - `BR_ENTRY` / `BR_ABSENCE` / `BR_EXIT` / `ANSENTRY` announce `IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT`. `ANSENTRY` previously omitted even the file-attach bit; it now uses the same capability word. Presence text stays on the configured codec and sets `IPMSG_UTF8OPT` only when that codec is UTF-8, so FeiQ 2013 keeps reading GBK nicknames. A directed `SENDMSG` sets `IPMSG_UTF8OPT` and is encoded as UTF-8 when the peer has advertised `CAPUTF8OPT` (or when our codec is already UTF-8). Clipboard images are still ordinary file attachments; the capability bit is an announcement, not a new file type on the wire (`IPMSG_FILE_CLIPBOARD` is defined but not sent, so FeiQ file receive stays unchanged).
 - Cross-subnet discovery: Preferences stores extra targets in `userSpecifiedBroadcastIp` (same `\r`-separated list). A token may be one IPv4, `start-end`, or `addr/prefix`. Each refresh expands it and unicasts `BR_ENTRY` there. One token is limited to 1024 addresses. There is no directory server.
@@ -166,10 +166,20 @@ make
 - Screenshot uses `QScreen::grabWindow` (full screen or rubber-band region) and sends a PNG through the existing file-attach path. Wayland/headless sessions may return an empty grab.
 - Chat bubbles show a thumbnail for `png` / `jpg` / `jpeg` / `gif` / `bmp` / `webp` attachments (outgoing local path, incoming after receive into the save folder, plus path/filename in history). Click opens the file with the desktop handler. Clipboard paste (`Ctrl+V` of an image) saves under `screenshots/` and attaches it — the same IPMSG file-attach path FeiQ uses.
 - The toolbar emoji pack inserts Unicode into the compose box and sends it as ordinary `IPMSG_SENDMSG` text (no new protocol, no Qt Sql). FeiQ 2013 typically uses GBK, which cannot encode most emoji; those peers may see `?`. Use Preferences → Transfer → UTF-8 for Unicode emoji interop. Incoming FeiQ-style tokens such as `/微笑` are rendered as emoji locally only.
+- Custom stickers are files, not Unicode. Import copies PNG / GIF / WebP / JPEG / BMP into `stickers/` (max 8 MB, 400 files, 40 named groups). A click sends `[Sticker] …` plus `IPMSG_FILEATTACHOPT`, the same image-attach path as paste and screenshot. GIF animation is the file itself; the picker shows the first frame (WebP needs Qt's imageformats plugin for a thumbnail, but the file is still sent). FeiQ receives an ordinary image attachment, not a private face-id. Offline queue still refuses attachments.
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
 
 ## Version
+
+**2.19.3** adds per-department-group hide, per-group message mute, and importable sticker groups on top of **2.15.2** (login autostart, do-not-disturb, presence sounds, read receipts), **2.11.1** (cross-subnet ranges, broadcast-to-online, sealed letters, UTF-8/clipboard bits), and **2.7.0** (FeiQ/IPMSG TCP file interop).
+
+## Trying 2.19.3 group permissions and stickers
+
+1. Right-click a department header (the FeiQ group field, not a local 讨论组) or one of its members. **Hide from group** and **Mute messages** match Preferences → Send/Receive → **Group permissions**. Flags are in `group_policy.json`.
+2. Hide: that group's `BR_ENTRY` is recorded locally but not answered. A unicast `BR_EXIT` is sent to known members so clients that already listed us can drop us. `GETABSENCEINFO` from a hidden group is not answered. Global stealth is unchanged (it still answers absence info). While any group is hidden, `announcePresence()` does not subnet-broadcast; it unicasts entry/absence to known peers outside hidden groups and unicast exit to hidden groups. Unknown hosts learn about us only when they send `BR_ENTRY` and their group is not hidden. Clearing every hidden group restores the subnet broadcast.
+3. Mute: `WindowManager` still appends history and unread. It skips the tray balloon, notice sound, auto-raise, and shake. File-receive windows stay hidden the same way do-not-disturb hides them; a tray click can show them. Auto-reply is unchanged. A peer with no known department (never seen on entry) is not muted.
+4. Emoji picker: Classic Unicode still inserts text. Import stores the image under `stickers/` and `stickers.json`. Click sends a file attachment. New/rename/delete group and right-click move/delete are local only.
 
 **2.15.2** adds opt-in login autostart, do-not-disturb, presence sounds, and read-receipt bubble labels on top of **2.11.1** (cross-subnet ranges, broadcast-to-online, sealed letters, UTF-8/clipboard bits) and **2.7.0** (FeiQ/IPMSG TCP file interop).
 
@@ -213,4 +223,19 @@ IPMSG/FeiQ discovery is LAN UDP with no presence server. HideMode can only refus
 | Directed `SENDMSG` / `GETABSENCEINFO` | answer | answer (protocol-safe) |
 | Quit | `BR_EXIT` | skip (already left) |
 
-Assumptions: FeiQ HideMode is treated as “do not answer discovery.” We still list others who broadcast. We cannot hide from a specific group. Windows/FeiQ confirmation is still needed.
+Assumptions: FeiQ HideMode is treated as “do not answer discovery.” We still list others who broadcast. Global stealth still cannot be enforced by a server.
+
+## FeiQ per-group hide (best-effort)
+
+IPMSG has no group-scoped presence bit and FeiQ's per-group HideMode is not a published extension, so this build does not emit a private opcode.
+
+| Event | Group not hidden | Group hidden |
+| --- | --- | --- |
+| Subnet `BR_ENTRY` / `BR_ABSENCE` | sent when no group is hidden | suppressed while any group is hidden |
+| Known peer outside hidden groups | included in that broadcast | unicast entry/absence |
+| Known peer inside a hidden group | unicast entry when the group is shown again | unicast `BR_EXIT` (also on each of their `BR_ENTRY`) |
+| Their `BR_ENTRY` | record + `ANSENTRY` | record, no `ANSENTRY` |
+| Their `GETABSENCEINFO` | answer | no answer |
+| Directed `SENDMSG` from them | normal | still received (use mute to silence alerts) |
+
+Limits that need a human FeiQ check: a client that ignores unicast `BR_EXIT`, or that only times us out on a missed subnet refresh, can keep showing us. A peer we have never seen is not in the unicast list until they announce. Group match is the exact trimmed department string, not a discussion-group id. Hiding does not stop someone who already knows the IP from sending. Mute does not drop the UDP message.

@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.15.2 adds four everyday tray/settings items on top of 2.11.1: opt-in start-with-login, do-not-disturb (no popups), presence sounds with a flap limit, and a read-receipt label on the outgoing bubble. 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom.
+2.19.3 adds department-group hide, per-group message mute, and user sticker packs (PNG/GIF/WebP plus named groups) on top of 2.15.2. 2.15.2 tray/settings items, 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension.
 
 ## In this line of work (done)
 
@@ -37,6 +37,8 @@
 - [x] Light discussion groups (local JSON member set + multi-send UX; not FeiQ multicast)
 - [x] Inline image preview in chat bubbles (send/receive/screenshot/clipboard)
 - [x] Basic Unicode emoji pack in the chat toolbar (wire text; FeiQ tokens rendered locally)
+- [x] User sticker folder: import PNG/GIF/WebP/JPEG under `~/.qipmsg/stickers`, send as an image file attachment
+- [x] Named sticker groups in the emoji picker (`stickers.json`); built-in Unicode stays one Classic group
 - [x] FeiQ/IPMSG TCP file command accepted as decimal or hex; packet-id dual lookup; 8s connect; cap regular-file reads
 - [x] 64-bit file size/offset on the wire, resume.json strings, and progress display (GB/TB)
 - [x] Configurable UDP/TCP listen port and bind address in Settings → Network (default 2425 / any IPv4, soft-fail)
@@ -48,24 +50,30 @@
 - [x] Do-not-disturb tray + preference: no balloon and no auto-raise; history and unread stay. Not `BR_ABSENCE`
 - [x] Optional online/offline sounds (`info.wav` / `warning.wav`) with startup quiet time and per-peer / global rate limit
 - [x] Outgoing bubble shows Read when `READMSG` arrives; opening a seal still sends `READMSG` as before
+- [x] Hide from selected department groups (no `ANSENTRY`, unicast `BR_EXIT`; subnet broadcast pauses while any group is hidden)
+- [x] Mute a department group (history and unread stay; no raise, sound, or tray balloon)
 
-## Later / out of scope for 2.15.2
+## Later / out of scope for 2.19.3
 
-1. **Custom emoji / face packs** (2.6.0 ships a small built-in Unicode set only)
-2. **FeiQ plugin system**
-3. **File-share / public folder server**
-4. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
-5. **Voice**
-6. **Message encryption / signatures**
+1. **FeiQ plugin system**
+2. **File-share / public folder server**
+3. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
+4. **Voice**
+5. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
-7. **Dark theme / extra skins**
+6. **Dark theme / extra skins**
    - 2.4.0 shipped the light messenger theme; dark mode and user skins remain later
-8. **Modern packaging**
+7. **Modern packaging**
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
-9. **Hide from specific groups**
-   - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
+
+## How to try 2.19.3
+
+1. Right-click a department group (or a member) and check **Hide from group**. The same flags are under Preferences → Send/Receive → **Group permissions**. They persist in `~/.qipmsg/group_policy.json` (no Qt Sql). Peers in that group are still listed locally. Their next `BR_ENTRY` gets no `ANSENTRY`, plus a unicast `BR_EXIT`. While any group stays hidden, periodic presence is unicast to other known peers and is not a subnet broadcast. Clearing the last hidden group restores the subnet broadcast on the next refresh.
+2. Check **Mute messages** on another group. Incoming text is still written to history and the unread count. The chat does not raise, the notice sound does not play, and the tray balloon does not show. A tray click can still open the chat. This is independent of do-not-disturb and of hide.
+3. In a chat, open **Emoji**. **Classic** inserts the built-in Unicode set. **Import** copies PNG, GIF, WebP, or JPEG into `~/.qipmsg/stickers/` (index `stickers.json`, 8 MB each, up to 400 stickers / 40 groups). Clicking a sticker sends it as a normal image attachment. Offline peers cannot take that attachment (same as other files).
+4. **New group** / **Rename** / **Delete group** organize custom stickers only. Right-click a sticker to delete it or move it. Deleting the last group is refused while it still has stickers.
 
 ## How to try 2.15.2
 
