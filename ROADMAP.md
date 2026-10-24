@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.4.0 replaces the FeiQ green chrome with a modern light messenger UI (shared QSS, rounded avatars, chat bubbles, profile card). Protocol features from 2.3 stay. Remaining items stay deferred.
+2.5.0 adds local memo nicknames, pinyin contact search, and stealth/hide mode on top of the 2.4.0 light messenger UI. This line is branched from master (through #25); it is **not** stacked on PR #27 (2.7.0 transfer/port) or #28 (2.6.0 images/emoji). Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -30,8 +30,11 @@
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 - [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
+- [x] Local memo / remark nicknames persisted in `peers.json` (`memo`; no Qt Sql)
+- [x] Contact search: substring + Chinese pinyin initials (GB2312 ranges) and common full pinyin
+- [x] Stealth / HideMode: skip `ANSENTRY` and presence broadcasts; tray + settings toggle
 
-## Later / out of scope for 2.4.0
+## Later / out of scope for 2.5.0
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
@@ -46,15 +49,19 @@
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
+9. **Hide from specific groups**
+   - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
 
-## How to try 2.4.0
+## How to try 2.5.0
 
 1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
-2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
-3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
-4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
-5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
-6. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
+2. Right-click a peer → **Set memo**. The tree caption and chat title use the memo; 对方资料 **Nickname** stays the real IPMSG nickname. Search accepts `zs` / `zhang` for 张三 (initials via GB2312 ranges; full pinyin for a compact public-domain table in `src/pinyin.cpp`).
+3. Preferences → Send/Receive, or tray **Leave → Stealth / Hide mode**: no `ANSENTRY` to `BR_ENTRY`, no own `BR_ENTRY`/`BR_ABSENCE`; enabling stealth sends `BR_EXIT` first. Directed `SENDMSG` / `GETABSENCEINFO` still work. This is best-effort FeiQ HideMode without a server — peers who already have your IP can still message you.
+4. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
+5. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
+6. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
+7. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
+8. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
 
 ## Want to help?
 
