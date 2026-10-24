@@ -43,6 +43,8 @@
 #include "contactDelegate.h"
 #include "discussion_store.h"
 #include "pinyin.h"
+#include "groupPolicy.h"
+#include "groupPolicyDialog.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -99,6 +101,10 @@ void MainWindow::createConnections()
             this, SLOT(rebuildContactTree()));
     if (Global::discussionStore) {
         connect(Global::discussionStore, SIGNAL(groupsChanged()),
+                this, SLOT(rebuildContactTree()));
+    }
+    if (Global::groupPolicy) {
+        connect(Global::groupPolicy, SIGNAL(policyChanged()),
                 this, SLOT(rebuildContactTree()));
     }
     connect(refreshButton, SIGNAL(clicked()),
@@ -291,6 +297,10 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addAction(addToDiscussionAct);
     menu.addAction(setMemoAct);
     menu.addSeparator();
+    menu.addAction(hideFromGroupAct);
+    menu.addAction(muteGroupAct);
+    menu.addAction(groupPolicyAct);
+    menu.addSeparator();
     menu.addAction(blacklistAct);
 
     const QStringList ips = selectedPeerIps();
@@ -306,6 +316,23 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     }
     blacklistAct->setEnabled(!ips.isEmpty());
     setMemoAct->setEnabled(ips.size() == 1);
+
+    const QString groupName = groupAtCursor();
+    const bool hasGroup = !groupName.isEmpty() && Global::groupPolicy;
+    hideFromGroupAct->setVisible(hasGroup);
+    muteGroupAct->setVisible(hasGroup);
+    if (hasGroup) {
+        hideFromGroupAct->setText(tr("Hide from group \"%1\"").arg(groupName));
+        muteGroupAct->setText(tr("Mute messages from group \"%1\"").arg(groupName));
+        hideFromGroupAct->setData(groupName);
+        muteGroupAct->setData(groupName);
+        hideFromGroupAct->blockSignals(true);
+        muteGroupAct->blockSignals(true);
+        hideFromGroupAct->setChecked(Global::groupPolicy->isHidden(groupName));
+        muteGroupAct->setChecked(Global::groupPolicy->isMuted(groupName));
+        hideFromGroupAct->blockSignals(false);
+        muteGroupAct->blockSignals(false);
+    }
 
     updateSelectGroupMenu();
     menu.exec(event->globalPos());
@@ -333,6 +360,17 @@ void MainWindow::createActions()
     setMemoAct = new QAction(tr("Set memo..."), this);
     connect(setMemoAct, SIGNAL(triggered()),
             this, SLOT(editPeerMemo()));
+    hideFromGroupAct = new QAction(tr("Hide from this group"), this);
+    hideFromGroupAct->setCheckable(true);
+    connect(hideFromGroupAct, SIGNAL(triggered()),
+            this, SLOT(toggleHideFromGroup()));
+    muteGroupAct = new QAction(tr("Mute messages from this group"), this);
+    muteGroupAct->setCheckable(true);
+    connect(muteGroupAct, SIGNAL(triggered()),
+            this, SLOT(toggleMuteGroup()));
+    groupPolicyAct = new QAction(tr("Group permissions..."), this);
+    connect(groupPolicyAct, SIGNAL(triggered()),
+            this, SLOT(openGroupPolicyDialog()));
 
     setLevelOneAct = new QAction(tr("Set level 1 (user %1 / %2)")
             .arg(m_levelOneCount)
@@ -362,6 +400,54 @@ void MainWindow::updateSelectGroupMenu()
             selectGroupMenu->addAction(action);
         }
     }
+}
+
+QString MainWindow::groupAtCursor() const
+{
+    if (!contactTree) {
+        return QString();
+    }
+    const QPoint pos = contactTree->viewport()->mapFromGlobal(QCursor::pos());
+    QTreeWidgetItem *item = contactTree->itemAt(pos);
+    if (!item) {
+        return QString();
+    }
+    const QString key = item->data(0, Qt::UserRole + 1).toString();
+    const QString prefix = QStringLiteral("dept:");
+    if (key.startsWith(prefix)) {
+        return GroupPolicy::normalizeName(key.mid(prefix.size()));
+    }
+    if (!item->data(0, Qt::UserRole).toString().isEmpty()) {
+        return GroupPolicy::normalizeName(item->data(0, Qt::UserRole + 3).toString());
+    }
+    return QString();
+}
+
+void MainWindow::toggleHideFromGroup()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (!action || !Global::groupPolicy || !Global::userManager) {
+        return;
+    }
+    const QString groupName = action->data().toString();
+    if (Global::groupPolicy->setHidden(groupName, action->isChecked())) {
+        Global::userManager->refreshGroupVisibility(groupName);
+    }
+}
+
+void MainWindow::toggleMuteGroup()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    if (!action || !Global::groupPolicy) {
+        return;
+    }
+    Global::groupPolicy->setMuted(action->data().toString(), action->isChecked());
+}
+
+void MainWindow::openGroupPolicyDialog()
+{
+    GroupPolicyDialog dialog(this);
+    dialog.exec();
 }
 
 void MainWindow::selectGroup()
@@ -407,6 +493,10 @@ void MainWindow::updateHeader()
     } else if (Global::preferences->isAway) {
         status = tr("Away");
         presence = PRESENCE_AWAY;
+    }
+    if (!Global::preferences->isStealth && Global::groupPolicy
+            && Global::groupPolicy->hasHidden()) {
+        status = tr("%1, hidden from some groups").arg(status);
     }
     nickStatusLabel->setText(me.name());
     onlineCountLabel->setText(tr("%1 · %n online", "",
@@ -611,7 +701,20 @@ void MainWindow::rebuildContactTree()
     QMapIterator<QString, QTreeWidgetItem *> it(depts);
     while (it.hasNext()) {
         it.next();
-        updateGroupTitle(it.value(), it.key());
+        QString deptTitle = it.key();
+        if (Global::groupPolicy) {
+            QStringList marks;
+            if (Global::groupPolicy->isHidden(it.key())) {
+                marks << tr("hidden");
+            }
+            if (Global::groupPolicy->isMuted(it.key())) {
+                marks << tr("muted");
+            }
+            if (!marks.isEmpty()) {
+                deptTitle += QStringLiteral(" · ") + marks.join(QStringLiteral(" · "));
+            }
+        }
+        updateGroupTitle(it.value(), deptTitle);
         contactTree->addTopLevelItem(it.value());
     }
     contactTree->addTopLevelItem(selfGroup);

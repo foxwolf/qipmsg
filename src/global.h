@@ -37,6 +37,7 @@ class MessageStore;
 class ResumeStore;
 class DiscussionStore;
 class OfflineQueue;
+class GroupPolicy;
 
 namespace Global
 {
@@ -52,6 +53,7 @@ namespace Global
     extern ResumeStore *resumeStore;
     extern DiscussionStore *discussionStore;
     extern OfflineQueue *offlineQueue;
+    extern GroupPolicy *groupPolicy;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

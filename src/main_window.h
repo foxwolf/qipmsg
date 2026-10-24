@@ -90,6 +90,9 @@ private slots:
     void deleteDiscussion();
     void addSelectedToDiscussion();
     void editPeerMemo();
+    void toggleHideFromGroup();
+    void toggleMuteGroup();
+    void openGroupPolicyDialog();
 
 signals:
     void messageReplyed();
@@ -110,6 +113,7 @@ private:
     void addSelfItem(QTreeWidgetItem *parent);
     void addDiscussionItem(QTreeWidgetItem *parent, const QString &id);
     QStringList selectedPeerIps() const;
+    QString groupAtCursor() const;
     QStringList selectedDiscussionIds() const;
     bool isDiscussionItem(const QTreeWidgetItem *item) const;
     QList<QTreeWidgetItem *> allPeerItems() const;
@@ -153,6 +157,9 @@ private:
     QAction *findHistoryAct;
     QAction *blacklistAct;
     QAction *setMemoAct;
+    QAction *hideFromGroupAct;
+    QAction *muteGroupAct;
+    QAction *groupPolicyAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;

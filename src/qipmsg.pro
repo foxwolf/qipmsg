@@ -19,6 +19,8 @@ HEADERS += \
 	dir_dialog.h \
 	recv_file_finish_dialog.h \
 	global.h \
+	groupPolicy.h \
+	groupPolicyDialog.h \
 	helper.h \
 	ipmsg.h \
 	lockfile.h \
@@ -83,6 +85,8 @@ SOURCES += \
 	dir_dialog.cpp \
 	recv_file_finish_dialog.cpp \
 	global.cpp \
+	groupPolicy.cpp \
+	groupPolicyDialog.cpp \
 	helper.cpp \
 	lockfile.cpp \
 	main.cpp \

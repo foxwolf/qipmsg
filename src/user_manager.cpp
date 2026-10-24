@@ -24,6 +24,7 @@
 #include "msg_thread.h"
 #include "transfer_codec.h"
 #include "sound_thread.h"
+#include "groupPolicy.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -105,10 +106,13 @@ void UserManager::newUserMsg(Msg msg)
         || (msg->flags() & IPMSG_ABSENCEOPT);
 
     if (contains(msg->ip())) {
-        updateUser(msg->owner(), ipToRow(msg->ip()));
-        touchUser(ipToRow(msg->ip()), absence);
+        const int row = ipToRow(msg->ip());
+        const QString previousGroup = group(row);
+        updateUser(msg->owner(), row);
+        touchUser(row, absence);
         scheduleSavePeers();
         notifyUsersChanged();
+        reconcileGroupVisibility(msg->ip(), previousGroup, msg->owner().group());
     } else {
         int row = m_model->rowCount();
         m_model->insertRow(row);
@@ -420,15 +424,109 @@ void UserManager::broadcastAbsence() const
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
 
+void UserManager::sendDirectedUserPacket(const QString &ip, quint16 port,
+                                         quint32 command) const
+{
+    if (ip.isEmpty() || !Global::msgThread) {
+        return;
+    }
+    quint16 dest = port;
+    if (dest == 0) {
+        dest = sendPortForIp(ip);
+    }
+    quint32 flags = commandFlags(command);
+    if (command == IPMSG_BR_ABSENCE) {
+        flags |= IPMSG_ABSENCEOPT;
+    }
+    const QString body = (command == IPMSG_BR_EXIT) ? exitMessage() : entryMessage();
+    SendMsg sendMsg(QHostAddress(ip), dest, body, QString(), flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
 void UserManager::announcePresence() const
 {
     if (Global::preferences->isStealth) {
         return;
     }
-    if (Global::preferences->isAway) {
-        broadcastAbsence();
+    if (!Global::groupPolicy || !Global::groupPolicy->hasHidden()) {
+        if (Global::preferences->isAway) {
+            broadcastAbsence();
+        } else {
+            broadcastEntry();
+        }
+        return;
+    }
+
+    // Subnet broadcast would also reach hidden groups. Unicast leave to
+    // those peers and unicast entry/absence to everyone else we already know.
+    const quint32 visibleCommand = Global::preferences->isAway
+            ? IPMSG_BR_ABSENCE : IPMSG_BR_ENTRY;
+    for (int row = 0; row < userCount(); ++row) {
+        const QString peerIp = ip(row);
+        if (peerIp.isEmpty()) {
+            continue;
+        }
+        if (Global::groupPolicy->isHidden(group(row))) {
+            sendDirectedUserPacket(peerIp, 0, IPMSG_BR_EXIT);
+        } else {
+            sendDirectedUserPacket(peerIp, 0, visibleCommand);
+        }
+    }
+}
+
+void UserManager::refreshGroupVisibility(const QString &groupName) const
+{
+    const QString key = GroupPolicy::normalizeName(groupName);
+    if (key.isEmpty() || !Global::preferences || Global::preferences->isStealth
+            || !Global::groupPolicy) {
+        return;
+    }
+    const bool hidden = Global::groupPolicy->isHidden(key);
+    for (int row = 0; row < userCount(); ++row) {
+        if (GroupPolicy::normalizeName(group(row)) != key) {
+            continue;
+        }
+        const QString peerIp = ip(row);
+        if (peerIp.isEmpty()) {
+            continue;
+        }
+        if (hidden) {
+            sendDirectedUserPacket(peerIp, 0, IPMSG_BR_EXIT);
+        } else if (Global::preferences->isAway) {
+            sendDirectedUserPacket(peerIp, 0, IPMSG_BR_ABSENCE);
+        } else {
+            sendDirectedUserPacket(peerIp, 0, IPMSG_BR_ENTRY);
+        }
+    }
+    if (!hidden && !Global::groupPolicy->hasHidden()) {
+        announcePresence();
+    }
+}
+
+void UserManager::reconcileGroupVisibility(const QString &ip,
+                                           const QString &previousGroup,
+                                           const QString &currentGroup) const
+{
+    if (ip.isEmpty() || !Global::preferences || Global::preferences->isStealth
+            || !Global::groupPolicy) {
+        return;
+    }
+    const QString before = GroupPolicy::normalizeName(previousGroup);
+    const QString now = GroupPolicy::normalizeName(currentGroup);
+    if (before == now) {
+        return;
+    }
+    const bool wasHidden = Global::groupPolicy->isHidden(before);
+    const bool nowHidden = Global::groupPolicy->isHidden(now);
+    if (wasHidden == nowHidden) {
+        return;
+    }
+    if (nowHidden) {
+        sendDirectedUserPacket(ip, 0, IPMSG_BR_EXIT);
+    } else if (Global::preferences->isAway) {
+        sendDirectedUserPacket(ip, 0, IPMSG_BR_ABSENCE);
     } else {
-        broadcastEntry();
+        sendDirectedUserPacket(ip, 0, IPMSG_BR_ENTRY);
     }
 }
 

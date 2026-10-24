@@ -28,6 +28,8 @@ set(SOURCES
     src/emoji_pack.cpp
     src/file_server.cpp
     src/global.cpp
+    src/groupPolicy.cpp
+    src/groupPolicyDialog.cpp
     src/helper.cpp
     src/history_search_window.cpp
     src/lockfile.cpp
@@ -94,6 +96,8 @@ set(HEADERS
     src/emoji_pack.h
     src/file_server.h
     src/global.h
+    src/groupPolicy.h
+    src/groupPolicyDialog.h
     src/helper.h
     src/history_search_window.h
     src/ipmsg.h

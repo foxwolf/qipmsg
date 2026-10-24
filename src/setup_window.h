@@ -199,6 +199,7 @@ private slots:
     void AddBroadcast();
     void AddIpRange();
     void DelBroadcast();
+    void openGroupPolicyDialog();
 
 private:
     bool appendBroadcastToken(const QString &raw);
@@ -237,6 +238,7 @@ private:
     QCheckBox *offlineQueueCheck;
     QCheckBox *awayCheck;
     QCheckBox *stealthCheck;
+    QPushButton *groupPolicyButton;
     QCheckBox *autoReplyCheck;
     QLineEdit *autoReplyEdit;
     QSpinBox *autoReplyCooldownSpin;

@@ -27,6 +27,7 @@
 #include "transfer_file_window.h"
 #include "offline_queue.h"
 #include "constants.h"
+#include "groupPolicy.h"
 
 #include <QAction>
 #include <QMenu>
@@ -101,6 +102,8 @@ void Systray::refreshTooltip()
     }
     if (Global::preferences && Global::preferences->isStealth) {
         tip += QString(" · ") + tr("Stealth");
+    } else if (Global::groupPolicy && Global::groupPolicy->hasHidden()) {
+        tip += QString(" · ") + tr("Hidden from some groups");
     }
     if (Global::preferences && Global::preferences->isDoNotDisturb) {
         tip += QString(" · ") + tr("Do not disturb");
