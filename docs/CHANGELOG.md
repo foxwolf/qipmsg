@@ -1,6 +1,6 @@
 # QIpMsg 变更日志
 
-## 2.1.0 — 2026-10-24
+## 2.2.0 — 2026-10-24
 
 ### xx
 - 迁移构建系统到 CMake，优先 Qt6、兼容 Qt5
@@ -19,6 +19,14 @@
 - 传输编码默认 GBK，解码依次尝试已配置编码 / GBK / GB2312 / UTF-8
 - 新文本消息弹出托盘提示，工具提示显示未读数
 - 离开/自动回复：偏好设置与托盘菜单，按对端冷却回复，并广播 BR_ABSENCE
+- 普通文件 TCP 断点续传，偏移写入 `~/.qipmsg/resume.json`（不用 Qt Sql）
+- 目录接收进度显示当前子文件与文件夹/文件计数
+- 文件偏好：自动接收、默认保存目录、重名自动改名；聊天窗口支持拖放附件
+- 启动时从 `~/.qipmsg/peers.json` 恢复上次用户并标为离线灰色
+- 全局查找本地 `history/*.jsonl` 聊天记录
+- 窗口抖动：发送 `#@#shake#@#`，并接受飞秋常见抖动标记
+- 聊天工具栏截图（全屏/框选），以 PNG 走现有文件传输
+- 个人签名写入入网附加字段第三段 NUL，列表提示与会话标题可显示对端签名
 
 ### zz
 - 修复 Qt 5/6 下 QMessageBox、QHeaderView、QSortFilterProxyModel 等弃用/移除接口
@@ -26,6 +34,7 @@
 - 修复登录名环境变量匹配失败，并补充 Windows 的 USERNAME
 - 修复 Windows 下 UDP 绑定到 IPv6 Any 导致广播失败并弹出阻塞错误框的问题
 - 更新 ROADMAP、README，说明如何试用在线刷新、持久会话、编码与自动回复
+- 更新 ROADMAP、README、BUILD，说明续传、历史查找、抖动、截图与签名
 
 #### 编译
 - 使用 QLockFile 替代 POSIX flock/fcntl，修复 Windows MinGW 下 S_IRUSR、struct flock、F_SETLK 无法编译
@@ -39,6 +48,7 @@
 
 #### 注释
 - 补充飞秋向能力的 ROADMAP 完成项与后续范围说明
+- 将 2.2.0 本轮能力标为完成，表情/插件/文件共享/群聊/语音/加密/换肤/NSIS 仍延后
 
 ---
 

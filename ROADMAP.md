@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.1.0 lands the Feiqiu-like essentials that stay IPMSG-compatible with FeiQ / 飞鸽 peers. Remaining items are ordered by value and risk.
+2.2.0 lands the next FeiQ / 飞鸽-compatible essentials (file resume, last-seen peers, history Find, window shake, screenshot, personal signature). Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -11,59 +11,47 @@
 - [x] Replace Qt4-only APIs (`QRegExp`, `QDirModel`, `qSort`, `toTime_t`, etc.)
 - [x] Document Windows / Linux / macOS build steps in `BUILD.md`
 - [x] Periodic presence refresh (`BR_ENTRY` / `BR_ABSENCE`) with configurable interval
-- [x] Soft-timeout stale peers (grey, then remove after missed refreshes)
-- [x] User list shows nickname, group/部门, host, IP, and status
+- [x] Soft-timeout stale peers (grey; last-seen rows stay after restart)
+- [x] User list shows nickname, group/部门, host, IP, status, and signature tooltip
 - [x] Persistent per-peer chat window (reopen keeps scrollback)
 - [x] Local message history under `~/.qipmsg/history/` (`%USERPROFILE%\.qipmsg\history\`)
+- [x] Global Find across all history JSONL files
 - [x] GBK default transfer codec with decode fallbacks (GBK / GB2312 / UTF-8)
-- [x] Tray balloon on new text + unread count in tooltip
+- [x] Tray balloon on new text + unread tooltip
 - [x] Away / auto-reply prefs, cooldown, tray Leave menu, and `BR_ABSENCE`
+- [x] TCP file resume via `~/.qipmsg/resume.json` (plain JSON, no Qt Sql)
+- [x] Directory-tree receive progress (current child + folder/file counts)
+- [x] Auto-accept / default recv path / auto-rename preferences
+- [x] Chat drag-and-drop attach (same `toLocalFile()` path as the send window)
+- [x] Screen shake (`#@#shake#@#` and common FeiQ-tolerated tokens)
+- [x] Qt screenshot (full screen / region) sent as a PNG file attachment
+- [x] Personal signature announced as a third NUL field after nickname/group
 
-## Next: still high value
+## Later / out of scope for 2.2.0
 
-1. **File & folder transfer hardening**
-   - Resume interrupted transfers (`resumefile.db`-style offset store)
-   - Better progress reporting for directory trees
-   - Drag-and-drop already exists; verify on Windows/macOS
+1. **Custom emoji / face packs**
+2. **FeiQ plugin system**
+3. **File-share / public folder server**
+4. **Group chat / 群 chat rooms**
+5. **Voice**
+6. **Message encryption / signatures**
+   - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
+7. **Full skin rewrite**
+   - Modern stylesheet, dark/light theme, high-DPI polish
+8. **Modern packaging**
+   - NSIS installer for Windows
+   - `.app` bundle + DMG for macOS
+   - Flatpak / AppImage / DEB / RPM for Linux
 
-2. **User list persistence across restarts**
-   - Restore last-seen peers (offline/grey) before the next refresh cycle
+## How to try 2.2.0
 
-3. **Searchable history viewer**
-   - Chat scrollback is in; a global log search UI is not
-
-## Later / out of scope for 2.1.0
-
-4. **Screenshot tool** (FeiQ screen capture)
-
-5. **Message encryption / signatures**
-   - IPMSG public key exchange (`GETPUBKEY`/`ANSPUBKEY`)
-
-6. **Custom emoji / face packs**
-
-7. **FeiQ plugin system**
-
-8. **File-share / public folder server**
-
-9. **Group chat / chat rooms**
-   - Broadcast group messages via multicast
-
-10. **Modern packaging**
-    - NSIS installer for Windows
-    - `.app` bundle + DMG for macOS
-    - Flatpak / AppImage / DEB / RPM for Linux
-
-11. **UI refresh**
-    - Modern stylesheet, dark/light theme, high-DPI support
-
-## How to try 2.1.0
-
-1. Start QIpMsg. The user list refreshes on a timer (default 30s). Peers that miss several cycles turn grey (`Stale`) and are removed after twice that.
-2. Double-click a user (or right-click **Open chat**) for a reusable chat window. Close and reopen it — history comes from `~/.qipmsg/history/<ip>.jsonl`.
-3. Preferences → Detail/Log: AutoRefresh interval, stale miss count, tray notify, transfer codec (GBK default, UTF-8 optional).
-4. Preferences or tray **Leave → Away / Auto-reply**: toggle away, set reply text and cooldown. Incoming `SENDMSG` gets one auto-reply per peer per cooldown (`IPMSG_AUTORETOPT`). Away announces `BR_ABSENCE`.
-5. New text shows a tray balloon; the tooltip includes unread count. Click the tray icon to raise hidden chats.
+1. Start QIpMsg. Last-seen peers from `~/.qipmsg/peers.json` appear grey (`Stale`) until the next `BR_ENTRY` / `ANSENTRY` refresh.
+2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
+3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
+4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
+5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
+6. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
 
 ## Want to help?
 
-Pick an item, open an issue to discuss the design, then submit a focused PR.
+Pick a deferred item, open an issue to discuss the design, then submit a focused PR.
