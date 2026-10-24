@@ -22,6 +22,7 @@
 #include "preferences.h"
 #include "constants.h"
 #include "msg_thread.h"
+#include "transfer_codec.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -111,6 +112,7 @@ void UserManager::newUserMsg(Msg msg)
         emit userCountUpdated(m_model->rowCount());
         notifyUsersChanged();
     }
+    notePeerCaps(msg->ip(), msg->flags());
 }
 
 void UserManager::newExitMsg(Msg msg)
@@ -249,13 +251,75 @@ quint32 UserManager::presenceFlags(quint32 command) const
     return flags;
 }
 
+quint32 UserManager::commandFlags(quint32 command) const
+{
+    quint32 flags = presenceFlags(command);
+    // Presence bodies stay on the configured codec. UTF8OPT is set only when
+    // that codec is UTF-8, so FeiQ 2013 (GBK, no CAPUTF8OPT) still reads nicknames.
+    if (Global::transferCodec
+            && Global::transferCodec->codecName().contains(
+                QLatin1String("UTF-8"), Qt::CaseInsensitive)) {
+        flags |= IPMSG_UTF8OPT;
+    }
+    return flags;
+}
+
+quint32 UserManager::peerCapsForIp(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    if (row < 0) {
+        return 0;
+    }
+    return m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         Qt::UserRole + 4).toUInt();
+}
+
+void UserManager::notePeerCaps(QString ip, quint32 flags)
+{
+    const int row = ipToRow(ip);
+    if (row < 0) {
+        return;
+    }
+    quint32 add = 0;
+    if (flags & (IPMSG_CAPUTF8OPT | IPMSG_UTF8OPT)) {
+        add |= IPMSG_CAPUTF8OPT;
+    }
+    if (flags & IPMSG_CLIPBOARDOPT) {
+        add |= IPMSG_CLIPBOARDOPT;
+    }
+    if (flags & IPMSG_FILEATTACHOPT) {
+        add |= IPMSG_FILEATTACHOPT;
+    }
+    if (add == 0) {
+        return;
+    }
+    const quint32 caps = peerCapsForIp(ip);
+    if ((caps & add) == add) {
+        return;
+    }
+    m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                     caps | add, Qt::UserRole + 4);
+}
+
+quint32 UserManager::sendFlagsForIp(const QString &ip, quint32 flags) const
+{
+    const bool peerUtf8 = (peerCapsForIp(ip) & IPMSG_CAPUTF8OPT) != 0;
+    const bool localUtf8 = Global::transferCodec
+            && Global::transferCodec->codecName().contains(
+                QLatin1String("UTF-8"), Qt::CaseInsensitive);
+    if (peerUtf8 || localUtf8) {
+        flags |= IPMSG_UTF8OPT;
+    }
+    return flags;
+}
+
 void UserManager::broadcastExit() const
 {
     qDebug("UserManager::broadcastExit");
 
     SendMsg sendMsg(QHostAddress::Null, 0/* port */,
                     exitMessage(), ""/* extendedInfo */,
-                    presenceFlags(IPMSG_BR_EXIT));
+                    commandFlags(IPMSG_BR_EXIT));
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
@@ -282,7 +346,7 @@ void UserManager::broadcastEntry() const
 
     SendMsg sendMsg(QHostAddress::Null, 0/* port */,
                     entryMessage(), ""/* extendedInfo */,
-                    presenceFlags(IPMSG_BR_ENTRY));
+                    commandFlags(IPMSG_BR_ENTRY));
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
@@ -293,7 +357,7 @@ void UserManager::broadcastAbsence() const
 
     SendMsg sendMsg(QHostAddress::Null, 0/* port */,
                     entryMessage(), ""/* extendedInfo */,
-                    presenceFlags(IPMSG_BR_ABSENCE) | IPMSG_ABSENCEOPT);
+                    commandFlags(IPMSG_BR_ABSENCE) | IPMSG_ABSENCEOPT);
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }

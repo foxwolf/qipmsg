@@ -42,6 +42,7 @@ signals:
     void error(QAbstractSocket::SocketError, QString errorString);
     void releaseFile(QString additionalInfo);
     void msgReaded(QString name);
+    void peerFlagsSeen(QString ip, quint32 flags);
 
 public slots:
     void processSendMsg();

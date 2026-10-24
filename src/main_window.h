@@ -70,6 +70,7 @@ private slots:
     void updateUserCount(int i);
     void rebuildContactTree();
     void sendMessage();
+    void broadcastToOnline();
     void refreshUserList();
     void showSendFileList();
     void updateFileCount();
@@ -136,10 +137,12 @@ private:
     QLabel *avatarLabel;
     QPushButton *refreshButton;
     QPushButton *sendButton;
+    QPushButton *broadcastButton;
     QCheckBox *encapCheckBox;
     QCheckBox *lockCheckBox;
 
     QAction *openChatAct;
+    QAction *broadcastAllAct;
     QAction *createDiscussionAct;
     QAction *renameDiscussionAct;
     QAction *deleteDiscussionAct;

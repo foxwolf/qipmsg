@@ -20,6 +20,7 @@
 #include "user_manager.h"
 #include "transfer_codec.h"
 #include "helper.h"
+#include "protocolutil.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -706,6 +707,7 @@ void SetupWindow::createBroadcastGroupBox()
 
     QLabel* label = new QLabel(tr("Add Broadcast Address"));
     line_edit_ = new QLineEdit;
+    line_edit_->setPlaceholderText(tr("Broadcast IP, start-end, or CIDR"));
     QCheckBox* dial_up = new QCheckBox(tr("dial up connection"));
     dial_up->setEnabled(false);
 
@@ -731,7 +733,33 @@ void SetupWindow::createBroadcastGroupBox()
     grid_layout->addLayout(button_layout, 0, 1, 3, 1);
     grid_layout->addWidget(broadcast_list_widget_, 0, 2, 3, 1);
 
-    broadcastGroupBox->setLayout(grid_layout);
+    QLabel *rangeHint = new QLabel(tr(
+            "Cross-subnet peers: add a start-end range or CIDR. "
+            "Discovery unicasts BR_ENTRY to each address (no server). "
+            "One entry is limited to %1 hosts and is saved with the broadcast list.")
+            .arg(ProtocolUtil::maxIpv4RangeHosts()));
+    rangeHint->setWordWrap(true);
+
+    rangeStartEdit = new QLineEdit;
+    rangeStartEdit->setPlaceholderText(tr("Start IP"));
+    rangeEndEdit = new QLineEdit;
+    rangeEndEdit->setPlaceholderText(tr("End IP"));
+    cidrEdit = new QLineEdit;
+    cidrEdit->setPlaceholderText(tr("CIDR, e.g. 192.168.2.0/24"));
+    QPushButton *addRangeButton = new QPushButton(tr("Add range"));
+    connect(addRangeButton, SIGNAL(clicked()), this, SLOT(AddIpRange()));
+
+    QHBoxLayout *rangeLayout = new QHBoxLayout;
+    rangeLayout->addWidget(rangeStartEdit);
+    rangeLayout->addWidget(rangeEndEdit);
+    rangeLayout->addWidget(cidrEdit, 1);
+    rangeLayout->addWidget(addRangeButton);
+
+    QVBoxLayout *boxLayout = new QVBoxLayout;
+    boxLayout->addLayout(grid_layout);
+    boxLayout->addWidget(rangeHint);
+    boxLayout->addLayout(rangeLayout);
+    broadcastGroupBox->setLayout(boxLayout);
 }
 
 void SetupWindow::createButtonLayout()
@@ -838,18 +866,71 @@ void SetupWindow::detailSetup()
     dialog->show();
 }
 
+QString SetupWindow::tokenStatusText(int status) const
+{
+    switch (status) {
+    case ProtocolUtil::Ipv4TokenEmpty:
+        return tr("Enter an IPv4 address, a start-end range, or a CIDR prefix.");
+    case ProtocolUtil::Ipv4TokenBadPrefix:
+        return tr("CIDR prefix must be between 0 and 32.");
+    case ProtocolUtil::Ipv4TokenTooLarge:
+        return tr("That range has more than %1 addresses. Split it into smaller ranges.")
+                .arg(ProtocolUtil::maxIpv4RangeHosts());
+    case ProtocolUtil::Ipv4TokenUnusable:
+        return tr("Loopback and unspecified addresses are not probed.");
+    default:
+        return tr("That is not a valid IPv4 address or range.");
+    }
+}
+
+bool SetupWindow::appendBroadcastToken(const QString &raw)
+{
+    QString canonical;
+    const int status = ProtocolUtil::inspectIpv4Token(raw, &canonical, 0, 0);
+    if (status != ProtocolUtil::Ipv4TokenOk) {
+        QMessageBox::warning(this, tr("Broadcast address"), tokenStatusText(status));
+        return false;
+    }
+    if (Global::preferences->userSpecifiedBroadcastIpList.contains(canonical)) {
+        return false;
+    }
+    Global::preferences->userSpecifiedBroadcastIpList.prepend(canonical);
+    QListWidgetItem *item = new QListWidgetItem(canonical, broadcast_list_widget_);
+    broadcast_list_widget_->insertItem(0, item);
+    return true;
+}
+
 void SetupWindow::AddBroadcast()
 {
-    QString s = line_edit_->text();
-    if (!Global::preferences->userSpecifiedBroadcastIpList.contains(s)) {
-        // NOTE: Just use QHostAddress to verify user input is legal ip
-        // address.
-        QHostAddress* address = new QHostAddress;
-        if (address->setAddress(s)) {
-            Global::preferences->userSpecifiedBroadcastIpList.prepend(s);
-            QListWidgetItem* item = new QListWidgetItem(s, broadcast_list_widget_);
-            broadcast_list_widget_->insertItem(0, item);
+    if (appendBroadcastToken(line_edit_->text())) {
+        line_edit_->clear();
+    }
+}
+
+void SetupWindow::AddIpRange()
+{
+    const QString cidr = cidrEdit->text().trimmed();
+    const QString start = rangeStartEdit->text().trimmed();
+    const QString end = rangeEndEdit->text().trimmed();
+    QString raw;
+    if (!cidr.isEmpty()) {
+        raw = cidr;
+    } else if (!start.isEmpty() || !end.isEmpty()) {
+        if (start.isEmpty() || end.isEmpty()) {
+            QMessageBox::warning(this, tr("Broadcast address"),
+                    tr("Enter both a start and an end address, or a CIDR prefix."));
+            return;
         }
+        raw = start + QLatin1Char('-') + end;
+    } else {
+        QMessageBox::warning(this, tr("Broadcast address"),
+                tokenStatusText(ProtocolUtil::Ipv4TokenEmpty));
+        return;
+    }
+    if (appendBroadcastToken(raw)) {
+        rangeStartEdit->clear();
+        rangeEndEdit->clear();
+        cidrEdit->clear();
     }
 }
 

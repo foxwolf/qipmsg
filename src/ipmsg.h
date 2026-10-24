@@ -77,6 +77,12 @@
 #define IPMSG_DIALUPOPT			0x00010000UL
 #define IPMSG_FILEATTACHOPT		0x00200000UL
 #define IPMSG_ENCRYPTOPT		0x00400000UL
+/* IPMSG 3.x (ipmsg.h Ver4.50). UTF8OPT marks this datagram as UTF-8.
+   CAPUTF8OPT / CLIPBOARDOPT are announce bits on BR_ENTRY / ANSENTRY.
+   FeiQ 2013 ignores unknown option bits and keeps speaking GBK. */
+#define IPMSG_UTF8OPT			0x00800000UL
+#define IPMSG_CAPUTF8OPT		0x01000000UL
+#define IPMSG_CLIPBOARDOPT		0x08000000UL
 
 /*  option for send command  */
 #define IPMSG_SENDCHECKOPT		0x00000100UL
@@ -121,6 +127,7 @@
 #define IPMSG_FILE_BDEV			0x00000006UL	// for UNIX
 #define IPMSG_FILE_FIFO			0x00000007UL	// for UNIX
 #define IPMSG_FILE_RESFORK		0x00000010UL	// for Mac
+#define IPMSG_FILE_CLIPBOARD		0x00000020UL	// Windows clipboard (IPMSG 3)
 
 /* file attribute options for fileattach command */
 #define IPMSG_FILE_RONLYOPT		0x00000100UL

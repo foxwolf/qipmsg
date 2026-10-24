@@ -65,6 +65,7 @@ private slots:
     void showTransferFile();
     void showOfflineQueue();
     void refreshOfflineQueueAction();
+    void broadcastToOnline();
 
 private:
     void createActions();
@@ -86,6 +87,7 @@ private:
     QAction *readMsgLogAction;
     QAction *findHistoryAction;
     QAction *offlineQueueAction;
+    QAction *broadcastAction;
     QMenu *leaveMenu;
     QAction *quitAction;
 

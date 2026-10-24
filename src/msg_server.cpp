@@ -22,14 +22,15 @@
 #endif
 
 #include "msg_server.h"
+#include "protocolutil.h"
 #include "send_msg.h"
 #include "global.h"
 #include "constants.h"
 #include "helper.h"
 #include "transfer_codec.h"
+#include "user_manager.h"
 #include "msg_thread.h"
 #include "preferences.h"
-#include "user_manager.h"
 #include "send_file_manager.h"
 
 #include <QMutexLocker>
@@ -156,7 +157,7 @@ void MsgServer::readPacket()
             continue;
         }
 
-        QString packet = Global::transferCodec->decode(datagram);
+        QString packet = Global::transferCodec->decodeDatagram(datagram);
 
         RecvMsg recvMsg(packet, senderIp, senderPort);
 
@@ -211,6 +212,8 @@ void MsgServer::processRecvMsg(Msg msg)
     default:
         break;
     }
+
+    emit peerFlagsSeen(msg->ip(), msg->flags());
 }
 
 void MsgServer::processEntryMsg(Msg msg)
@@ -225,10 +228,7 @@ void MsgServer::processEntryMsg(Msg msg)
         return;
     }
 
-    quint32 flags = IPMSG_ANSENTRY;
-    if (Global::preferences->isAway) {
-        flags |= IPMSG_ABSENCEOPT;
-    }
+    const quint32 flags = Global::userManager->commandFlags(IPMSG_ANSENTRY);
 
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
                     Global::userManager->entryMessage(),
@@ -372,7 +372,8 @@ bool MsgServer::isResendNeeded(Msg &msg) const
 
 void MsgServer::broadcastMsg(Msg &msg)
 {
-    QByteArray datagram = Global::transferCodec->encode(msg->packet());
+    QByteArray datagram = Global::transferCodec->encodeForFlags(
+                msg->packet(), msg->flags());
 
     if (m_udpSocket.writeDatagram(datagram, msg->ipAddress(),
                                        msg->port()) == -1) {
@@ -402,13 +403,27 @@ void MsgServer::updateAddresses()
         }
     }
 
-    foreach (QString specifiedAddress, Global::preferences->userSpecifiedBroadcastIpList) {
-        QHostAddress hostAddress(specifiedAddress);
+    // Single broadcast IPs stay one target. start-end and CIDR tokens expand
+    // into unicast probes so peers off the local subnet can be found without
+    // a directory server. Oversized hand-edited ranges are capped.
+    int invalidTokens = 0;
+    int truncatedTokens = 0;
+    const QList<QHostAddress> specified =
+            ProtocolUtil::targetsFromBroadcastTokens(
+                Global::preferences->userSpecifiedBroadcastIpList,
+                &invalidTokens, &truncatedTokens);
+    foreach (const QHostAddress &hostAddress, specified) {
         if (hostAddress.protocol() == QAbstractSocket::IPv4Protocol
             && !hostAddress.isNull()
             && !hostAddress.isLoopback()) {
             m_broadcastAddresses << hostAddress;
         }
+    }
+    if (invalidTokens > 0 || truncatedTokens > 0) {
+        qWarning() << "MsgServer::updateAddresses: broadcast list"
+                   << invalidTokens << "invalid,"
+                   << truncatedTokens << "truncated to"
+                   << ProtocolUtil::maxIpv4RangeHosts();
     }
 
     const QHostAddress limitedBroadcast(QHostAddress::Broadcast);
@@ -430,7 +445,8 @@ void MsgServer::broadcastUserMsg(Msg &msg)
 
     updateAddresses();
 
-    QByteArray datagram = Global::transferCodec->encode(msg->packet());
+    QByteArray datagram = Global::transferCodec->encodeForFlags(
+                msg->packet(), msg->flags());
 
     if (m_broadcastAddresses.isEmpty()) {
         qWarning() << "MsgServer::broadcastUserMsg: no usable IPv4 broadcast address";

@@ -196,9 +196,12 @@ private slots:
     void applyPreferences();
     void detailSetup();
     void AddBroadcast();
+    void AddIpRange();
     void DelBroadcast();
 
 private:
+    bool appendBroadcastToken(const QString &raw);
+    QString tokenStatusText(int status) const;
     void createNicknameGroupBox();
     void createGroupNameGroupBox();
     void createSendRecvSettingsGroupBox();
@@ -241,6 +244,9 @@ private:
 
     QListWidget *broadcast_list_widget_;
     QLineEdit* line_edit_;
+    QLineEdit *rangeStartEdit;
+    QLineEdit *rangeEndEdit;
+    QLineEdit *cidrEdit;
 };
 
 #endif // !SETUP_WINDOW_H

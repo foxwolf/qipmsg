@@ -44,6 +44,7 @@ set(SOURCES
     src/owner.cpp
     src/pinyin.cpp
     src/preferences.cpp
+    src/protocolutil.cpp
     src/qipmsg.cpp
     src/recv_file.cpp
     src/recv_file_finish_dialog.cpp
@@ -108,6 +109,7 @@ set(HEADERS
     src/owner.h
     src/pinyin.h
     src/preferences.h
+    src/protocolutil.h
     src/qipmsg.h
     src/recv_file.h
     src/recv_file_finish_dialog.h
@@ -156,6 +158,9 @@ endif()
 
 add_executable(qipmsg ${SOURCES} ${HEADERS} ${RESOURCES} ${QM_FILES})
 
+add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp)
+target_include_directories(qipmsgP1Check PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -166,6 +171,7 @@ if (Qt6_FOUND)
         Qt6::Network
         Qt6::Multimedia
     )
+    target_link_libraries(qipmsgP1Check PRIVATE Qt6::Core Qt6::Network)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -173,6 +179,7 @@ else()
         Qt5::Network
         Qt5::Multimedia
     )
+    target_link_libraries(qipmsgP1Check PRIVATE Qt5::Core Qt5::Network)
 endif()
 
 if (WIN32)

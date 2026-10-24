@@ -18,6 +18,8 @@
 #define WINDOW_MANAGER_H
 
 #include <QDateTime>
+#include <QHash>
+#include <QHostAddress>
 #include <QList>
 #include <QMap>
 #include <QObject>
@@ -53,6 +55,8 @@ public:
                         const QString &text,
                         const QStringList &imagePaths = QStringList());
     void deliverText(const QString &ip, const QString &text);
+    int broadcastTextToOnline(const QString &text);
+    bool openSealedLetter(const QString &ip, const QString &packetNo);
     bool queueOrDeliverText(const QString &ip, const QString &text,
                             QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
@@ -100,6 +104,17 @@ private:
     void destroyMsgWindowList();
     void destroyChatWindows();
     void destroyDiscussionWindows();
+    QString sealedStorageKey(const QString &ip, const QString &packetNo) const;
+
+    struct SealedLetter {
+        QString packetNo;
+        QString ip;
+        QString text;
+        QHostAddress address;
+        quint16 port;
+        bool opened;
+        bool broadcast;
+    };
 
     QList<MsgWindow *> m_msgWindowList;
     QList<MsgReadedWindow *> m_msgReadedWindowList;
@@ -107,6 +122,7 @@ private:
     QMap<QString, DiscussionWindow *> m_discussionWindows;
     QMap<QString, int> m_unreadByIp;
     QMap<QString, QDateTime> m_lastAutoReply;
+    QHash<QString, SealedLetter> m_sealedLetters;
 };
 
 #endif // !WINDOW_MANAGER_H

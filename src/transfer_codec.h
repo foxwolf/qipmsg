@@ -32,6 +32,8 @@ public:
 
     QString decode(const QByteArray &bytes) const;
     QByteArray encode(const QString &text) const;
+    QString decodeDatagram(const QByteArray &bytes) const;
+    QByteArray encodeForFlags(const QString &text, quint32 flags) const;
     QString codecName() const;
 
 private:

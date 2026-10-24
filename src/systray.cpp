@@ -33,6 +33,7 @@
 #include <QSystemTrayIcon>
 #include <QApplication>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QDesktopServices>
 #include <QUrl>
 #include <QStandardItemModel>
@@ -168,6 +169,7 @@ void Systray::createActions()
     readMsgLogAction = new QAction(tr("Read message log file"), 0);
     findHistoryAction = new QAction(tr("Find in history..."), 0);
     offlineQueueAction = new QAction(tr("Offline message queue"), 0);
+    broadcastAction = new QAction(tr("Broadcast to all online..."), 0);
     quitAction = new QAction(tr("Quit IP Messenger"), 0);
 }
 
@@ -187,6 +189,7 @@ void Systray::createMenus()
     trayIconMenu->addAction(readMsgLogAction);
     trayIconMenu->addAction(findHistoryAction);
     trayIconMenu->addAction(offlineQueueAction);
+    trayIconMenu->addAction(broadcastAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
@@ -244,6 +247,8 @@ void Systray::createConnections()
             this, SLOT(findInHistory()));
     connect(offlineQueueAction, SIGNAL(triggered()),
             this, SLOT(showOfflineQueue()));
+    connect(broadcastAction, SIGNAL(triggered()),
+            this, SLOT(broadcastToOnline()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
@@ -341,6 +346,26 @@ void Systray::readLog()
         return;
     }
     QDesktopServices::openUrl(QUrl::fromLocalFile(Global::preferences->logFilePath));
+}
+
+void Systray::broadcastToOnline()
+{
+    bool ok = false;
+    const QString text = QInputDialog::getMultiLineText(
+                0, tr("Broadcast"),
+                tr("Message sent to every online peer:"),
+                QString(), &ok);
+    if (!ok || text.trimmed().isEmpty()) {
+        return;
+    }
+    const int sent = Global::windowManager->broadcastTextToOnline(text);
+    if (sent <= 0) {
+        QMessageBox::information(0, tr("Broadcast"),
+                tr("No online peers to broadcast to."));
+        return;
+    }
+    QMessageBox::information(0, tr("Broadcast"),
+            tr("Broadcast sent to %n online peer(s).", "", sent));
 }
 
 void Systray::showOfflineQueue()

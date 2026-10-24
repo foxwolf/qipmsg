@@ -42,6 +42,7 @@ HEADERS += \
 	msg_window.h \
 	offline_queue.h \
 	preferences.h \
+	protocolutil.h \
 	qipmsg.h \
         recv_file.h \
         recv_file_handle.h \
@@ -104,6 +105,7 @@ SOURCES += \
 	msg_window.cpp \
 	offline_queue.cpp \
 	preferences.cpp \
+	protocolutil.cpp \
 	qipmsg.cpp \
         recv_file.cpp \
         recv_file_handle.cpp \

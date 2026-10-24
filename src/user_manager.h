@@ -74,6 +74,8 @@ public:
 
     QString entryMessage() const;
     QString exitMessage() const;
+    quint32 commandFlags(quint32 command) const;
+    quint32 sendFlagsForIp(const QString &ip, quint32 flags) const;
 
 signals:
     void userCountUpdated(int userCount);
@@ -82,6 +84,7 @@ signals:
 private slots:
     void newUserMsg(Msg msg);
     void newExitMsg(Msg msg);
+    void notePeerCaps(QString ip, quint32 flags);
     void autoRefreshPresence();
     void savePersistedPeers();
 
@@ -93,6 +96,7 @@ private:
     void setRowPresence(int row, int presence);
     void sweepStaleUsers();
     quint32 presenceFlags(quint32 command) const;
+    quint32 peerCapsForIp(const QString &ip) const;
     void loadPersistedPeers();
     void scheduleSavePeers();
     QString peersFilePath() const;
