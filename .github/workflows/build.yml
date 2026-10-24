@@ -78,7 +78,46 @@ jobs:
           find build -name 'qipmsg*' | head
           exit 1
 
+      # install-qt-action puts Qt 6.8.3 MSVC2022 on PATH (QT_ROOT_DIR/bin).
+      # windeployqt copies Qt6*.dll, platforms/, and other plugins next to the exe
+      # so the zip runs on a machine without a system Qt install.
+      - name: Deploy Qt runtime (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${QT_ROOT_DIR:-}" ] && [ -x "${QT_ROOT_DIR}/bin/windeployqt.exe" ]; then
+            WINDEPLOYQT="${QT_ROOT_DIR}/bin/windeployqt.exe"
+          else
+            WINDEPLOYQT="$(command -v windeployqt || command -v windeployqt.exe)"
+          fi
+          echo "Using $WINDEPLOYQT"
+          "$WINDEPLOYQT" --version
+          mkdir -p build/win-deploy
+          cp -f "$BIN" build/win-deploy/qipmsg.exe
+          "$WINDEPLOYQT" --release --compiler-runtime build/win-deploy/qipmsg.exe
+          mkdir -p build/win-deploy/translations
+          for d in build/Release/translations build/translations; do
+            if [ -d "$d" ]; then
+              cp -f "$d"/*.qm build/win-deploy/translations/ 2>/dev/null || true
+            fi
+          done
+          ls -la build/win-deploy
+          ls -la build/win-deploy/platforms
+          test -f build/win-deploy/qipmsg.exe
+          test -f build/win-deploy/Qt6Core.dll
+          test -d build/win-deploy/platforms
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qipmsg-${{ matrix.name }}
+          if-no-files-found: error
+          path: build/win-deploy/
+
       - name: Upload artifact
+        if: runner.os != 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: qipmsg-${{ matrix.name }}
