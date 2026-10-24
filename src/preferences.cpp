@@ -97,6 +97,7 @@ void Preferences::reset()
     autoRecvPath = Helper::defaultRecvPath();
 
     personSign = "";
+    blacklistIps.clear();
 }
 
 void Preferences::load()
@@ -209,6 +210,11 @@ void Preferences::load()
     personSign = set->value("personSign", personSign).toString();
     set->endGroup();
 
+    set->beginGroup("Blacklist");
+    blacklistIps = set->value("ips", QString()).toString()
+            .split(QChar('\r'), Qt::SkipEmptyParts);
+    set->endGroup();
+
 }
 
 void Preferences::save()
@@ -295,6 +301,10 @@ void Preferences::save()
 
     set->beginGroup("Profile");
     set->setValue("personSign", personSign);
+    set->endGroup();
+
+    set->beginGroup("Blacklist");
+    set->setValue("ips", blacklistIps.join("\r"));
     set->endGroup();
 }
 

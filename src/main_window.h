@@ -26,19 +26,18 @@
 #include <QSystemTrayIcon>
 #include <QMap>
 #include <QFileInfoList>
+#include <QStringList>
 
 
-class QStandardItemModel;
-class QSortFilterProxyModel;
-class QTableView;
-class QGridLayout;
 class QHBoxLayout;
 class QLabel;
 class QPushButton;
 class QCheckBox;
 class QSplitter;
-class QModelIndex;
 class QTextEdit;
+class QTreeWidget;
+class QTreeWidgetItem;
+class QLineEdit;
 
 class SendFileWindow;
 class SendFileModel;
@@ -69,6 +68,7 @@ protected slots:
 
 private slots:
     void updateUserCount(int i);
+    void rebuildContactTree();
     void sendMessage();
     void refreshUserList();
     void showSendFileList();
@@ -79,8 +79,11 @@ private slots:
     void search(QString searchString);
     void showSearchDialog();
     void openSelectedChat();
-    void onUserDoubleClicked(const QModelIndex &index);
+    void onContactDoubleClicked(QTreeWidgetItem *item, int column);
     void findInHistory();
+    void saveSignature();
+    void applyContactFilter(const QString &text);
+    void toggleBlacklist();
 
 signals:
     void messageReplyed();
@@ -91,31 +94,38 @@ private:
     void createSplitterWidget();
     void createSendLayout();
     void createActions();
-    void createClientModel();
-    void setSourceModel();
     void createConnections();
     void selectUser();
-    void logSendMsg(QString s, int row);
+    void logSendMsg(QString s, const QString &ip);
+    void updateHeader();
+    void updateGroupTitle(QTreeWidgetItem *group, const QString &title);
+    QTreeWidgetItem *makeGroupItem(const QString &title, const QString &key);
+    void addPeerItem(QTreeWidgetItem *parent, int row);
+    void addSelfItem(QTreeWidgetItem *parent);
+    QStringList selectedPeerIps() const;
+    QList<QTreeWidgetItem *> allPeerItems() const;
+    bool isBlacklisted(const QString &ip) const;
+    void applyFilterToItem(QTreeWidgetItem *item, const QString &needle);
+    QPixmap avatarPixmap(const QColor &color, const QString &letter) const;
 
     bool hasSendFile();
     QString constructFileInfoStr();
 
     void updateSelectGroupMenu();
 
-    QList<QStandardItem*> searchItems(QString) const;
-
-    QSortFilterProxyModel *proxyUserModel;
-
     QWidget *peerWidget;
     QWidget *inputWidget;
     QTextEdit *inputEdit;
     QPushButton *fileListButton;
-    QGridLayout *sendGridLayout;
     QHBoxLayout *sendLayout;
     QSplitter *splitter;
 
-    QTableView *userView;
-    QLabel *userCountLabel;
+    QTreeWidget *contactTree;
+    QLineEdit *searchEdit;
+    QLineEdit *signatureEdit;
+    QLabel *nickStatusLabel;
+    QLabel *onlineCountLabel;
+    QLabel *avatarLabel;
     QPushButton *refreshButton;
     QPushButton *sendButton;
     QCheckBox *encapCheckBox;
@@ -126,6 +136,7 @@ private:
     QAction *sendDirAct;
     QAction *searchUserAct;
     QAction *findHistoryAct;
+    QAction *blacklistAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;
@@ -146,4 +157,3 @@ private:
 };
 
 #endif // !MAIN_WINDOW_H
-

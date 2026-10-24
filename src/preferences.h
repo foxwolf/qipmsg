@@ -91,6 +91,7 @@ public:
     QString autoRecvPath;
 
     QString personSign;
+    QStringList blacklistIps;
 };
 
 #endif // !PREFERENCES_H

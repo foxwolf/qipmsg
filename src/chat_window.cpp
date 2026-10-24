@@ -32,6 +32,8 @@
 #include "user_manager.h"
 #include "window_manager.h"
 
+#include "transfer_file_window.h"
+
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QList>
@@ -39,6 +41,8 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHostAddress>
 #include <QKeySequence>
@@ -46,11 +50,14 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPainter>
 #include <QPushButton>
 #include <QShortcut>
 #include <QShowEvent>
+#include <QSplitter>
 #include <QTextCursor>
 #include <QTextEdit>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -65,44 +72,75 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
 
 QSize ChatWindow::sizeHint() const
 {
-    return QSize(520, 480);
+    return QSize(760, 520);
+}
+
+QToolButton *ChatWindow::makeToolButton(const QString &text, const QString &tip,
+                                        const char *slot, bool enabled)
+{
+    QToolButton *button = new QToolButton;
+    button->setText(text);
+    button->setToolTip(tip);
+    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    button->setAutoRaise(true);
+    button->setEnabled(enabled);
+    if (enabled && slot) {
+        connect(button, SIGNAL(clicked()), this, slot);
+    }
+    return button;
+}
+
+QToolButton *ChatWindow::makeStubButton(const QString &text)
+{
+    return makeToolButton(text, tr("Not implemented yet"), 0, false);
 }
 
 void ChatWindow::createUi()
 {
+    m_headerAvatar = new QLabel;
+    m_headerAvatar->setFixedSize(28, 28);
     m_peerLabel = new QLabel;
-    m_peerLabel->setWordWrap(true);
+    m_peerLabel->setStyleSheet("font-weight: bold;");
 
-    m_shakeButton = new QPushButton(tr("Shake"));
-    connect(m_shakeButton, SIGNAL(clicked()), this, SLOT(sendShake()));
+    QWidget *header = new QWidget;
+    header->setObjectName("chatHeader");
+    header->setStyleSheet(
+        "#chatHeader { background: #d4f3df; border: 1px solid #b5e0c6; }");
+    QHBoxLayout *headerLayout = new QHBoxLayout(header);
+    headerLayout->addWidget(m_headerAvatar);
+    headerLayout->addWidget(m_peerLabel, 1);
 
-    m_shotButton = new QPushButton(tr("Screenshot"));
-    QMenu *shotMenu = new QMenu(m_shotButton);
+    QHBoxLayout *toolLayout = new QHBoxLayout;
+    toolLayout->setSpacing(4);
+    toolLayout->addWidget(makeStubButton(tr("Remote assist")));
+    toolLayout->addWidget(makeStubButton(tr("Remote control")));
+    toolLayout->addWidget(makeStubButton(tr("Voice call")));
+    toolLayout->addWidget(makeToolButton(tr("Send file"),
+                                         tr("Send file"), SLOT(addSendFile())));
+    toolLayout->addWidget(makeToolButton(tr("Send folder"),
+                                         tr("Send folder"), SLOT(addSendDir())));
+    toolLayout->addWidget(makeStubButton(tr("Browse share")));
+    QToolButton *shot = makeToolButton(tr("Screenshot"),
+                                       tr("Screenshot"), 0);
+    QMenu *shotMenu = new QMenu(shot);
     shotMenu->addAction(tr("Full screen"), this, SLOT(captureFullScreen()));
     shotMenu->addAction(tr("Region"), this, SLOT(captureRegion()));
-    m_shotButton->setMenu(shotMenu);
-
-    m_attachButton = new QPushButton(tr("Attach"));
-    QMenu *attachMenu = new QMenu(m_attachButton);
-    attachMenu->addAction(tr("Files..."), this, SLOT(addSendFile()));
-    attachMenu->addAction(tr("Folder..."), this, SLOT(addSendDir()));
-    m_attachButton->setMenu(attachMenu);
-
-    m_findButton = new QPushButton(tr("Find"));
-    connect(m_findButton, SIGNAL(clicked()), this, SLOT(findInHistory()));
+    shot->setMenu(shotMenu);
+    shot->setPopupMode(QToolButton::InstantPopup);
+    toolLayout->addWidget(shot);
+    toolLayout->addWidget(makeToolButton(tr("Window shake"),
+                                         tr("Window shake"), SLOT(sendShake())));
+    toolLayout->addWidget(makeToolButton(tr("Find"),
+                                         tr("Find in history"),
+                                         SLOT(findInHistory())));
+    toolLayout->addWidget(makeStubButton(tr("Favorites")));
+    toolLayout->addWidget(makeStubButton(tr("Zone")));
+    toolLayout->addStretch();
 
     m_fileListButton = new QPushButton;
     m_fileListButton->hide();
     connect(m_fileListButton, SIGNAL(clicked()),
             this, SLOT(showSendFileList()));
-
-    QHBoxLayout *toolLayout = new QHBoxLayout;
-    toolLayout->addWidget(m_shakeButton);
-    toolLayout->addWidget(m_shotButton);
-    toolLayout->addWidget(m_attachButton);
-    toolLayout->addWidget(m_findButton);
-    toolLayout->addWidget(m_fileListButton, 1);
-    toolLayout->addStretch();
 
     m_historyEdit = new QTextEdit;
     m_historyEdit->setReadOnly(true);
@@ -134,16 +172,61 @@ void ChatWindow::createUi()
             SIGNAL(activated()),
             this, SLOT(findInHistory()));
 
+    m_stripFile = new QPushButton(tr("Send file"));
+    m_stripMonitor = new QPushButton(tr("Monitor"));
+    m_stripDir = new QPushButton(tr("Folder"));
+    m_stripCancel = new QPushButton(tr("Cancel"));
+    connect(m_stripFile, SIGNAL(clicked()), this, SLOT(addSendFile()));
+    connect(m_stripMonitor, SIGNAL(clicked()),
+            this, SLOT(showTransferMonitor()));
+    connect(m_stripDir, SIGNAL(clicked()), this, SLOT(addSendDir()));
+    connect(m_stripCancel, SIGNAL(clicked()), this, SLOT(cancelAttachments()));
+
+    QHBoxLayout *stripLayout = new QHBoxLayout;
+    stripLayout->addWidget(m_stripFile);
+    stripLayout->addWidget(m_stripMonitor);
+    stripLayout->addWidget(m_stripDir);
+    stripLayout->addWidget(m_fileListButton);
+    stripLayout->addWidget(m_stripCancel);
+    stripLayout->addStretch();
+
     QHBoxLayout *buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_sendButton);
 
+    QWidget *chatPane = new QWidget;
+    QVBoxLayout *chatLayout = new QVBoxLayout(chatPane);
+    chatLayout->setContentsMargins(0, 0, 0, 0);
+    chatLayout->addWidget(header);
+    chatLayout->addLayout(toolLayout);
+    chatLayout->addWidget(m_historyEdit, 3);
+    chatLayout->addLayout(stripLayout);
+    chatLayout->addWidget(m_inputEdit, 1);
+    chatLayout->addLayout(buttonLayout);
+
+    QGroupBox *profileBox = new QGroupBox(tr("Peer profile"));
+    profileBox->setMinimumWidth(220);
+    m_profileName = new QLabel;
+    m_profileHost = new QLabel;
+    m_profileLogin = new QLabel;
+    m_profileGroup = new QLabel;
+    m_profileIp = new QLabel;
+    QFormLayout *form = new QFormLayout;
+    form->addRow(tr("User:"), m_profileName);
+    form->addRow(tr("Host:"), m_profileHost);
+    form->addRow(tr("Login:"), m_profileLogin);
+    form->addRow(tr("Group:"), m_profileGroup);
+    form->addRow(tr("IP address:"), m_profileIp);
+    profileBox->setLayout(form);
+
+    QSplitter *splitter = new QSplitter(Qt::Horizontal);
+    splitter->addWidget(chatPane);
+    splitter->addWidget(profileBox);
+    splitter->setStretchFactor(0, 3);
+    splitter->setStretchFactor(1, 1);
+
     QVBoxLayout *mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(m_peerLabel);
-    mainLayout->addLayout(toolLayout);
-    mainLayout->addWidget(m_historyEdit, 3);
-    mainLayout->addWidget(m_inputEdit, 1);
-    mainLayout->addLayout(buttonLayout);
+    mainLayout->addWidget(splitter);
     setLayout(mainLayout);
 
     m_inputEdit->setFocus();
@@ -151,10 +234,55 @@ void ChatWindow::createUi()
 
 void ChatWindow::refreshPeerCaption()
 {
-    const QString caption = Global::userManager->peerCaption(m_peerIp);
-    m_peerLabel->setText(caption);
-    setWindowTitle(tr("Chat - %1").arg(
-                       Global::userManager->displayNameForIp(m_peerIp)));
+    const int row = Global::userManager->ipToRow(m_peerIp);
+    const QString name = Global::userManager->displayNameForIp(m_peerIp);
+    const QString host = row != -1 ? Global::userManager->host(row) : QString();
+    const QString header = host.isEmpty() ? name : QString("%1(%2)").arg(name, host);
+    m_peerLabel->setText(header);
+    m_headerAvatar->setPixmap(avatarPixmap(QColor(80, 170, 90), name));
+    setWindowTitle(header);
+    refreshProfile();
+}
+
+void ChatWindow::refreshProfile()
+{
+    const int row = Global::userManager->ipToRow(m_peerIp);
+    m_profileName->setText(Global::userManager->displayNameForIp(m_peerIp));
+    m_profileHost->setText(row != -1 ? Global::userManager->host(row) : QString("-"));
+    m_profileLogin->setText(row != -1 ? Global::userManager->loginName(row) : QString("-"));
+    m_profileGroup->setText(row != -1 && !Global::userManager->group(row).isEmpty()
+                            ? Global::userManager->group(row) : QString("-"));
+    m_profileIp->setText(m_peerIp);
+}
+
+QPixmap ChatWindow::avatarPixmap(const QColor &color, const QString &letter) const
+{
+    QPixmap pix(28, 28);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setBrush(color);
+    p.setPen(Qt::NoPen);
+    p.drawEllipse(1, 1, 26, 26);
+    p.setPen(Qt::white);
+    QFont font = p.font();
+    font.setBold(true);
+    p.setFont(font);
+    QString ch = letter.trimmed();
+    ch = ch.isEmpty() ? QString("?") : ch.left(1);
+    p.drawText(pix.rect(), Qt::AlignCenter, ch);
+    return pix;
+}
+
+void ChatWindow::showTransferMonitor()
+{
+    TransferFileWindow *window = new TransferFileWindow;
+    window->show();
+}
+
+void ChatWindow::cancelAttachments()
+{
+    clearSendFiles();
 }
 
 void ChatWindow::loadHistory()

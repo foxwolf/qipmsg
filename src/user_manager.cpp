@@ -99,6 +99,7 @@ void UserManager::newUserMsg(Msg msg)
         updateUser(msg->owner(), ipToRow(msg->ip()));
         touchUser(ipToRow(msg->ip()), absence);
         scheduleSavePeers();
+        notifyUsersChanged();
     } else {
         int row = m_model->rowCount();
         m_model->insertRow(row);
@@ -107,6 +108,7 @@ void UserManager::newUserMsg(Msg msg)
         scheduleSavePeers();
 
         emit userCountUpdated(m_model->rowCount());
+        notifyUsersChanged();
     }
 }
 
@@ -116,6 +118,7 @@ void UserManager::newExitMsg(Msg msg)
     if ((row = ipToRow(msg->ip())) != -1) {
         setRowPresence(row, PRESENCE_STALE);
         scheduleSavePeers();
+        notifyUsersChanged();
     }
 }
 
@@ -200,6 +203,7 @@ void UserManager::autoRefreshPresence()
 {
     announcePresence();
     sweepStaleUsers();
+    notifyUsersChanged();
 }
 
 void UserManager::sweepStaleUsers()
@@ -350,6 +354,35 @@ QString UserManager::status(int row) const
         .toString();
 }
 
+int UserManager::presence(int row) const
+{
+    return m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         Qt::UserRole + 1).toInt();
+}
+
+int UserManager::presenceForIp(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    return row == -1 ? PRESENCE_STALE : presence(row);
+}
+
+int UserManager::onlineCount() const
+{
+    int count = 0;
+    for (int row = 0; row < m_model->rowCount(); ++row) {
+        const int p = presence(row);
+        if (p == PRESENCE_ONLINE || p == PRESENCE_AWAY) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+void UserManager::notifyUsersChanged()
+{
+    emit usersChanged();
+}
+
 int UserManager::userCount() const
 {
     return m_model->rowCount();
@@ -450,6 +483,7 @@ void UserManager::loadPersistedPeers()
 
     if (m_model->rowCount() > 0) {
         emit userCountUpdated(m_model->rowCount());
+        notifyUsersChanged();
     }
 }
 

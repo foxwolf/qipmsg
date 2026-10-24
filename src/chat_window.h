@@ -28,6 +28,8 @@ class QLabel;
 class QPushButton;
 class QTextEdit;
 class QPixmap;
+class QToolButton;
+class QGroupBox;
 
 class ChatWindow : public QWidget
 {
@@ -66,9 +68,14 @@ private slots:
     void showSendFileList();
     void updateFileCount();
     void findInHistory();
+    void showTransferMonitor();
+    void cancelAttachments();
 
 private:
     void createUi();
+    QToolButton *makeToolButton(const QString &text, const QString &tip,
+                                const char *slot, bool enabled = true);
+    QToolButton *makeStubButton(const QString &text);
     QString localName() const;
     void logOutgoing(const QString &text);
     bool hasSendFile() const;
@@ -76,17 +83,25 @@ private:
     void sendScreenshot(const QPixmap &pixmap, const QString &prefix);
     void addDroppedUrls(const QList<QUrl> &urls);
     void clearSendFiles();
+    void refreshProfile();
+    QPixmap avatarPixmap(const QColor &color, const QString &letter) const;
 
     QString m_peerIp;
     QLabel *m_peerLabel;
+    QLabel *m_headerAvatar;
+    QLabel *m_profileName;
+    QLabel *m_profileHost;
+    QLabel *m_profileLogin;
+    QLabel *m_profileGroup;
+    QLabel *m_profileIp;
     QTextEdit *m_historyEdit;
     QTextEdit *m_inputEdit;
     QPushButton *m_sendButton;
     QPushButton *m_fileListButton;
-    QPushButton *m_shakeButton;
-    QPushButton *m_shotButton;
-    QPushButton *m_attachButton;
-    QPushButton *m_findButton;
+    QPushButton *m_stripFile;
+    QPushButton *m_stripMonitor;
+    QPushButton *m_stripDir;
+    QPushButton *m_stripCancel;
     SendFileModel m_sendFileModel;
     bool m_historyLoaded;
 };

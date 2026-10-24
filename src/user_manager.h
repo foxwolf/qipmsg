@@ -51,7 +51,10 @@ public:
     QString host(int row) const;
     QString loginName(int row) const;
     QString status(int row) const;
+    int presence(int row) const;
+    int presenceForIp(const QString &ip) const;
     int userCount() const;
+    int onlineCount() const;
     QString displayNameForIp(const QString &ip) const;
     QString peerCaption(const QString &ip) const;
     QString signature(int row) const;
@@ -65,6 +68,7 @@ public:
 
 signals:
     void userCountUpdated(int userCount);
+    void usersChanged();
 
 private slots:
     void newUserMsg(Msg msg);
@@ -83,6 +87,7 @@ private:
     void loadPersistedPeers();
     void scheduleSavePeers();
     QString peersFilePath() const;
+    void notifyUsersChanged();
 
     static Owner m_ourself;
 
