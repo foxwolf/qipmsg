@@ -14,10 +14,14 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <QApplication>
+#include <QStyle>
 #include <QLibraryInfo>
 #include <QFile>
 #include <QFileInfo>
 #include <QDir>
+#include <QFont>
+#include <QPainter>
 #include <QPropertyAnimation>
 #include <QWidget>
 #include <QProcess>
@@ -26,6 +30,7 @@
 #include <QSysInfo>
 #include <QRegularExpression>
 #include <QtGlobal>
+#include <QStyleFactory>
 
 #include "helper.h"
 #include "constants.h"
@@ -346,5 +351,94 @@ void Helper::shakeWidget(QWidget *widget)
     anim->setKeyValueAt(0.86, origin + QPoint(2, 0));
     anim->setKeyValueAt(1.00, origin);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void Helper::applyAppTheme(QApplication *app)
+{
+    if (!app) {
+        return;
+    }
+
+    if (QStyle *fusion = QStyleFactory::create("Fusion")) {
+        app->setStyle(fusion);
+    }
+
+    QFont font = app->font();
+#ifdef Q_OS_WIN
+    font.setFamily("Microsoft YaHei UI");
+#elif defined(Q_OS_MAC)
+    font.setFamily("PingFang SC");
+#endif
+    font.setPixelSize(13);
+    app->setFont(font);
+
+    QFile file(":/theme.qss");
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        app->setStyleSheet(QString::fromUtf8(file.readAll()));
+    }
+}
+
+QColor Helper::avatarColor(const QString &name)
+{
+    static const QColor palette[] = {
+        QColor(0x25, 0x63, 0xEB),
+        QColor(0x7C, 0x3A, 0xED),
+        QColor(0x0D, 0x94, 0x88),
+        QColor(0xD9, 0x77, 0x06),
+        QColor(0xDC, 0x26, 0x26),
+        QColor(0xDB, 0x27, 0x77),
+        QColor(0x4F, 0x46, 0xE5),
+        QColor(0x05, 0x96, 0x69)
+    };
+    const uint hash = qHash(name.isEmpty() ? QString("?") : name);
+    return palette[hash % 8];
+}
+
+QColor Helper::presenceColor(int presence)
+{
+    switch (presence) {
+    case PRESENCE_AWAY:
+        return QColor(0xF5, 0x9E, 0x0B);
+    case PRESENCE_STALE:
+        return QColor(0x9C, 0xA3, 0xAF);
+    default:
+        return QColor(0x22, 0xC5, 0x5E);
+    }
+}
+
+QPixmap Helper::avatarPixmap(const QString &letter, int size,
+                             const QColor &fill, const QColor &status)
+{
+    if (size < 16) {
+        size = 16;
+    }
+
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    QPainter p(&pix);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setBrush(fill);
+    p.setPen(Qt::NoPen);
+    const int inset = 1;
+    p.drawEllipse(inset, inset, size - inset * 2, size - inset * 2);
+
+    p.setPen(Qt::white);
+    QFont font = p.font();
+    font.setBold(true);
+    font.setPixelSize(qMax(10, size * 12 / 36));
+    p.setFont(font);
+    QString ch = letter.trimmed();
+    ch = ch.isEmpty() ? QString("?") : ch.left(1);
+    p.drawText(pix.rect(), Qt::AlignCenter, ch);
+
+    if (status.isValid()) {
+        const int dot = qMax(8, size / 4);
+        const QRect dotRect(size - dot - 1, size - dot - 1, dot, dot);
+        p.setBrush(Qt::white);
+        p.drawEllipse(dotRect.adjusted(-1, -1, 1, 1));
+        p.setBrush(status);
+        p.drawEllipse(dotRect);
+    }
+    return pix;
 }
 

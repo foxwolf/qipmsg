@@ -29,7 +29,6 @@ class QPushButton;
 class QTextEdit;
 class QPixmap;
 class QToolButton;
-class QGroupBox;
 
 class ChatWindow : public QWidget
 {
@@ -84,12 +83,16 @@ private:
     void addDroppedUrls(const QList<QUrl> &urls);
     void clearSendFiles();
     void refreshProfile();
-    QPixmap avatarPixmap(const QColor &color, const QString &letter) const;
+    QPixmap peerAvatar(const QString &name, int size) const;
 
     QString m_peerIp;
     QLabel *m_peerLabel;
+    QLabel *m_peerMeta;
     QLabel *m_headerAvatar;
+    QLabel *m_profileAvatar;
     QLabel *m_profileName;
+    QLabel *m_profileStatus;
+    QLabel *m_profileSign;
     QLabel *m_profileHost;
     QLabel *m_profileLogin;
     QLabel *m_profileGroup;

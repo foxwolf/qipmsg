@@ -38,6 +38,7 @@
 #include "send_file_manager.h"
 #include "window_manager.h"
 #include "history_search_window.h"
+#include "contactDelegate.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -78,7 +79,7 @@ MainWindow::~MainWindow()
 
 QSize MainWindow::sizeHint() const
 {
-    return QSize(300, 560);
+    return QSize(360, 640);
 }
 
 void MainWindow::createConnections()
@@ -118,66 +119,75 @@ void MainWindow::createConnections()
 void MainWindow::createPeerWidget()
 {
     peerWidget = new QWidget;
+    peerWidget->setObjectName("contactPane");
 
     avatarLabel = new QLabel;
-    avatarLabel->setFixedSize(36, 36);
-    avatarLabel->setPixmap(avatarPixmap(QColor(80, 170, 90),
-            Global::userManager->ourself().name()));
+    avatarLabel->setFixedSize(40, 40);
 
     nickStatusLabel = new QLabel;
-    nickStatusLabel->setStyleSheet("font-weight: bold;");
+    nickStatusLabel->setObjectName("headerName");
 
     signatureEdit = new QLineEdit;
+    signatureEdit->setObjectName("signatureEdit");
     signatureEdit->setPlaceholderText(tr("Enter a personal signature"));
     signatureEdit->setText(Global::preferences->personSign);
 
     onlineCountLabel = new QLabel;
-    onlineCountLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    QHBoxLayout *nameRow = new QHBoxLayout;
-    nameRow->addWidget(nickStatusLabel, 1);
-    nameRow->addWidget(onlineCountLabel);
+    onlineCountLabel->setObjectName("headerMeta");
+    onlineCountLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     QVBoxLayout *headText = new QVBoxLayout;
-    headText->addLayout(nameRow);
+    headText->setContentsMargins(0, 0, 0, 0);
+    headText->setSpacing(2);
+    headText->addWidget(nickStatusLabel);
+    headText->addWidget(onlineCountLabel);
     headText->addWidget(signatureEdit);
 
     QHBoxLayout *headRow = new QHBoxLayout;
-    headRow->addWidget(avatarLabel);
+    headRow->setContentsMargins(0, 0, 0, 0);
+    headRow->setSpacing(12);
+    headRow->addWidget(avatarLabel, 0, Qt::AlignTop);
     headRow->addLayout(headText, 1);
 
     QWidget *header = new QWidget;
-    header->setObjectName("feiqHeader");
-    header->setStyleSheet(
-        "#feiqHeader { background: #d4f3df; border: 1px solid #b5e0c6; }"
-        "#feiqHeader QLabel { background: transparent; }");
+    header->setObjectName("appHeader");
     QHBoxLayout *headerPad = new QHBoxLayout(header);
+    headerPad->setContentsMargins(14, 12, 14, 12);
     headerPad->addLayout(headRow);
 
     searchEdit = new QLineEdit;
+    searchEdit->setObjectName("contactSearch");
     searchEdit->setPlaceholderText(tr("Search friends..."));
     searchEdit->setClearButtonEnabled(true);
 
     refreshButton = new QPushButton(tr("&Refresh"));
+    refreshButton->setToolTip(tr("Refresh contacts"));
 
-    QHBoxLayout *searchRow = new QHBoxLayout;
+    QWidget *searchBar = new QWidget;
+    searchBar->setObjectName("searchBar");
+    QHBoxLayout *searchRow = new QHBoxLayout(searchBar);
+    searchRow->setContentsMargins(12, 8, 12, 8);
     searchRow->addWidget(searchEdit, 1);
     searchRow->addWidget(refreshButton);
 
     contactTree = new QTreeWidget;
+    contactTree->setObjectName("contactTree");
     contactTree->setHeaderHidden(true);
     contactTree->setRootIsDecorated(true);
-    contactTree->setIndentation(16);
+    contactTree->setIndentation(14);
     contactTree->setSelectionMode(QAbstractItemView::ExtendedSelection);
     contactTree->setEditTriggers(QAbstractItemView::NoEditTriggers);
     contactTree->setUniformRowHeights(false);
-    contactTree->setIconSize(QSize(22, 22));
+    contactTree->setIconSize(QSize(36, 36));
     contactTree->setAnimated(true);
+    contactTree->setItemDelegate(new ContactDelegate(contactTree));
+    contactTree->setFocusPolicy(Qt::StrongFocus);
 
     QVBoxLayout *layout = new QVBoxLayout;
-    layout->setContentsMargins(6, 6, 6, 6);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
     layout->addWidget(header);
-    layout->addLayout(searchRow);
+    layout->addWidget(searchBar);
     layout->addWidget(contactTree, 1);
     peerWidget->setLayout(layout);
 
@@ -224,6 +234,7 @@ void MainWindow::createSplitterWidget()
 void MainWindow::createSendLayout()
 {
     sendButton = new QPushButton(tr("&Send"));
+    sendButton->setObjectName("primaryButton");
     encapCheckBox = new QCheckBox(tr("&Encap"));
     if (Global::preferences->isSealed) {
         encapCheckBox->setCheckState(Qt::Checked);
@@ -346,34 +357,18 @@ void MainWindow::updateHeader()
     const Owner me = Global::userManager->ourself();
     const QString status = Global::preferences->isAway
             ? tr("Away") : tr("Online");
-    nickStatusLabel->setText(QString("%1 - %2").arg(status, me.name()));
-    onlineCountLabel->setText(tr("Online: %1")
-                              .arg(Global::userManager->onlineCount()));
-    avatarLabel->setPixmap(avatarPixmap(QColor(80, 170, 90), me.name()));
+    nickStatusLabel->setText(me.name());
+    onlineCountLabel->setText(tr("%1 · %n online", "",
+                                 Global::userManager->onlineCount()).arg(status));
+    const int presence = Global::preferences->isAway
+            ? PRESENCE_AWAY : PRESENCE_ONLINE;
+    avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40));
 }
 
-QPixmap MainWindow::avatarPixmap(const QColor &color, const QString &letter) const
+QPixmap MainWindow::peerAvatar(const QString &name, int presence, int size) const
 {
-    QPixmap pix(36, 36);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setBrush(color);
-    p.setPen(Qt::NoPen);
-    p.drawEllipse(1, 1, 34, 34);
-    p.setPen(Qt::white);
-    QFont font = p.font();
-    font.setBold(true);
-    font.setPointSize(12);
-    p.setFont(font);
-    QString ch = letter.trimmed();
-    if (!ch.isEmpty()) {
-        ch = ch.left(1);
-    } else {
-        ch = QString("?");
-    }
-    p.drawText(pix.rect(), Qt::AlignCenter, ch);
-    return pix;
+    return Helper::avatarPixmap(name, size, Helper::avatarColor(name),
+                                Helper::presenceColor(presence));
 }
 
 QTreeWidgetItem *MainWindow::makeGroupItem(const QString &title,
@@ -406,23 +401,21 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     const int presence = um->presence(row);
 
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
-    const QString caption = host.isEmpty()
-            ? name : QString("%1(%2)").arg(name, host);
-    item->setText(0, caption + "\n" + ip);
+    const QString caption = host.isEmpty() ? name : name;
+    const QString subtitle = host.isEmpty()
+            ? ip : QString("%1 · %2").arg(host, ip);
+    item->setText(0, QString("%1 %2 %3").arg(name, host, ip));
     item->setData(0, Qt::UserRole, ip);
     item->setData(0, Qt::UserRole + 3, um->group(row));
+    item->setData(0, Qt::UserRole + 4, subtitle);
+    item->setData(0, Qt::UserRole + 6, caption);
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    item->setSizeHint(0, QSize(160, 36));
+    item->setSizeHint(0, QSize(180, 52));
 
-    QColor color(80, 170, 90);
-    if (presence == PRESENCE_AWAY) {
-        color = QColor(200, 150, 40);
-    } else if (presence == PRESENCE_STALE) {
-        color = QColor(150, 150, 150);
-        QFont font = item->font(0);
+    if (presence == PRESENCE_STALE) {
         item->setForeground(0, QBrush(QColor(120, 120, 120)));
     }
-    item->setIcon(0, QIcon(avatarPixmap(color, name)));
+    item->setIcon(0, QIcon(peerAvatar(name, presence, 36)));
     item->setToolTip(0, um->peerCaption(ip));
 }
 
@@ -431,11 +424,13 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
     const Owner me = Global::userManager->ourself();
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
     const QString host = me.host();
-    const QString caption = host.isEmpty()
-            ? me.name() : QString("%1(%2)").arg(me.name(), host);
+    const QString caption = me.name();
     item->setText(0, caption);
+    item->setData(0, Qt::UserRole + 4,
+                  host.isEmpty() ? tr("This is you") : host);
+    item->setData(0, Qt::UserRole + 6, caption);
     item->setFlags(Qt::ItemIsEnabled);
-    item->setIcon(0, QIcon(avatarPixmap(QColor(80, 170, 90), me.name())));
+    item->setIcon(0, QIcon(peerAvatar(me.name(), PRESENCE_ONLINE, 36)));
     item->setToolTip(0, tr("This is you"));
 }
 
