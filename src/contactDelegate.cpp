@@ -1,0 +1,132 @@
+// This file is part of QIpMsg.
+//
+// QIpMsg is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// QIpMsg is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+#include "contactDelegate.h"
+
+#include <QIcon>
+#include <QPainter>
+#include <QPixmap>
+
+namespace {
+const int PeerHeight = 52;
+const int GroupHeight = 28;
+const int AvatarSize = 36;
+}
+
+ContactDelegate::ContactDelegate(QObject *parent)
+    : QStyledItemDelegate(parent)
+{
+}
+
+void ContactDelegate::paint(QPainter *painter,
+                            const QStyleOptionViewItem &option,
+                            const QModelIndex &index) const
+{
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+
+    QStyleOptionViewItem opt(option);
+    initStyleOption(&opt, index);
+
+    const QRect rect = opt.rect.adjusted(4, 1, -4, -1);
+    const bool selected = opt.state & QStyle::State_Selected;
+    const bool hover = opt.state & QStyle::State_MouseOver;
+    const QString ip = index.data(Qt::UserRole).toString();
+    const QString groupKey = index.data(Qt::UserRole + 1).toString();
+    const bool isGroup = ip.isEmpty() && !groupKey.isEmpty();
+
+    if (selected) {
+        painter->setBrush(QColor("#E8F1FF"));
+        painter->setPen(Qt::NoPen);
+        painter->drawRoundedRect(rect, 8, 8);
+    } else if (hover && !isGroup) {
+        painter->setBrush(QColor("#F3F4F6"));
+        painter->setPen(Qt::NoPen);
+        painter->drawRoundedRect(rect, 8, 8);
+    }
+
+    if (isGroup) {
+        QFont font = opt.font;
+        font.setBold(true);
+        font.setPixelSize(12);
+        painter->setFont(font);
+        painter->setPen(QColor("#6B7280"));
+        painter->drawText(rect.adjusted(8, 0, -8, 0),
+                          Qt::AlignVCenter | Qt::AlignLeft,
+                          index.data(Qt::DisplayRole).toString());
+        painter->restore();
+        return;
+    }
+
+    QPixmap avatar;
+    const QVariant deco = index.data(Qt::DecorationRole);
+    if (deco.canConvert<QIcon>()) {
+        avatar = deco.value<QIcon>().pixmap(QSize(AvatarSize, AvatarSize));
+    } else if (deco.canConvert<QPixmap>()) {
+        avatar = deco.value<QPixmap>();
+    }
+
+    const QRect avatarRect(rect.left() + 8,
+                           rect.center().y() - AvatarSize / 2,
+                           AvatarSize, AvatarSize);
+    if (!avatar.isNull()) {
+        painter->drawPixmap(avatarRect, avatar.scaled(AvatarSize, AvatarSize,
+                    Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+
+    QString title = index.data(Qt::UserRole + 6).toString();
+    if (title.isEmpty()) {
+        title = index.data(Qt::DisplayRole).toString().section('\n', 0, 0);
+    }
+    QString subtitle = index.data(Qt::UserRole + 4).toString();
+
+    QRect textRect = rect.adjusted(8 + AvatarSize + 10, 6, -10, -6);
+    QFont nameFont = opt.font;
+    nameFont.setBold(true);
+    nameFont.setPixelSize(13);
+    painter->setFont(nameFont);
+    painter->setPen(index.data(Qt::ForegroundRole).isValid()
+                    ? index.data(Qt::ForegroundRole).value<QColor>()
+                    : QColor("#111827"));
+    painter->drawText(textRect, Qt::AlignLeft | Qt::AlignTop,
+                      painter->fontMetrics().elidedText(title, Qt::ElideRight,
+                                                        textRect.width()));
+
+    if (!subtitle.isEmpty()) {
+        QFont subFont = opt.font;
+        subFont.setBold(false);
+        subFont.setPixelSize(11);
+        painter->setFont(subFont);
+        painter->setPen(QColor("#8A8F98"));
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignBottom,
+                          painter->fontMetrics().elidedText(subtitle, Qt::ElideRight,
+                                                            textRect.width()));
+    }
+
+    painter->restore();
+}
+
+QSize ContactDelegate::sizeHint(const QStyleOptionViewItem &option,
+                                const QModelIndex &index) const
+{
+    Q_UNUSED(option);
+    const QString ip = index.data(Qt::UserRole).toString();
+    const QString groupKey = index.data(Qt::UserRole + 1).toString();
+    if (ip.isEmpty() && !groupKey.isEmpty()) {
+        return QSize(160, GroupHeight);
+    }
+    return QSize(180, PeerHeight);
+}

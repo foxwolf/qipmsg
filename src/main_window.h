@@ -106,7 +106,7 @@ private:
     QList<QTreeWidgetItem *> allPeerItems() const;
     bool isBlacklisted(const QString &ip) const;
     void applyFilterToItem(QTreeWidgetItem *item, const QString &needle);
-    QPixmap avatarPixmap(const QColor &color, const QString &letter) const;
+    QPixmap peerAvatar(const QString &name, int presence, int size) const;
 
     bool hasSendFile();
     QString constructFileInfoStr();

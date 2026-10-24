@@ -41,8 +41,8 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
 #include <QFormLayout>
-#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHostAddress>
 #include <QKeySequence>
@@ -50,13 +50,16 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
-#include <QPainter>
 #include <QPushButton>
 #include <QShortcut>
 #include <QShowEvent>
 #include <QSplitter>
+#include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextEdit>
+#include <QTextTable>
+#include <QTextTableCell>
+#include <QTextTableFormat>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -72,7 +75,7 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
 
 QSize ChatWindow::sizeHint() const
 {
-    return QSize(760, 520);
+    return QSize(920, 600);
 }
 
 QToolButton *ChatWindow::makeToolButton(const QString &text, const QString &tip,
@@ -81,6 +84,7 @@ QToolButton *ChatWindow::makeToolButton(const QString &text, const QString &tip,
     QToolButton *button = new QToolButton;
     button->setText(text);
     button->setToolTip(tip);
+    button->setObjectName(enabled ? "chatToolButton" : "stubButton");
     button->setToolButtonStyle(Qt::ToolButtonTextOnly);
     button->setAutoRaise(true);
     button->setEnabled(enabled);
@@ -97,21 +101,34 @@ QToolButton *ChatWindow::makeStubButton(const QString &text)
 
 void ChatWindow::createUi()
 {
+    setObjectName("chatRoot");
+
     m_headerAvatar = new QLabel;
-    m_headerAvatar->setFixedSize(28, 28);
+    m_headerAvatar->setFixedSize(36, 36);
     m_peerLabel = new QLabel;
-    m_peerLabel->setStyleSheet("font-weight: bold;");
+    m_peerLabel->setObjectName("chatPeerName");
+    m_peerMeta = new QLabel;
+    m_peerMeta->setObjectName("chatPeerMeta");
+
+    QVBoxLayout *headerText = new QVBoxLayout;
+    headerText->setContentsMargins(0, 0, 0, 0);
+    headerText->setSpacing(2);
+    headerText->addWidget(m_peerLabel);
+    headerText->addWidget(m_peerMeta);
 
     QWidget *header = new QWidget;
     header->setObjectName("chatHeader");
-    header->setStyleSheet(
-        "#chatHeader { background: #d4f3df; border: 1px solid #b5e0c6; }");
     QHBoxLayout *headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins(14, 10, 14, 10);
+    headerLayout->setSpacing(10);
     headerLayout->addWidget(m_headerAvatar);
-    headerLayout->addWidget(m_peerLabel, 1);
+    headerLayout->addLayout(headerText, 1);
 
-    QHBoxLayout *toolLayout = new QHBoxLayout;
-    toolLayout->setSpacing(4);
+    QWidget *toolbar = new QWidget;
+    toolbar->setObjectName("chatToolbar");
+    QHBoxLayout *toolLayout = new QHBoxLayout(toolbar);
+    toolLayout->setContentsMargins(8, 4, 8, 4);
+    toolLayout->setSpacing(2);
     toolLayout->addWidget(makeStubButton(tr("Remote assist")));
     toolLayout->addWidget(makeStubButton(tr("Remote control")));
     toolLayout->addWidget(makeStubButton(tr("Voice call")));
@@ -143,17 +160,22 @@ void ChatWindow::createUi()
             this, SLOT(showSendFileList()));
 
     m_historyEdit = new QTextEdit;
+    m_historyEdit->setObjectName("historyView");
     m_historyEdit->setReadOnly(true);
     m_historyEdit->setAcceptRichText(true);
     m_historyEdit->setTabChangesFocus(true);
+    m_historyEdit->setFrameShape(QFrame::NoFrame);
 
     m_inputEdit = new QTextEdit;
+    m_inputEdit->setObjectName("composerEdit");
     m_inputEdit->setAcceptRichText(false);
     m_inputEdit->setTabChangesFocus(true);
     m_inputEdit->setMaximumHeight(120);
     m_inputEdit->setAcceptDrops(false);
+    m_inputEdit->setPlaceholderText(tr("Type a message..."));
 
     m_sendButton = new QPushButton(tr("&Send"));
+    m_sendButton->setObjectName("primaryButton");
     connect(m_sendButton, SIGNAL(clicked()),
             this, SLOT(sendMessage()));
     connect(new QShortcut(QKeySequence("Ctrl+Return"), this),
@@ -182,6 +204,12 @@ void ChatWindow::createUi()
     connect(m_stripDir, SIGNAL(clicked()), this, SLOT(addSendDir()));
     connect(m_stripCancel, SIGNAL(clicked()), this, SLOT(cancelAttachments()));
 
+    QWidget *composer = new QWidget;
+    composer->setObjectName("composerBar");
+    QVBoxLayout *composerLayout = new QVBoxLayout(composer);
+    composerLayout->setContentsMargins(12, 8, 12, 12);
+    composerLayout->setSpacing(8);
+
     QHBoxLayout *stripLayout = new QHBoxLayout;
     stripLayout->addWidget(m_stripFile);
     stripLayout->addWidget(m_stripMonitor);
@@ -194,38 +222,78 @@ void ChatWindow::createUi()
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_sendButton);
 
+    composerLayout->addLayout(stripLayout);
+    composerLayout->addWidget(m_inputEdit);
+    composerLayout->addLayout(buttonLayout);
+
     QWidget *chatPane = new QWidget;
     QVBoxLayout *chatLayout = new QVBoxLayout(chatPane);
     chatLayout->setContentsMargins(0, 0, 0, 0);
+    chatLayout->setSpacing(0);
     chatLayout->addWidget(header);
-    chatLayout->addLayout(toolLayout);
+    chatLayout->addWidget(toolbar);
     chatLayout->addWidget(m_historyEdit, 3);
-    chatLayout->addLayout(stripLayout);
-    chatLayout->addWidget(m_inputEdit, 1);
-    chatLayout->addLayout(buttonLayout);
+    chatLayout->addWidget(composer);
 
-    QGroupBox *profileBox = new QGroupBox(tr("Peer profile"));
-    profileBox->setMinimumWidth(220);
+    QWidget *profilePanel = new QWidget;
+    profilePanel->setObjectName("profilePanel");
+    profilePanel->setMinimumWidth(240);
+    m_profileAvatar = new QLabel;
+    m_profileAvatar->setFixedSize(64, 64);
+    m_profileAvatar->setAlignment(Qt::AlignCenter);
     m_profileName = new QLabel;
+    m_profileName->setObjectName("profileName");
+    m_profileName->setAlignment(Qt::AlignCenter);
+    m_profileName->setWordWrap(true);
+    m_profileStatus = new QLabel;
+    m_profileStatus->setObjectName("profileMeta");
+    m_profileStatus->setAlignment(Qt::AlignCenter);
+    m_profileSign = new QLabel;
+    m_profileSign->setObjectName("profileSign");
+    m_profileSign->setAlignment(Qt::AlignCenter);
+    m_profileSign->setWordWrap(true);
     m_profileHost = new QLabel;
     m_profileLogin = new QLabel;
     m_profileGroup = new QLabel;
     m_profileIp = new QLabel;
-    QFormLayout *form = new QFormLayout;
-    form->addRow(tr("User:"), m_profileName);
+
+    QWidget *profileForm = new QWidget;
+    profileForm->setObjectName("profileForm");
+    QFormLayout *form = new QFormLayout(profileForm);
+    form->setContentsMargins(8, 8, 8, 8);
+    form->setLabelAlignment(Qt::AlignLeft);
     form->addRow(tr("Host:"), m_profileHost);
     form->addRow(tr("Login:"), m_profileLogin);
     form->addRow(tr("Group:"), m_profileGroup);
     form->addRow(tr("IP address:"), m_profileIp);
-    profileBox->setLayout(form);
+
+    QLabel *profileTitle = new QLabel(tr("Peer profile"));
+    profileTitle->setObjectName("profileName");
+    profileTitle->setAlignment(Qt::AlignLeft);
+
+    QVBoxLayout *profileLayout = new QVBoxLayout(profilePanel);
+    profileLayout->setContentsMargins(16, 16, 16, 16);
+    profileLayout->setSpacing(8);
+    profileLayout->addWidget(profileTitle);
+    profileLayout->addSpacing(8);
+    profileLayout->addWidget(m_profileAvatar, 0, Qt::AlignHCenter);
+    profileLayout->addWidget(m_profileName);
+    profileLayout->addWidget(m_profileStatus);
+    profileLayout->addWidget(m_profileSign);
+    profileLayout->addSpacing(8);
+    profileLayout->addWidget(profileForm);
+    profileLayout->addStretch();
 
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(chatPane);
-    splitter->addWidget(profileBox);
+    splitter->addWidget(profilePanel);
     splitter->setStretchFactor(0, 3);
     splitter->setStretchFactor(1, 1);
+    splitter->setChildrenCollapsible(false);
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
     mainLayout->addWidget(splitter);
     setLayout(mainLayout);
 
@@ -238,8 +306,14 @@ void ChatWindow::refreshPeerCaption()
     const QString name = Global::userManager->displayNameForIp(m_peerIp);
     const QString host = row != -1 ? Global::userManager->host(row) : QString();
     const QString header = host.isEmpty() ? name : QString("%1(%2)").arg(name, host);
-    m_peerLabel->setText(header);
-    m_headerAvatar->setPixmap(avatarPixmap(QColor(80, 170, 90), name));
+    m_peerLabel->setText(name);
+    const QString sign = Global::userManager->signatureForIp(m_peerIp);
+    QString meta = host.isEmpty() ? m_peerIp : QString("%1 · %2").arg(host, m_peerIp);
+    if (!sign.isEmpty()) {
+        meta += QString(" · %1").arg(sign);
+    }
+    m_peerMeta->setText(meta);
+    m_headerAvatar->setPixmap(peerAvatar(name, 36));
     setWindowTitle(header);
     refreshProfile();
 }
@@ -247,31 +321,32 @@ void ChatWindow::refreshPeerCaption()
 void ChatWindow::refreshProfile()
 {
     const int row = Global::userManager->ipToRow(m_peerIp);
-    m_profileName->setText(Global::userManager->displayNameForIp(m_peerIp));
-    m_profileHost->setText(row != -1 ? Global::userManager->host(row) : QString("-"));
-    m_profileLogin->setText(row != -1 ? Global::userManager->loginName(row) : QString("-"));
+    const QString name = Global::userManager->displayNameForIp(m_peerIp);
+    const int presence = Global::userManager->presenceForIp(m_peerIp);
+    QString status = tr("Offline");
+    if (presence == PRESENCE_ONLINE) {
+        status = tr("Online");
+    } else if (presence == PRESENCE_AWAY) {
+        status = tr("Away");
+    }
+    m_profileName->setText(name);
+    m_profileStatus->setText(status);
+    const QString sign = Global::userManager->signatureForIp(m_peerIp);
+    m_profileSign->setText(sign.isEmpty() ? tr("No signature") : sign);
+    m_profileHost->setText(row != -1 && !Global::userManager->host(row).isEmpty()
+                           ? Global::userManager->host(row) : QString("-"));
+    m_profileLogin->setText(row != -1 && !Global::userManager->loginName(row).isEmpty()
+                            ? Global::userManager->loginName(row) : QString("-"));
     m_profileGroup->setText(row != -1 && !Global::userManager->group(row).isEmpty()
                             ? Global::userManager->group(row) : QString("-"));
     m_profileIp->setText(m_peerIp);
+    m_profileAvatar->setPixmap(peerAvatar(name, 64));
 }
 
-QPixmap ChatWindow::avatarPixmap(const QColor &color, const QString &letter) const
+QPixmap ChatWindow::peerAvatar(const QString &name, int size) const
 {
-    QPixmap pix(28, 28);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setBrush(color);
-    p.setPen(Qt::NoPen);
-    p.drawEllipse(1, 1, 26, 26);
-    p.setPen(Qt::white);
-    QFont font = p.font();
-    font.setBold(true);
-    p.setFont(font);
-    QString ch = letter.trimmed();
-    ch = ch.isEmpty() ? QString("?") : ch.left(1);
-    p.drawText(pix.rect(), Qt::AlignCenter, ch);
-    return pix;
+    return Helper::avatarPixmap(name, size, Helper::avatarColor(name),
+            Helper::presenceColor(Global::userManager->presenceForIp(m_peerIp)));
 }
 
 void ChatWindow::showTransferMonitor()
@@ -315,20 +390,51 @@ void ChatWindow::setDraft(const QString &text)
 void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
                                const QString &text, bool incoming)
 {
-    const QString timeText = when.toString("yyyy-MM-dd hh:mm:ss");
-    const QString color = incoming ? QString("#1a4d8c") : QString("#1a7a3a");
-    const QString safeName = name.toHtmlEscaped();
-    const QString safeText = text.toHtmlEscaped().replace('\n', "<br/>");
+    const QString timeText = when.toString("yyyy-MM-dd hh:mm");
+    QTextCursor cursor(m_historyEdit->document());
+    cursor.movePosition(QTextCursor::End);
 
-    m_historyEdit->append(
-        QString("<p style=\"margin:6px 0 2px 0;color:%1;\"><b>%2</b> "
-                "<span style=\"color:#666;font-weight:normal;\">%3</span>"
-                "<br/>%4</p>")
-            .arg(color, safeName, timeText, safeText));
+    QTextBlockFormat metaBlock;
+    metaBlock.setTopMargin(10);
+    metaBlock.setBottomMargin(2);
+    metaBlock.setAlignment(incoming ? Qt::AlignLeft : Qt::AlignRight);
+    cursor.insertBlock(metaBlock);
 
-    QTextCursor cursor = m_historyEdit->textCursor();
+    QTextCharFormat metaFmt;
+    metaFmt.setForeground(QColor("#8A8F98"));
+    metaFmt.setFontPointSize(9);
+    cursor.insertText(QString("%1  %2").arg(name, timeText), metaFmt);
+
+    QTextTableFormat tableFormat;
+    tableFormat.setBorder(0);
+    tableFormat.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+    tableFormat.setCellPadding(8);
+    tableFormat.setCellSpacing(0);
+    tableFormat.setAlignment(incoming ? Qt::AlignLeft : Qt::AlignRight);
+    tableFormat.setLeftMargin(incoming ? 4 : 72);
+    tableFormat.setRightMargin(incoming ? 72 : 4);
+
+    QTextTable *table = cursor.insertTable(1, 1, tableFormat);
+    QTextTableCell cell = table->cellAt(0, 0);
+    QTextCharFormat cellFmt = cell.format();
+    if (incoming) {
+        cellFmt.setBackground(QColor("#FFFFFF"));
+        cellFmt.setForeground(QColor("#1F2937"));
+    } else {
+        cellFmt.setBackground(QColor("#2563EB"));
+        cellFmt.setForeground(QColor("#FFFFFF"));
+    }
+    cell.setFormat(cellFmt);
+
+    QTextCursor cellCursor = cell.firstCursorPosition();
+    QTextCharFormat textFmt;
+    textFmt.setForeground(incoming ? QColor("#1F2937") : QColor("#FFFFFF"));
+    textFmt.setFontPointSize(10);
+    cellCursor.insertText(text, textFmt);
+
     cursor.movePosition(QTextCursor::End);
     m_historyEdit->setTextCursor(cursor);
+    m_historyEdit->ensureCursorVisible();
 }
 
 QString ChatWindow::localName() const

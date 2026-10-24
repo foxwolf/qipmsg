@@ -21,8 +21,11 @@
 #include <QFile>
 #include <QFontMetrics>
 #include <QDateTime>
+#include <QColor>
+#include <QPixmap>
 
 class QWidget;
+class QApplication;
 
 class Helper {
 public:
@@ -67,6 +70,13 @@ public:
     static QString shakeToken();
     static bool isShakeText(const QString &text);
     static void shakeWidget(QWidget *widget);
+
+    static void applyAppTheme(QApplication *app);
+    static QColor avatarColor(const QString &name);
+    static QColor presenceColor(int presence);
+    static QPixmap avatarPixmap(const QString &letter, int size,
+                                const QColor &fill,
+                                const QColor &status = QColor());
 
 private:
     static void openInternalLogFile();

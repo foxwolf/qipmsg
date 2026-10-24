@@ -57,7 +57,6 @@ bool Translator::loadCatalog(QTranslator &t, QString name, QString locale,
 QStringList Translator::catalogDirs() const
 {
     QStringList dirs;
-    dirs << QString(":/translations");
     const QString configured = Helper::translationPath();
     if (!configured.isEmpty()) {
         dirs << configured;
@@ -68,6 +67,8 @@ QStringList Translator::catalogDirs() const
     }
     dirs << QDir::currentPath() + "/translations";
     dirs << QDir::currentPath();
+    // Embedded snapshot is last so a freshly built side-by-side catalog wins.
+    dirs << QString(":/translations");
 
     QStringList unique;
     QSet<QString> seen;

@@ -70,6 +70,7 @@ int main(int argc, char *argv[])
     // Default UI is Simplified Chinese (zh_CN). Chinese system locales
     // still select zh_*; other locales fall back to the zh_CN catalog.
     Translator::instance()->load(QString());
+    Helper::applyAppTheme(&app);
 
     QIpMsg *qipmsg = new QIpMsg;
 

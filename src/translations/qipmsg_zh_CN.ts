@@ -139,6 +139,26 @@
         <translation>对方资料</translation>
     </message>
     <message>
+        <source>Type a message...</source>
+        <translation>输入消息...</translation>
+    </message>
+    <message>
+        <source>Offline</source>
+        <translation>离线</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>在线</translation>
+    </message>
+    <message>
+        <source>Away</source>
+        <translation>离开</translation>
+    </message>
+    <message>
+        <source>No signature</source>
+        <translation>暂无签名</translation>
+    </message>
+    <message>
         <location filename="../chat_window.cpp" line="215"/>
         <source>User:</source>
         <translation>用户名:</translation>
@@ -587,6 +607,17 @@ QIpMsg is distributed in the hope that it will be useful,You should have receive
         <location filename="../main_window.cpp" line="158"/>
         <source>Search friends...</source>
         <translation>搜索好友...</translation>
+    </message>
+    <message>
+        <source>Refresh contacts</source>
+        <translation>刷新联系人</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 · %n online</source>
+        <translation>
+            <numerusform>%1 · %n 人在线</numerusform>
+            <numerusform>%1 · %n 人在线</numerusform>
+        </translation>
     </message>
     <message>
         <location filename="../main_window.cpp" line="789"/>

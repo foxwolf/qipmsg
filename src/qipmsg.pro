@@ -23,6 +23,7 @@ HEADERS += \
 	lockfile.h \
 	main_window.h \
         chat_window.h \
+        contactDelegate.h \
         message_store.h \
         history_search_window.h \
         resume_store.h \
@@ -78,6 +79,7 @@ SOURCES += \
 	main.cpp \
 	main_window.cpp \
         chat_window.cpp \
+        contactDelegate.cpp \
         message_store.cpp \
         history_search_window.cpp \
         resume_store.cpp \

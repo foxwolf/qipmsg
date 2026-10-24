@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.3.0 adds a FeiQ-like contact tree and chat chrome on top of the 2.2 essentials, with a complete Simplified Chinese UI. Remaining items stay deferred.
+2.4.0 replaces the FeiQ green chrome with a modern light messenger UI (shared QSS, rounded avatars, chat bubbles, profile card). Protocol features from 2.3 stay. Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -29,8 +29,9 @@
 - [x] Full Simplified Chinese UI (`qipmsg_zh_CN`), loaded by default
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
+- [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
 
-## Later / out of scope for 2.3.0
+## Later / out of scope for 2.4.0
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
@@ -39,16 +40,16 @@
 5. **Voice**
 6. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
-7. **Full skin rewrite**
-   - Modern stylesheet, dark/light theme, high-DPI polish
+7. **Dark theme / extra skins**
+   - 2.4.0 shipped the light messenger theme; dark mode and user skins remain later
 8. **Modern packaging**
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.3.0
+## How to try 2.4.0
 
-1. Start QIpMsg. The main window is a FeiQ-style grouped list (我的好友 / department / 自己 / 黑名单) with a signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
+1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
 2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
 3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
 4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
