@@ -151,6 +151,13 @@ make
 - Contact search matches nickname / host / login / memo / IP / group. Pinyin initials use public-domain GB2312 first-letter ranges via `QTextCodec` GBK/GB2312 (no third-party library). Full pinyin is a compact built-in table of surnames and common words in `src/pinyin.cpp` (public readings, GPL-3.0-or-later with the rest of QIpMsg).
 - Offline text queue (FeiQ-like 在线自动发送, best-effort): sending to a stale/offline/unknown peer enqueues the body under `offline_queue.json`. Default is auto-queue (Preferences → Send/Receive; uncheck to confirm each time). Flush happens when `UserManager` marks the IP `PRESENCE_ONLINE` or `PRESENCE_AWAY` (typically `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`). History is written only on flush. Files and window-shake are not queued — IPMSG has no store-and-forward server.
 - File receive options live in Preferences → Detail → File: resume (`GETFILEDATA` hex offset), auto-accept, auto-rename, default folder. Directory transfers restart from the tree root (IPMSG dir stream); only regular files persist an offset.
+- UDP listen port and NIC/bind address live in Preferences → Detail → Network (`qipmsg.ini` `[Network]` `udpPort` / `bindAddress`). Default **2425** / any IPv4 (`0.0.0.0`). UDP and TCP file listen share that port. Changes need a restart. Bind failure is logged and the app continues (soft-fail); file receive needs a successful TCP listen.
+- FeiQ 2013 / IPMSG file-transfer assumptions (no new protocol):
+  - TCP `GETFILEDATA` / `GETDIRFILES` command field is accepted as **decimal or hex** (FeiQ often sends hex `60`/`62`; classic IPMSG and older qipmsg send decimal `96`/`98`). Outgoing requests use hex.
+  - File-list and stream sizes/offsets are hex. Qt `QString::arg` width is a minimum, so values above 4 GB are sent in full hex (not truncated to 8 digits).
+  - Packet-id lookup tries the raw field, hex→decimal, and decimal string so FeiQ and qipmsg map keys match.
+  - Resume offset is hex on the wire; `resume.json` stores size/offset as decimal strings (old double values still load). Directory streams have no per-file resume.
+  - TCP connect uses the peer’s last UDP source port (fallback 2425), with an 8 s timeout. Regular-file reads are capped at remaining bytes.
 - Personal signature is sent as a third NUL field after `nickname\0group\0` on `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`. Classic IPMSG ignores extra fields; FeiQ `PersonSign` uses the same extra slot.
 - Window shake is a normal `IPMSG_SENDMSG` whose text is `#@#shake#@#` (also accepted: `{shake}`, `SHAKE`, `窗口抖动`, `#qipmsg-shake#`, and ESC+SHAKE). FeiQ peers that do not implement shake treat it as ordinary text.
 - Screenshot uses `QScreen::grabWindow` (full screen or rubber-band region) and sends a PNG through the existing file-attach path. Wayland/headless sessions may return an empty grab.
@@ -161,9 +168,9 @@ make
 
 ## Version
 
-**2.6.0** is this slice (inline image preview + basic emoji) on top of merged 2.5.2 (#31 light discussion groups), 2.5.1 (#30 offline queue), and 2.5.0 (#29 memo/pinyin/stealth). Open slice still below this number: #27 = 2.7.0 FeiQ transfer.
+**2.7.0** is this slice (FeiQ/IPMSG TCP file interop, 64-bit sizes/offsets, configurable UDP/TCP port + NIC) on top of merged 2.6.0 (#28 images/emoji), 2.5.2 (#31 light discussion groups), 2.5.1 (#30 offline queue), and 2.5.0 (#29 memo/pinyin/stealth).
 
-## Trying the 2.6.0 UI
+## Trying the 2.7.0 UI
 
 1. Launch `qipmsg` (UI is Simplified Chinese, light messenger theme). The main window shows a rounded-avatar grouped list, signature field, and online count. Last-seen peers appear grey until presence refresh. A **讨论组** folder sits apart from FeiQ department groups.
 2. Filter with 搜索好友 / 拼音 (`zs` / `zhang` for 张三). Right-click **设置备注** for a local memo. Multi-select two or more contacts, then 创建讨论组. Reopen the group from the list; the same text is sent to each member. @mention highlight is local only — the wire stays plain text. This is **not** FeiQ multicast chatroom.
@@ -173,6 +180,7 @@ make
 6. Enable **Away / Auto-reply** from the tray Leave menu and send another message from a peer; you should see one automatic reply per cooldown. Shake packets are not auto-replied.
 7. Enable **Stealth / Hide mode**. A second IPMSG/FeiQ client that refreshes after you hide should no longer see you (no `ANSENTRY`). A client that already had your IP can still send a directed message.
 8. Send text to a grey/offline peer: it sits in the chat **Offline queue** and tray **Offline message queue**. When the peer comes back (`BR_ENTRY` / `ANSENTRY`), items flush in order. Attachments and shake are not queued.
+9. Preferences → Detail → Network: change UDP/TCP listen port or bind NIC, restart, then send/receive a file with FeiQ or another IPMSG client. Files larger than 4GB keep 64-bit size/offset on the wire and in `resume.json`.
 
 ## FeiQ stealth interop (best-effort)
 

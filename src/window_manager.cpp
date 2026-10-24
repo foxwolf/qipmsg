@@ -206,7 +206,8 @@ void WindowManager::deliverText(const QString &ip, const QString &text)
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
-    SendMsg sendMsg(QHostAddress(ip), IPMSG_DEFAULT_PORT,
+    SendMsg sendMsg(QHostAddress(ip),
+                    Global::userManager->sendPortForIp(ip),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
     recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text);

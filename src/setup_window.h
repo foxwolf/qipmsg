@@ -136,6 +136,22 @@ private:
     QLabel *recvPathLabel;
 };
 
+class NetworkTab : public QWidget
+{
+    Q_OBJECT
+
+public:
+    NetworkTab(QWidget *parent = 0);
+
+    void save();
+
+private:
+    void fillBindCombo();
+
+    QSpinBox *portSpin;
+    QComboBox *bindCombo;
+};
+
 class DetailSetupDialog : public QDialog
 {
     Q_OBJECT
@@ -157,6 +173,7 @@ private:
     OtherTab *otherTab;
     TransferTab *transferTab;
     FileTab *fileTab;
+    NetworkTab *networkTab;
 
     QTabWidget *tabWidget;
     QDialogButtonBox *buttonBox;

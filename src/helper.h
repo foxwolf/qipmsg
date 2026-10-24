@@ -24,6 +24,7 @@
 #include <QColor>
 #include <QPixmap>
 #include <QStringList>
+#include <QtGlobal>
 
 class QWidget;
 class QApplication;
@@ -64,6 +65,10 @@ public:
     static QString fileCountString(int fileCount);
     static QString sizeStringUnit(double size = 0.0, QString sep = "");
     static QString secondStringUnit(int second);
+
+    static bool isFileTransferMode(quint32 mode);
+    static quint32 parseIpmsgCommand(const QByteArray &field, bool *ok = 0);
+    static QStringList packetNoLookupKeys(const QByteArray &field);
 
     static QString defaultRecvPath();
     static QString screenshotDir();

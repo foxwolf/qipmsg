@@ -61,8 +61,15 @@ void RecvFileTransfer::startTransfer()
         m_recvFileMap->startTimer();
 
         m_tcpSocket.disconnectFromHost();
-        m_tcpSocket.connectToHost(h->ipAddress(), IPMSG_DEFAULT_PORT);
-        if (!m_tcpSocket.waitForConnected(1000)) {
+        quint16 port = h->peerPort();
+        if (port == 0) {
+            port = Global::userManager->peerPort(h->ip());
+        }
+        if (port == 0) {
+            port = IPMSG_DEFAULT_PORT;
+        }
+        m_tcpSocket.connectToHost(h->ipAddress(), port);
+        if (!m_tcpSocket.waitForConnected(TCP_CONNECT_TIMEOUT_MS)) {
             m_errorString = m_tcpSocket.errorString();
             goto transfer_fail;
         }
@@ -136,10 +143,20 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
             goto recv_file_error;
         }
 
-        qint64 bytesAvailable = m_tcpSocket.bytesAvailable();
-        bytesReaded += bytesAvailable;
+        const qint64 remain = bytesToRead - bytesReaded;
+        const qint64 toRead = qMin(m_tcpSocket.bytesAvailable(), remain);
+        if (toRead <= 0) {
+            break;
+        }
 
-        if (!saveData(m_tcpSocket.read(m_tcpSocket.bytesAvailable()), file)) {
+        const QByteArray chunk = m_tcpSocket.read(toRead);
+        if (chunk.isEmpty()) {
+            m_errorString = m_tcpSocket.errorString();
+            goto recv_file_error;
+        }
+        bytesReaded += chunk.size();
+
+        if (!saveData(chunk, file)) {
             goto recv_file_error;
         }
 
@@ -453,7 +470,9 @@ QByteArray RecvFileTransfer::constructRecvFileDatagram(RecvFileHandle h)
     }
 
     s.append(":");
-    s.append(QString("%1:%2:%3:").arg(flags, 0, 10)
+    // FeiQ 2013 TCP GETFILEDATA/GETDIRFILES uses a hex command field.
+    // ServeSocket also accepts classic decimal, so qipmsg↔qipmsg still works.
+    s.append(QString("%1:%2:%3:").arg(flags, 0, 16)
             .arg(h->packetNo(), 0, 16)
             .arg(h->fileId(), 0, 16));
 

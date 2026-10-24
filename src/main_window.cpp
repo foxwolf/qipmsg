@@ -928,7 +928,8 @@ void MainWindow::sendMessage()
         Global::windowManager->recordOutgoing(ip, recvUser,
                                               inputEdit->toPlainText());
 
-        SendMsg sendMsg = SendMsg(QHostAddress(ip), IPMSG_DEFAULT_PORT,
+        SendMsg sendMsg = SendMsg(QHostAddress(ip),
+                                  Global::userManager->sendPortForIp(ip),
                                   additionalInfo, ""/* extendedInfo */,
                                   flags);
 

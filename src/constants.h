@@ -101,6 +101,10 @@
 
 #define ONE_KB     (1024.0)
 #define ONE_MB     (1024*1024.0)
+#define ONE_GB     (1024.0 * 1024.0 * 1024.0)
+#define ONE_TB     (1024.0 * 1024.0 * 1024.0 * 1024.0)
+
+#define TCP_CONNECT_TIMEOUT_MS             8000
 
 #endif // !CONSTANTS_H
 

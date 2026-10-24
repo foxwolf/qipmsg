@@ -610,7 +610,8 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
         additionalInfo.append(QChar('\0'));
     }
 
-    SendMsg sendMsg(QHostAddress(m_peerIp), IPMSG_DEFAULT_PORT,
+    SendMsg sendMsg(QHostAddress(m_peerIp),
+                    Global::userManager->sendPortForIp(m_peerIp),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
 
@@ -657,7 +658,8 @@ void ChatWindow::sendShake()
     QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
 
-    SendMsg sendMsg(QHostAddress(m_peerIp), IPMSG_DEFAULT_PORT,
+    SendMsg sendMsg(QHostAddress(m_peerIp),
+                    Global::userManager->sendPortForIp(m_peerIp),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
 

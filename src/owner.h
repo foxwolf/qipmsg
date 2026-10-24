@@ -23,7 +23,7 @@
 class Owner
 {
 public:
-    Owner() {}
+    Owner() : m_port(0) {}
     Owner(QString packet, QHostAddress address, quint16 port);
 #if 0
     Owner(const Owner &rhs);
@@ -44,6 +44,9 @@ public:
 
     QString ip() const { return m_ipAddress.toString(); }
     void setIp(const QString &ip) { m_ipAddress = QHostAddress(ip); }
+
+    quint16 port() const { return m_port; }
+    void setPort(quint16 port) { m_port = port; }
 
     void setDisplayLevel(QString displayLevel) {
         m_displayLevel = displayLevel;

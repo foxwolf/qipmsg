@@ -25,6 +25,7 @@
 #include "send_msg.h"
 #include "global.h"
 #include "constants.h"
+#include "helper.h"
 #include "transfer_codec.h"
 #include "msg_thread.h"
 #include "preferences.h"
@@ -120,9 +121,13 @@ void MsgServer::start()
     // writing IPv4 broadcasts from that socket fails with NetworkError.
     const QAbstractSocket::BindMode bindMode =
         QAbstractSocket::ShareAddress | QAbstractSocket::ReuseAddressHint;
-    if (!m_udpSocket.bind(QHostAddress::AnyIPv4, IPMSG_DEFAULT_PORT, bindMode)) {
-        qWarning() << "MsgServer::start: bind 0.0.0.0:" << IPMSG_DEFAULT_PORT
-                   << "failed:" << m_udpSocket.errorString();
+    const QHostAddress listenAddress = Global::preferences->listenAddress();
+    const quint16 listenPort = Global::preferences->listenPort();
+    if (!m_udpSocket.bind(listenAddress, listenPort, bindMode)) {
+        qWarning() << "MsgServer::start: bind"
+                   << listenAddress.toString() << listenPort
+                   << "failed:" << m_udpSocket.errorString()
+                   << "(continuing without UDP listen)";
         return;
     }
 
@@ -432,15 +437,23 @@ void MsgServer::broadcastUserMsg(Msg &msg)
         return;
     }
 
+    QList<quint16> destPorts;
+    destPorts << IPMSG_DEFAULT_PORT;
+    const quint16 listenPort = Global::preferences->listenPort();
+    if (listenPort != IPMSG_DEFAULT_PORT) {
+        destPorts << listenPort;
+    }
+
     int successCount = 0;
     foreach (QHostAddress address, m_broadcastAddresses) {
-        if (m_udpSocket.writeDatagram(datagram, address,
-                                       IPMSG_DEFAULT_PORT) == -1) {
-            qWarning() << "MsgServer::broadcastUserMsg: send failed"
-                       << address.toString()
-                       << m_udpSocket.errorString();
-        } else {
-            ++successCount;
+        foreach (quint16 destPort, destPorts) {
+            if (m_udpSocket.writeDatagram(datagram, address, destPort) == -1) {
+                qWarning() << "MsgServer::broadcastUserMsg: send failed"
+                           << address.toString() << destPort
+                           << m_udpSocket.errorString();
+            } else {
+                ++successCount;
+            }
         }
     }
 
@@ -458,8 +471,8 @@ bool MsgServer::isSupportedCommand(QByteArray &datagram) const
         return false;
     }
 
-    bool ok;
-    long command = bl.at(MSG_FLAGS_POS).toLong(&ok);
+    bool ok = false;
+    const quint32 command = Helper::parseIpmsgCommand(bl.at(MSG_FLAGS_POS), &ok);
     if (!ok) {
         return false;
     }

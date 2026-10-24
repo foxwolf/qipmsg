@@ -22,6 +22,7 @@
 #include <QStringList>
 #include <QMutex>
 #include <QFile>
+#include <QHostAddress>
 
 
 class Preferences
@@ -91,6 +92,12 @@ public:
     bool isAutoRecvFile;
     bool isAutoRecvRename;
     QString autoRecvPath;
+
+    int udpPort;
+    QString bindAddress;
+
+    quint16 listenPort() const;
+    QHostAddress listenAddress() const;
 
     QString personSign;
     QStringList blacklistIps;

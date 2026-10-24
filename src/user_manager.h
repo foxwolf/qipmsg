@@ -66,6 +66,8 @@ public:
     QString peerCaption(const QString &ip) const;
     QString signature(int row) const;
     QString signatureForIp(const QString &ip) const;
+    quint16 peerPort(const QString &ip) const;
+    quint16 sendPortForIp(const QString &ip) const;
 
     Owner ourself() const { return m_ourself; }
     void updateOurself();

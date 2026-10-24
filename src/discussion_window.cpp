@@ -289,7 +289,8 @@ void DiscussionWindow::sendMessage()
     foreach (const QString &ip, ips) {
         QString additionalInfo = text;
         additionalInfo.append(QChar('\0'));
-        SendMsg sendMsg(QHostAddress(ip), IPMSG_DEFAULT_PORT,
+        SendMsg sendMsg(QHostAddress(ip),
+                        Global::userManager->sendPortForIp(ip),
                         additionalInfo, ""/* extendedInfo */, flags);
         Global::msgThread->addSendMsg(Msg(sendMsg));
         if (Global::windowManager) {

@@ -438,7 +438,8 @@ void MsgWindow::initRecvFileInfo()
         if (l.size() < RECV_FILE_EXTEND_ATTR_POS) {
             continue;
         } else {
-            RecvFile recvFile(m_msg->ip(), m_msg->packetNoString(), info);
+            RecvFile recvFile(m_msg->ip(), m_msg->packetNoString(), info,
+                              m_msg->port());
             m_recvFileMap.addFile(recvFile.fileId(), RecvFileHandle(recvFile));
             m_recvFileModel.addRow(recvFile);
         }
