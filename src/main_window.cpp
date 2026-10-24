@@ -41,6 +41,7 @@
 #include "window_manager.h"
 #include "history_search_window.h"
 #include "contactDelegate.h"
+#include "discussion_store.h"
 #include "pinyin.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
@@ -94,6 +95,10 @@ void MainWindow::createConnections()
             this, SLOT(updateUserCount(int)));
     connect(Global::userManager, SIGNAL(usersChanged()),
             this, SLOT(rebuildContactTree()));
+    if (Global::discussionStore) {
+        connect(Global::discussionStore, SIGNAL(groupsChanged()),
+                this, SLOT(rebuildContactTree()));
+    }
     connect(refreshButton, SIGNAL(clicked()),
             this, SLOT(refreshUserList()));
 
@@ -105,6 +110,14 @@ void MainWindow::createConnections()
             this, SLOT(showSearchDialog()));
     connect(blacklistAct, SIGNAL(triggered()),
             this, SLOT(toggleBlacklist()));
+    connect(createDiscussionAct, SIGNAL(triggered()),
+            this, SLOT(createDiscussion()));
+    connect(renameDiscussionAct, SIGNAL(triggered()),
+            this, SLOT(renameDiscussion()));
+    connect(deleteDiscussionAct, SIGNAL(triggered()),
+            this, SLOT(deleteDiscussion()));
+    connect(addToDiscussionAct, SIGNAL(triggered()),
+            this, SLOT(addSelectedToDiscussion()));
 
     connect(new QShortcut(QKeySequence("Ctrl+F"), this), SIGNAL(activated()),
             searchEdit, SLOT(setFocus()));
@@ -266,10 +279,20 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addAction(searchUserAct);
     menu.addAction(findHistoryAct);
     menu.addSeparator();
+    menu.addAction(createDiscussionAct);
+    menu.addAction(renameDiscussionAct);
+    menu.addAction(deleteDiscussionAct);
+    menu.addAction(addToDiscussionAct);
     menu.addAction(setMemoAct);
+    menu.addSeparator();
     menu.addAction(blacklistAct);
 
     const QStringList ips = selectedPeerIps();
+    const QStringList discIds = selectedDiscussionIds();
+    createDiscussionAct->setEnabled(ips.size() >= 2);
+    renameDiscussionAct->setEnabled(discIds.size() == 1);
+    deleteDiscussionAct->setEnabled(!discIds.isEmpty());
+    addToDiscussionAct->setEnabled(discIds.size() == 1 && !ips.isEmpty());
     if (ips.size() == 1 && isBlacklisted(ips.first())) {
         blacklistAct->setText(tr("Remove from blacklist"));
     } else {
@@ -287,6 +310,10 @@ void MainWindow::createActions()
     openChatAct = new QAction(tr("Open chat"), this);
     connect(openChatAct, SIGNAL(triggered()),
             this, SLOT(openSelectedChat()));
+    createDiscussionAct = new QAction(tr("Create discussion group"), this);
+    renameDiscussionAct = new QAction(tr("Rename discussion group"), this);
+    deleteDiscussionAct = new QAction(tr("Delete discussion group"), this);
+    addToDiscussionAct = new QAction(tr("Add selected contacts to discussion"), this);
     sendFileAct = new QAction(tr("Send file"), this);
     sendDirAct = new QAction(tr("Send folder"), this);
     searchUserAct = new QAction(tr("Search user"), this);
@@ -451,6 +478,51 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
     item->setToolTip(0, tr("This is you"));
 }
 
+void MainWindow::addDiscussionItem(QTreeWidgetItem *parent, const QString &id)
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const DiscussionGroup group = Global::discussionStore->groupById(id);
+    if (group.id.isEmpty()) {
+        return;
+    }
+    QTreeWidgetItem *item = new QTreeWidgetItem(parent);
+    const QString summary = group.memberSummary();
+    item->setText(0, QString("%1 %2").arg(group.name, summary));
+    item->setData(0, Qt::UserRole, QString());
+    item->setData(0, Qt::UserRole + 1, QString());
+    item->setData(0, Qt::UserRole + 4, summary);
+    item->setData(0, Qt::UserRole + 5, QLatin1String("discussion"));
+    item->setData(0, Qt::UserRole + 6, group.name);
+    item->setData(0, Qt::UserRole + 7, group.id);
+    item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+    item->setSizeHint(0, QSize(180, 52));
+    item->setIcon(0, QIcon(peerAvatar(group.name, PRESENCE_ONLINE, 36)));
+    item->setToolTip(0, tr("%1\n%2\nLocal multi-send (not a FeiQ multicast room)")
+                     .arg(group.name, summary));
+}
+
+bool MainWindow::isDiscussionItem(const QTreeWidgetItem *item) const
+{
+    return item && !item->data(0, Qt::UserRole + 7).toString().isEmpty();
+}
+
+QStringList MainWindow::selectedDiscussionIds() const
+{
+    QStringList ids;
+    if (!contactTree) {
+        return ids;
+    }
+    foreach (QTreeWidgetItem *item, contactTree->selectedItems()) {
+        const QString id = item->data(0, Qt::UserRole + 7).toString();
+        if (!id.isEmpty() && !ids.contains(id)) {
+            ids << id;
+        }
+    }
+    return ids;
+}
+
 bool MainWindow::isBlacklisted(const QString &ip) const
 {
     return Global::preferences->blacklistIps.contains(ip);
@@ -459,6 +531,7 @@ bool MainWindow::isBlacklisted(const QString &ip) const
 void MainWindow::rebuildContactTree()
 {
     const QStringList selected = selectedPeerIps();
+    const QStringList selectedDisc = selectedDiscussionIds();
     QSet<QString> expanded;
     for (int i = 0; i < contactTree->topLevelItemCount(); ++i) {
         QTreeWidgetItem *g = contactTree->topLevelItem(i);
@@ -473,7 +546,8 @@ void MainWindow::rebuildContactTree()
         }
     }
     if (expanded.isEmpty()) {
-        expanded << "friends" << "ungrouped" << "self" << "blacklist";
+        expanded << "friends" << "ungrouped" << "self" << "blacklist"
+                 << "discussions";
     }
 
     contactTree->clear();
@@ -484,6 +558,7 @@ void MainWindow::rebuildContactTree()
     friends->addChild(ungrouped);
 
     QMap<QString, QTreeWidgetItem *> depts;
+    QTreeWidgetItem *discGroup = makeGroupItem(tr("Discussions"), "discussions");
     QTreeWidgetItem *selfGroup = makeGroupItem(tr("Myself"), "self");
     QTreeWidgetItem *blackGroup = makeGroupItem(tr("Blacklist"), "blacklist");
 
@@ -509,13 +584,21 @@ void MainWindow::rebuildContactTree()
     }
     addSelfItem(selfGroup);
 
+    if (Global::discussionStore) {
+        foreach (const DiscussionGroup &group, Global::discussionStore->groups()) {
+            addDiscussionItem(discGroup, group.id);
+        }
+    }
+
     updateGroupTitle(ungrouped, tr("Ungrouped friends"));
     friends->setText(0, QString("%1 (%2)")
                      .arg(tr("My Friends")).arg(ungrouped->childCount()));
+    updateGroupTitle(discGroup, tr("Discussions"));
     updateGroupTitle(selfGroup, tr("Myself"));
     updateGroupTitle(blackGroup, tr("Blacklist"));
 
     contactTree->addTopLevelItem(friends);
+    contactTree->addTopLevelItem(discGroup);
     QMapIterator<QString, QTreeWidgetItem *> it(depts);
     while (it.hasNext()) {
         it.next();
@@ -543,6 +626,17 @@ void MainWindow::rebuildContactTree()
     foreach (QTreeWidgetItem *item, allPeerItems()) {
         if (selected.contains(item->data(0, Qt::UserRole).toString())) {
             item->setSelected(true);
+        }
+    }
+    QList<QTreeWidgetItem *> stack;
+    stack << discGroup;
+    while (!stack.isEmpty()) {
+        QTreeWidgetItem *item = stack.takeFirst();
+        if (selectedDisc.contains(item->data(0, Qt::UserRole + 7).toString())) {
+            item->setSelected(true);
+        }
+        for (int i = 0; i < item->childCount(); ++i) {
+            stack << item->child(i);
         }
     }
 
@@ -598,7 +692,8 @@ void MainWindow::applyFilterToItem(QTreeWidgetItem *item, const QString &needle)
         return;
     }
 
-    const bool isPeer = !item->data(0, Qt::UserRole).toString().isEmpty();
+    const bool isPeer = !item->data(0, Qt::UserRole).toString().isEmpty()
+            || isDiscussionItem(item);
     if (needle.isEmpty()) {
         item->setHidden(false);
         return;
@@ -661,6 +756,97 @@ void MainWindow::toggleBlacklist()
     }
     Global::preferences->save();
     rebuildContactTree();
+}
+
+void MainWindow::createDiscussion()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const QStringList ips = selectedPeerIps();
+    if (ips.size() < 2) {
+        QMessageBox::information(this, tr("Discussion group"),
+                tr("Select at least two contacts to create a discussion group."));
+        return;
+    }
+    bool ok = false;
+    const QString name = QInputDialog::getText(this,
+            tr("New discussion group"), tr("Name:"),
+            QLineEdit::Normal,
+            tr("Discussion (%1)").arg(ips.size()), &ok);
+    if (!ok || name.trimmed().isEmpty()) {
+        return;
+    }
+    QList<DiscussionMember> members;
+    foreach (const QString &ip, ips) {
+        members << DiscussionStore::memberFromIp(ip);
+    }
+    const QString id = Global::discussionStore->addGroup(name, members);
+    if (id.isEmpty()) {
+        QMessageBox::warning(this, tr("Discussion group"),
+                tr("Could not create the discussion group."));
+        return;
+    }
+    Global::windowManager->openDiscussion(id, true);
+}
+
+void MainWindow::renameDiscussion()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const QStringList ids = selectedDiscussionIds();
+    if (ids.size() != 1) {
+        return;
+    }
+    const DiscussionGroup group = Global::discussionStore->groupById(ids.first());
+    bool ok = false;
+    const QString name = QInputDialog::getText(this,
+            tr("Rename discussion group"), tr("Name:"),
+            QLineEdit::Normal, group.name, &ok);
+    if (!ok || name.trimmed().isEmpty()) {
+        return;
+    }
+    Global::discussionStore->renameGroup(ids.first(), name);
+}
+
+void MainWindow::deleteDiscussion()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const QStringList ids = selectedDiscussionIds();
+    if (ids.isEmpty()) {
+        return;
+    }
+    const QString prompt = (ids.size() == 1)
+            ? tr("Delete this discussion group? Local history stays on disk.")
+            : tr("Delete the selected discussion groups? Local history stays on disk.");
+    if (QMessageBox::question(this, tr("Delete discussion group"), prompt,
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No)
+            != QMessageBox::Yes) {
+        return;
+    }
+    foreach (const QString &id, ids) {
+        Global::discussionStore->removeGroup(id);
+    }
+}
+
+void MainWindow::addSelectedToDiscussion()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const QStringList ids = selectedDiscussionIds();
+    const QStringList ips = selectedPeerIps();
+    if (ids.size() != 1 || ips.isEmpty()) {
+        return;
+    }
+    QList<DiscussionMember> members;
+    foreach (const QString &ip, ips) {
+        members << DiscussionStore::memberFromIp(ip);
+    }
+    Global::discussionStore->addMembers(ids.first(), members);
 }
 
 void MainWindow::editPeerMemo()
@@ -903,6 +1089,11 @@ void MainWindow::onContactDoubleClicked(QTreeWidgetItem *item, int)
     if (!item) {
         return;
     }
+    const QString discId = item->data(0, Qt::UserRole + 7).toString();
+    if (!discId.isEmpty()) {
+        Global::windowManager->openDiscussion(discId, true);
+        return;
+    }
     const QString ip = item->data(0, Qt::UserRole).toString();
     if (!ip.isEmpty()) {
         Global::windowManager->openChat(ip, true);
@@ -911,6 +1102,9 @@ void MainWindow::onContactDoubleClicked(QTreeWidgetItem *item, int)
 
 void MainWindow::openSelectedChat()
 {
+    foreach (const QString &id, selectedDiscussionIds()) {
+        Global::windowManager->openDiscussion(id, true);
+    }
     foreach (const QString &ip, selectedPeerIps()) {
         Global::windowManager->openChat(ip, true);
     }

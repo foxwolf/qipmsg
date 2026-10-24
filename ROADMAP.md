@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.5.1 adds a FeiQ-like offline text queue on top of 2.5.0 (memo nicknames, pinyin search, stealth). Remaining items stay deferred.
+2.5.2 adds light discussion groups on top of 2.5.1 (offline queue) and 2.5.0 (memo, pinyin, stealth). This is **not** FeiQ multicast chatroom. Full group rooms stay deferred.
 
 ## In this line of work (done)
 
@@ -34,13 +34,14 @@
 - [x] Contact search: substring + Chinese pinyin initials (GB2312 ranges) and common full pinyin
 - [x] Stealth / HideMode: skip `ANSENTRY` and presence broadcasts; tray + settings toggle
 - [x] Offline text queue (`offline_queue.json`; flush on ANSENTRY / online refresh)
+- [x] Light discussion groups (local JSON member set + multi-send UX; not FeiQ multicast)
 
-## Later / out of scope for 2.5.1
+## Later / out of scope for 2.5.2
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
 3. **File-share / public folder server**
-4. **Group chat / 群 chat rooms**
+4. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
 5. **Voice**
 6. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
@@ -53,16 +54,16 @@
 9. **Hide from specific groups**
    - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
 
-## How to try 2.5.1
+## How to try 2.5.2
 
-1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
-2. Right-click a peer → **Set memo**. The tree caption and chat title use the memo; 对方资料 **Nickname** stays the real IPMSG nickname. Search accepts `zs` / `zhang` for 张三 (initials via GB2312 ranges; full pinyin for a compact public-domain table in `src/pinyin.cpp`).
-3. Preferences → Send/Receive, or tray **Leave → Stealth / Hide mode**: no `ANSENTRY` to `BR_ENTRY`, no own `BR_ENTRY`/`BR_ABSENCE`; enabling stealth sends `BR_EXIT` first. Directed `SENDMSG` / `GETABSENCEINFO` still work. This is best-effort FeiQ HideMode without a server — peers who already have your IP can still message you.
-4. Send text to a grey/offline peer: it appears in the chat **Offline queue**. When that peer broadcasts `BR_ENTRY` / `ANSENTRY`, queued texts flush in order into history. Attachments and shake are not queued. Tray **Offline message queue** lists every pending item.
-5. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
-6. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
-7. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
-8. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
+1. Start QIpMsg. The main window is a light messenger list (我的好友 / 讨论组 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
+2. Right-click a peer → **Set memo**. The tree caption and chat title use the memo; 对方资料 **Nickname** stays the real IPMSG nickname. Search accepts `zs` / `zhang` for 张三.
+3. Multi-select two or more contacts → right-click **创建讨论组**. Groups persist in `~/.qipmsg/discussions.json`. Double-click a discussion to send the same text to each member. Replies stay 1:1. @name highlight is local only.
+4. Preferences → Send/Receive, or tray **Leave → Stealth / Hide mode**: no `ANSENTRY` to `BR_ENTRY`, no own `BR_ENTRY`/`BR_ABSENCE`; enabling stealth sends `BR_EXIT` first.
+5. Send text to a grey/offline peer: it appears in the chat **Offline queue**. When that peer broadcasts `BR_ENTRY` / `ANSENTRY`, queued texts flush in order. Attachments and shake are not queued.
+6. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
+7. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`).
+8. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows.
 9. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
 
 ## Want to help?

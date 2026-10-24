@@ -17,6 +17,7 @@
 #include "window_manager.h"
 #include "chat_window.h"
 #include "constants.h"
+#include "discussion_window.h"
 #include "global.h"
 #include "helper.h"
 #include "main_window.h"
@@ -51,6 +52,7 @@ WindowManager::~WindowManager()
     destroyMsgWindowList();
     destroyMsgReadedWindowList();
     destroyChatWindows();
+    destroyDiscussionWindows();
 }
 
 void WindowManager::newMsg(Msg msg)
@@ -322,6 +324,25 @@ ChatWindow *WindowManager::ensureChat(const QString &ip)
     return w;
 }
 
+DiscussionWindow *WindowManager::openDiscussion(const QString &id,
+                                                bool raiseWindow)
+{
+    if (id.isEmpty()) {
+        return 0;
+    }
+    DiscussionWindow *w = m_discussionWindows.value(id, 0);
+    if (!w) {
+        w = new DiscussionWindow(id);
+        m_discussionWindows.insert(id, w);
+    }
+    if (raiseWindow) {
+        w->show();
+        w->raise();
+        w->activateWindow();
+    }
+    return w;
+}
+
 void WindowManager::refreshChatCaptions()
 {
     QMapIterator<QString, ChatWindow *> it(m_chatWindows);
@@ -436,6 +457,16 @@ void WindowManager::destroyChatWindows()
         delete it.value();
     }
     m_chatWindows.clear();
+}
+
+void WindowManager::destroyDiscussionWindows()
+{
+    QMapIterator<QString, DiscussionWindow *> it(m_discussionWindows);
+    while (it.hasNext()) {
+        it.next();
+        delete it.value();
+    }
+    m_discussionWindows.clear();
 }
 
 void WindowManager::visibleAllMsgWindow()
