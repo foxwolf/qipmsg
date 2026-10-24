@@ -17,10 +17,10 @@
 #include <QtGui>
 #include <QtCore>
 #include <QtWidgets>
+#include <QMessageBox>
 #include <algorithm>
 #include <QHostAddress>
 #include <QInputDialog>
-#include <QMessageBox>
 #include <QStringList>
 #include <QSet>
 
@@ -42,6 +42,7 @@
 #include "history_search_window.h"
 #include "contactDelegate.h"
 #include "discussion_store.h"
+#include "pinyin.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -172,7 +173,7 @@ void MainWindow::createPeerWidget()
 
     searchEdit = new QLineEdit;
     searchEdit->setObjectName("contactSearch");
-    searchEdit->setPlaceholderText(tr("Search friends..."));
+    searchEdit->setPlaceholderText(tr("Search friends / pinyin..."));
     searchEdit->setClearButtonEnabled(true);
 
     refreshButton = new QPushButton(tr("&Refresh"));
@@ -282,6 +283,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addAction(renameDiscussionAct);
     menu.addAction(deleteDiscussionAct);
     menu.addAction(addToDiscussionAct);
+    menu.addAction(setMemoAct);
     menu.addSeparator();
     menu.addAction(blacklistAct);
 
@@ -297,6 +299,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
         blacklistAct->setText(tr("Add to blacklist"));
     }
     blacklistAct->setEnabled(!ips.isEmpty());
+    setMemoAct->setEnabled(ips.size() == 1);
 
     updateSelectGroupMenu();
     menu.exec(event->globalPos());
@@ -318,6 +321,9 @@ void MainWindow::createActions()
     connect(findHistoryAct, SIGNAL(triggered()),
             this, SLOT(findInHistory()));
     blacklistAct = new QAction(tr("Add to blacklist"), this);
+    setMemoAct = new QAction(tr("Set memo..."), this);
+    connect(setMemoAct, SIGNAL(triggered()),
+            this, SLOT(editPeerMemo()));
 
     setLevelOneAct = new QAction(tr("Set level 1 (user %1 / %2)")
             .arg(m_levelOneCount)
@@ -384,13 +390,18 @@ void MainWindow::updateUserCount(int i)
 void MainWindow::updateHeader()
 {
     const Owner me = Global::userManager->ourself();
-    const QString status = Global::preferences->isAway
-            ? tr("Away") : tr("Online");
+    QString status = tr("Online");
+    int presence = PRESENCE_ONLINE;
+    if (Global::preferences->isStealth) {
+        status = tr("Stealth");
+        presence = PRESENCE_STALE;
+    } else if (Global::preferences->isAway) {
+        status = tr("Away");
+        presence = PRESENCE_AWAY;
+    }
     nickStatusLabel->setText(me.name());
     onlineCountLabel->setText(tr("%1 · %n online", "",
                                  Global::userManager->onlineCount()).arg(status));
-    const int presence = Global::preferences->isAway
-            ? PRESENCE_AWAY : PRESENCE_ONLINE;
     avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40));
 }
 
@@ -427,24 +438,28 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     const QString name = um->name(row);
     const QString host = um->host(row);
     const QString ip = um->ip(row);
+    const QString memo = um->memoForIp(ip);
     const int presence = um->presence(row);
+    const QString display = memo.isEmpty() ? name : memo;
 
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
-    const QString caption = host.isEmpty() ? name : name;
-    const QString subtitle = host.isEmpty()
-            ? ip : QString("%1 · %2").arg(host, ip);
-    item->setText(0, QString("%1 %2 %3").arg(name, host, ip));
+    const QString subtitle = memo.isEmpty()
+            ? (host.isEmpty() ? ip : QString("%1 · %2").arg(host, ip))
+            : (host.isEmpty()
+               ? QString("%1 · %2").arg(name, ip)
+               : QString("%1 · %2 · %3").arg(name, host, ip));
+    item->setText(0, QString("%1 %2 %3 %4").arg(display, name, host, ip));
     item->setData(0, Qt::UserRole, ip);
     item->setData(0, Qt::UserRole + 3, um->group(row));
     item->setData(0, Qt::UserRole + 4, subtitle);
-    item->setData(0, Qt::UserRole + 6, caption);
+    item->setData(0, Qt::UserRole + 6, display);
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setSizeHint(0, QSize(180, 52));
 
     if (presence == PRESENCE_STALE) {
         item->setForeground(0, QBrush(QColor(120, 120, 120)));
     }
-    item->setIcon(0, QIcon(peerAvatar(name, presence, 36)));
+    item->setIcon(0, QIcon(peerAvatar(display, presence, 36)));
     item->setToolTip(0, um->peerCaption(ip));
 }
 
@@ -685,8 +700,17 @@ void MainWindow::applyFilterToItem(QTreeWidgetItem *item, const QString &needle)
     }
 
     if (isPeer) {
-        item->setHidden(!item->text(0).contains(needle, Qt::CaseInsensitive)
-                        && !item->toolTip(0).contains(needle, Qt::CaseInsensitive));
+        const QString ip = item->data(0, Qt::UserRole).toString();
+        UserManager *um = Global::userManager;
+        const int row = um->ipToRow(ip);
+        QStringList fields;
+        fields << item->text(0) << item->toolTip(0) << ip;
+        if (row != -1) {
+            fields << um->name(row) << um->host(row) << um->loginName(row)
+                   << um->group(row);
+        }
+        fields << um->memoForIp(ip);
+        item->setHidden(!Pinyin::matchesAny(fields, needle));
         return;
     }
 
@@ -697,8 +721,7 @@ void MainWindow::applyFilterToItem(QTreeWidgetItem *item, const QString &needle)
             break;
         }
     }
-    item->setHidden(!anyVisible
-                    && !item->text(0).contains(needle, Qt::CaseInsensitive));
+    item->setHidden(!anyVisible && !Pinyin::matches(item->text(0), needle));
     if (!item->isHidden()) {
         item->setExpanded(true);
     }
@@ -826,6 +849,27 @@ void MainWindow::addSelectedToDiscussion()
     Global::discussionStore->addMembers(ids.first(), members);
 }
 
+void MainWindow::editPeerMemo()
+{
+    const QStringList ips = selectedPeerIps();
+    if (ips.size() != 1) {
+        return;
+    }
+    const QString ip = ips.first();
+    const QString real = Global::userManager->realNameForIp(ip);
+    bool ok = false;
+    const QString memo = QInputDialog::getText(
+                this,
+                tr("Set memo"),
+                tr("Local memo for %1:").arg(real),
+                QLineEdit::Normal,
+                Global::userManager->memoForIp(ip),
+                &ok);
+    if (ok) {
+        Global::userManager->setMemoForIp(ip, memo);
+    }
+}
+
 void MainWindow::sendMessage()
 {
     quint32 flags = 0;
@@ -842,7 +886,24 @@ void MainWindow::sendMessage()
         flags |= IPMSG_MULTICASTOPT;
     }
 
+    int queuedCount = 0;
+    bool warnedFiles = false;
     foreach (const QString &ip, ips) {
+        if (!Global::userManager->isReachable(ip)) {
+            if (hasSendFile() && !warnedFiles) {
+                QMessageBox::information(this, tr("Offline queue"),
+                        tr("File attachments cannot be queued (no transfer server). "
+                           "Text will be queued for offline peers."));
+                warnedFiles = true;
+            }
+            const QString body = inputEdit->toPlainText();
+            if (!body.trimmed().isEmpty()
+                    && Global::windowManager->queueOrDeliverText(ip, body, this)) {
+                ++queuedCount;
+            }
+            continue;
+        }
+
         const int row = Global::userManager->ipToRow(ip);
         QString recvUser = Global::userManager->displayNameForIp(ip);
         QString recvHostname = row != -1 ? Global::userManager->host(row)
@@ -881,6 +942,12 @@ void MainWindow::sendMessage()
         }
 
         Global::msgThread->addSendMsg(Msg(sendMsg));
+    }
+
+    if (queuedCount > 0) {
+        QMessageBox::information(this, tr("Offline queue"),
+                tr("%n message(s) queued and will send when the peer comes online.",
+                   "", queuedCount));
     }
 
     emit messageReplyed();

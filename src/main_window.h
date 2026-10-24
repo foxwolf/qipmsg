@@ -88,6 +88,7 @@ private slots:
     void renameDiscussion();
     void deleteDiscussion();
     void addSelectedToDiscussion();
+    void editPeerMemo();
 
 signals:
     void messageReplyed();
@@ -148,6 +149,7 @@ private:
     QAction *searchUserAct;
     QAction *findHistoryAct;
     QAction *blacklistAct;
+    QAction *setMemoAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;

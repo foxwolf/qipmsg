@@ -25,6 +25,7 @@
 #include "send_file_model.h"
 
 class QLabel;
+class QListWidget;
 class QPushButton;
 class QTextEdit;
 class QPixmap;
@@ -69,6 +70,9 @@ private slots:
     void findInHistory();
     void showTransferMonitor();
     void cancelAttachments();
+    void refreshQueuePanel();
+    void cancelSelectedQueued();
+    void clearQueued();
 
 private:
     void createUi();
@@ -91,6 +95,7 @@ private:
     QLabel *m_headerAvatar;
     QLabel *m_profileAvatar;
     QLabel *m_profileName;
+    QLabel *m_profileNick;
     QLabel *m_profileStatus;
     QLabel *m_profileSign;
     QLabel *m_profileHost;
@@ -98,6 +103,11 @@ private:
     QLabel *m_profileGroup;
     QLabel *m_profileIp;
     QTextEdit *m_historyEdit;
+    QWidget *m_queuePanel;
+    QLabel *m_queueBanner;
+    QListWidget *m_queueList;
+    QPushButton *m_cancelQueuedButton;
+    QPushButton *m_clearQueueButton;
     QTextEdit *m_inputEdit;
     QPushButton *m_sendButton;
     QPushButton *m_fileListButton;

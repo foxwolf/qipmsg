@@ -39,6 +39,7 @@ HEADERS += \
 	msg_thread.h \
 	msg_readed_window.h \
 	msg_window.h \
+	offline_queue.h \
 	preferences.h \
 	qipmsg.h \
         recv_file.h \
@@ -65,6 +66,7 @@ HEADERS += \
 	transfer_codec.h \
 	translator.h \
 	owner.h \
+	pinyin.h \
 	sound_thread.h \
 	user_manager.h \
 	transfer_file_window.h \
@@ -98,6 +100,7 @@ SOURCES += \
 	msg_thread.cpp \
 	msg_readed_window.cpp \
 	msg_window.cpp \
+	offline_queue.cpp \
 	preferences.cpp \
 	qipmsg.cpp \
         recv_file.cpp \
@@ -124,6 +127,7 @@ SOURCES += \
 	transfer_codec.cpp \
 	translator.cpp \
 	owner.cpp \
+	pinyin.cpp \
 	sound_thread.cpp \
 	user_manager.cpp \
 	transfer_file_window.cpp \

@@ -550,10 +550,18 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isQuoteMsg) {
         quoteMsg->setCheckState(Qt::Checked);
     }
+    offlineQueueCheck = new QCheckBox(tr("Queue messages when peer is offline"));
+    if (Global::preferences->isOfflineQueue) {
+        offlineQueueCheck->setCheckState(Qt::Checked);
+    }
 
     awayCheck = new QCheckBox(tr("Away"));
     if (Global::preferences->isAway) {
         awayCheck->setCheckState(Qt::Checked);
+    }
+    stealthCheck = new QCheckBox(tr("Stealth / Hide mode (do not answer discovery)"));
+    if (Global::preferences->isStealth) {
+        stealthCheck->setCheckState(Qt::Checked);
     }
     autoReplyCheck = new QCheckBox(tr("Enable auto-reply"));
     if (Global::preferences->isAutoReply) {
@@ -580,7 +588,9 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(noSoundAlarm);
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
+    vbox->addWidget(offlineQueueCheck);
     vbox->addWidget(awayCheck);
+    vbox->addWidget(stealthCheck);
     vbox->addWidget(autoReplyCheck);
     vbox->addLayout(replyLayout);
     vbox->addLayout(cooldownLayout);
@@ -709,14 +719,21 @@ void SetupWindow::applyPreferences()
     Global::preferences->isNoSoundAlarm = noSoundAlarm->isChecked();
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
+    Global::preferences->isOfflineQueue = offlineQueueCheck->isChecked();
     Global::preferences->isNoAutoPopupMsg = noAutoPopupMsg->isChecked();
     Global::preferences->isAway = awayCheck->isChecked();
     Global::preferences->isAutoReply = autoReplyCheck->isChecked();
     Global::preferences->autoReplyText = autoReplyEdit->text();
     Global::preferences->autoReplyCooldownSecs = autoReplyCooldownSpin->value();
+    const bool stealth = stealthCheck->isChecked();
+    const bool stealthChanged = (stealth != Global::preferences->isStealth);
 
     Global::userManager->updateOurself();
-    Global::userManager->announcePresence();
+    if (stealthChanged) {
+        Global::userManager->applyStealth(stealth);
+    } else if (!stealth) {
+        Global::userManager->announcePresence();
+    }
 
     Global::preferences->save();
 }
