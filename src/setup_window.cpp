@@ -23,6 +23,7 @@
 #include "protocolutil.h"
 #include "autostart.h"
 #include "systray.h"
+#include "groupPolicyDialog.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -691,6 +692,11 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isStealth) {
         stealthCheck->setCheckState(Qt::Checked);
     }
+    groupPolicyButton = new QPushButton(tr("Group permissions..."));
+    groupPolicyButton->setToolTip(tr(
+            "Hide from a department group, or mute message alerts from it."));
+    connect(groupPolicyButton, SIGNAL(clicked()),
+            this, SLOT(openGroupPolicyDialog()));
     autoReplyCheck = new QCheckBox(tr("Enable auto-reply"));
     if (Global::preferences->isAutoReply) {
         autoReplyCheck->setCheckState(Qt::Checked);
@@ -721,6 +727,7 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(offlineQueueCheck);
     vbox->addWidget(awayCheck);
     vbox->addWidget(stealthCheck);
+    vbox->addWidget(groupPolicyButton);
     vbox->addWidget(autoReplyCheck);
     vbox->addLayout(replyLayout);
     vbox->addLayout(cooldownLayout);
@@ -904,6 +911,12 @@ void SetupWindow::detailSetup()
 {
     DetailSetupDialog *dialog = new DetailSetupDialog(this);
     dialog->show();
+}
+
+void SetupWindow::openGroupPolicyDialog()
+{
+    GroupPolicyDialog dialog(this);
+    dialog.exec();
 }
 
 QString SetupWindow::tokenStatusText(int status) const

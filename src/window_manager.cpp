@@ -32,6 +32,7 @@
 #include "user_manager.h"
 #include "offline_queue.h"
 #include "protocolutil.h"
+#include "groupPolicy.h"
 
 #include <QHostAddress>
 #include <QMessageBox>
@@ -79,6 +80,18 @@ QString WindowManager::peerDisplayName(const Msg &msg) const
     }
     const QString ownerName = msg->owner().name();
     return ownerName.isEmpty() ? msg->ip() : ownerName;
+}
+
+bool WindowManager::isPeerGroupMuted(const QString &ip) const
+{
+    if (ip.isEmpty() || !Global::groupPolicy || !Global::userManager) {
+        return false;
+    }
+    const int row = Global::userManager->ipToRow(ip);
+    if (row < 0) {
+        return false;
+    }
+    return Global::groupPolicy->isMuted(Global::userManager->group(row));
 }
 
 bool WindowManager::shouldPopup() const
@@ -154,11 +167,13 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
     const QString name = peerDisplayName(msg);
     const bool autoReply = msg->flags() & IPMSG_AUTORETOPT;
     const bool isShake = !sealed && !attach && Helper::isShakeText(text);
+    const bool muted = isPeerGroupMuted(msg->ip());
+    const bool notify = !autoReply && !muted;
 
     if (isShake) {
-        recordIncomingText(msg->ip(), name, tr("[Window shake]"), !autoReply);
-        applyIncomingShake(msg->ip());
-        if (!autoReply) {
+        recordIncomingText(msg->ip(), name, tr("[Window shake]"), notify);
+        if (notify) {
+            applyIncomingShake(msg->ip());
             playNoticeSound();
         }
         return;
@@ -170,10 +185,10 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
             shown = tr("[Broadcast] %1").arg(shown);
         }
         if (!shown.isEmpty()) {
-            recordIncomingText(msg->ip(), name, shown, !autoReply);
+            recordIncomingText(msg->ip(), name, shown, notify);
         } else if (attach) {
             recordIncomingText(msg->ip(), name,
-                               tr("[File attachment]"), !autoReply);
+                               tr("[File attachment]"), notify);
         }
     } else {
         SealedLetter letter;
@@ -189,9 +204,13 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
         ChatWindow *chat = ensureChat(msg->ip());
         chat->appendSealedLetter(letter.packetNo, name);
         if (!autoReply) {
-            emit newTextMessage(name, tr("(Sealed message)"));
-            if (shouldPopup() && !attach) {
-                openChat(msg->ip(), true);
+            if (!muted) {
+                emit newTextMessage(name, tr("(Sealed message)"));
+                if (shouldPopup() && !attach) {
+                    openChat(msg->ip(), true);
+                } else if (!chat->isVisible()) {
+                    addUnread(msg->ip());
+                }
             } else if (!chat->isVisible()) {
                 addUnread(msg->ip());
             }
@@ -200,7 +219,9 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
 
     if (!autoReply) {
         maybeAutoReply(msg);
-        playNoticeSound();
+        if (!muted) {
+            playNoticeSound();
+        }
     }
 
     if (sealed) {
@@ -209,7 +230,7 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
         }
     } else if (attach) {
         createMsgWindow(msg);
-    } else if (shouldPopup()) {
+    } else if (shouldPopup() && !muted) {
         openChat(msg->ip(), true);
     }
 }
@@ -572,7 +593,7 @@ void WindowManager::createMsgWindow(Msg msg)
 
         m_msgWindowList.insert(0, msgWindow);
 
-        if (shouldPopup()) {
+        if (shouldPopup() && !isPeerGroupMuted(msg->ip())) {
             msgWindow->show();
         }
 }

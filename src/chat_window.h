@@ -84,6 +84,7 @@ private slots:
     void showTransferMonitor();
     void cancelAttachments();
     void showEmojiPicker();
+    void sendSticker(const QString &path, const QString &title);
     void openChatLink(const QUrl &url);
     void refreshQueuePanel();
     void cancelSelectedQueued();

@@ -43,6 +43,9 @@ public:
     void broadcastAbsence() const;
     void announcePresence() const;
     void applyStealth(bool stealth);
+    void refreshGroupVisibility(const QString &groupName) const;
+    void sendDirectedUserPacket(const QString &ip, quint16 port,
+                                quint32 command) const;
     void applyRefreshTimer();
 
     bool contains(QString ip) const;
@@ -103,6 +106,9 @@ private:
     void scheduleSavePeers();
     QString peersFilePath() const;
     void notifyUsersChanged();
+    void reconcileGroupVisibility(const QString &ip,
+                                  const QString &previousGroup,
+                                  const QString &currentGroup) const;
 
     static Owner m_ourself;
 

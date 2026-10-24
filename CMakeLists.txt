@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.15.2 LANGUAGES CXX)
+project(qipmsg VERSION 2.19.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,6 +28,8 @@ set(SOURCES
     src/emoji_pack.cpp
     src/file_server.cpp
     src/global.cpp
+    src/groupPolicy.cpp
+    src/groupPolicyDialog.cpp
     src/helper.cpp
     src/history_search_window.cpp
     src/lockfile.cpp
@@ -73,6 +75,8 @@ set(SOURCES
     src/setup_window.cpp
     src/sizecolumndelegate.cpp
     src/sound_thread.cpp
+    src/stickerPicker.cpp
+    src/stickerStore.cpp
     src/systray.cpp
     src/transfer_codec.cpp
     src/transfer_file_model.cpp
@@ -94,6 +98,8 @@ set(HEADERS
     src/emoji_pack.h
     src/file_server.h
     src/global.h
+    src/groupPolicy.h
+    src/groupPolicyDialog.h
     src/helper.h
     src/history_search_window.h
     src/ipmsg.h
@@ -139,6 +145,8 @@ set(HEADERS
     src/setup_window.h
     src/sizecolumndelegate.h
     src/sound_thread.h
+    src/stickerPicker.h
+    src/stickerStore.h
     src/systray.h
     src/transfer_codec.h
     src/transfer_file_model.h

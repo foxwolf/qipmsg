@@ -32,6 +32,7 @@
 #include "msg_thread.h"
 #include "preferences.h"
 #include "send_file_manager.h"
+#include "groupPolicy.h"
 
 #include <QMutexLocker>
 #include <QTextCodec>
@@ -228,6 +229,17 @@ void MsgServer::processEntryMsg(Msg msg)
         return;
     }
 
+    // Per-group hide: still list the peer locally, but do not confirm we
+    // are online. A directed leave covers peers who cached an earlier broadcast.
+    const QString groupName = msg->owner().group();
+    if (Global::groupPolicy && Global::groupPolicy->isHidden(groupName)) {
+        if (Global::userManager) {
+            Global::userManager->sendDirectedUserPacket(
+                        msg->ip(), msg->port(), IPMSG_BR_EXIT);
+        }
+        return;
+    }
+
     const quint32 flags = Global::userManager->commandFlags(IPMSG_ANSENTRY);
 
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
@@ -244,6 +256,18 @@ void MsgServer::processAbsenceMsg(Msg msg)
 
 void MsgServer::processGetAbsenceInfo(Msg msg)
 {
+    // Global stealth still answers (existing HideMode). Per-group hide does
+    // not: an absence reply would tell that department we are online.
+    QString groupName = msg->owner().group();
+    if (groupName.isEmpty() && Global::userManager
+            && Global::userManager->contains(msg->ip())) {
+        groupName = Global::userManager->group(
+                    Global::userManager->ipToRow(msg->ip()));
+    }
+    if (Global::groupPolicy && Global::groupPolicy->isHidden(groupName)) {
+        return;
+    }
+
     QString info;
     if (Global::preferences->isAway || Global::preferences->isAutoReply) {
         info = Global::preferences->autoReplyText.trimmed();
@@ -324,7 +348,13 @@ void MsgServer::handleMsg(Msg &msg)
         case IPMSG_BR_ENTRY:
         case IPMSG_BR_EXIT:
         case IPMSG_BR_ABSENCE:
-            broadcastUserMsg(msg);
+            // Null address is the subnet broadcast. A concrete address is a
+            // directed presence packet (per-group hide / unhide).
+            if (msg->ipAddress().isNull()) {
+                broadcastUserMsg(msg);
+            } else {
+                broadcastMsg(msg);
+            }
             Global::msgThread->removeSendMsgNotLock(msg->packetNoString());
             break;
 

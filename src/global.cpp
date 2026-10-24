@@ -37,6 +37,8 @@
 #include "resume_store.h"
 #include "discussion_store.h"
 #include "offline_queue.h"
+#include "groupPolicy.h"
+#include "stickerStore.h"
 
 SendFileManager *Global::sendFileManager = 0;
 QSettings *Global::settings = 0;
@@ -48,6 +50,8 @@ MessageStore *Global::messageStore = 0;
 ResumeStore *Global::resumeStore = 0;
 DiscussionStore *Global::discussionStore = 0;
 OfflineQueue *Global::offlineQueue = 0;
+GroupPolicy *Global::groupPolicy = 0;
+StickerStore *Global::stickerStore = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -84,6 +88,8 @@ void Global::globalInit(QString path)
     resumeStore = new ResumeStore;
     discussionStore = new DiscussionStore;
     offlineQueue = new OfflineQueue;
+    groupPolicy = new GroupPolicy;
+    stickerStore = new StickerStore;
 
     fileServer = new FileServer;
 
@@ -107,6 +113,8 @@ void Global::globalEnd()
     delete windowManager;
 
     delete discussionStore;
+    delete groupPolicy;
+    delete stickerStore;
 
     delete msgThread;
     delete soundThread;

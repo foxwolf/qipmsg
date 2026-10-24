@@ -17,6 +17,7 @@
 #include "chat_window.h"
 #include "constants.h"
 #include "emoji_pack.h"
+#include "stickerPicker.h"
 #include "global.h"
 #include "helper.h"
 #include "history_search_window.h"
@@ -172,7 +173,7 @@ void ChatWindow::createUi()
     shot->setPopupMode(QToolButton::InstantPopup);
     toolLayout->addWidget(shot);
     toolLayout->addWidget(makeToolButton(tr("Emoji"),
-                                         tr("Insert emoji"),
+                                         tr("Emoji and custom stickers"),
                                          SLOT(showEmojiPicker())));
     toolLayout->addWidget(makeToolButton(tr("Window shake"),
                                          tr("Window shake"), SLOT(sendShake())));
@@ -1101,43 +1102,35 @@ void ChatWindow::insertEmoji(const QString &glyph)
     m_inputEdit->setFocus();
 }
 
+void ChatWindow::sendSticker(const QString &path, const QString &title)
+{
+    if (path.isEmpty() || !QFileInfo::exists(path)) {
+        return;
+    }
+    QString caption = title.trimmed();
+    if (caption.isEmpty()) {
+        caption = QFileInfo(path).completeBaseName();
+    }
+    sendPayload(tr("[Sticker] %1").arg(caption), QStringList() << path);
+}
+
 void ChatWindow::showEmojiPicker()
 {
-    QMenu menu(this);
-    menu.setObjectName("emojiMenu");
-
-    QWidget *grid = new QWidget(&menu);
-    QGridLayout *layout = new QGridLayout(grid);
-    layout->setContentsMargins(8, 8, 8, 8);
-    layout->setSpacing(4);
-
-    const QList<EmojiItem> items = EmojiPack::items();
-    for (int i = 0; i < items.size(); ++i) {
-        const EmojiItem item = items.at(i);
-        QToolButton *button = new QToolButton(grid);
-        button->setAutoRaise(true);
-        button->setText(item.glyph);
-        button->setToolTip(item.tip);
-        button->setFixedSize(32, 32);
-        QFont font = button->font();
-        font.setPixelSize(18);
-        button->setFont(font);
-        connect(button, &QToolButton::clicked, this, [this, &menu, item]() {
-            insertEmoji(item.glyph);
-            menu.close();
-        });
-        layout->addWidget(button, i / 8, i % 8);
+    StickerPicker picker(this);
+    connect(&picker, &StickerPicker::unicodeChosen, this,
+            [this](const QString &glyph) {
+        insertEmoji(glyph);
+    });
+    connect(&picker, &StickerPicker::stickerChosen, this,
+            [this](const QString &path, const QString &title) {
+        sendSticker(path, title);
+    });
+    QWidget *anchor = qobject_cast<QWidget *>(sender());
+    if (anchor) {
+        const QPoint pos = anchor->mapToGlobal(QPoint(0, anchor->height()));
+        picker.move(pos);
     }
-
-    QWidgetAction *action = new QWidgetAction(&menu);
-    action->setDefaultWidget(grid);
-    menu.addAction(action);
-
-    QWidget *senderWidget = qobject_cast<QWidget *>(sender());
-    const QPoint pos = senderWidget
-            ? senderWidget->mapToGlobal(QPoint(0, senderWidget->height()))
-            : QCursor::pos();
-    menu.exec(pos);
+    picker.exec();
 }
 
 bool ChatWindow::pasteClipboardImage()

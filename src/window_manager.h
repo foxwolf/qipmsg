@@ -98,6 +98,7 @@ private:
     void maybeAutoReply(const Msg &msg);
     void playNoticeSound();
     bool shouldPopup() const;
+    bool isPeerGroupMuted(const QString &ip) const;
     QString peerDisplayName(const Msg &msg) const;
     void applyIncomingShake(const QString &ip);
     ChatWindow *ensureChat(const QString &ip);
