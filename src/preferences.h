@@ -72,6 +72,18 @@ public:
 
     QStringList userSpecifiedBroadcastIpList;
     QString userSpecifiedBroadcastIp;
+
+    bool isAutoRefresh;
+    int autoRefreshSeconds;
+    int staleMissedRefreshCount;
+
+    bool isAway;
+    bool isAutoReply;
+    QString autoReplyText;
+    int autoReplyCooldownSecs;
+    bool isNoPopupWhenAway;
+
+    bool isTrayNotify;
 };
 
 #endif // !PREFERENCES_H

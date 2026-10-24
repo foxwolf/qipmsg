@@ -14,63 +14,131 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <QLocale>
-#include <QTextCodec>
-#include <QtDebug>
-
 #include "transfer_codec.h"
 #include "global.h"
 #include "preferences.h"
 
+#include <QSet>
 
 TransferCodec::TransferCodec()
+    : m_codec(0)
 {
-#if 0
-    initLocaleCodecMap();
-    initTransCodec();
-#endif
-
-    setTransCodec(Global::preferences->transferCodecName);
+    QString name = "GBK";
+    if (Global::preferences && !Global::preferences->transferCodecName.isEmpty()) {
+        name = Global::preferences->transferCodecName;
+    }
+    setTransCodec(name);
 }
 
 void TransferCodec::setTransCodec(const QString &codecName)
 {
-    QByteArray name;
-    name.append(codecName);
-
-    if (codecMap.contains(name)) {
-        m_codec = codecMap.value(name);
-    } else {
-        m_codec = QTextCodec::codecForName(name);
-        codecMap.insert(name, m_codec);
+    QByteArray name = codecName.toLatin1();
+    if (name.isEmpty()) {
+        name = "GBK";
     }
-}
 
-void TransferCodec::initLocaleCodecMap()
-{
-    // Add your locale and codec here.
-#if 0
-    localeCodecMap.insert("default", "UTF-8");
-    localeCodecMap.insert("zh_CN", "GBK");
-    localeCodecMap.insert("en_US", "GBK");
-#endif
-}
-
-void TransferCodec::initTransCodec()
-{
-#if 0
-    QString localeName = QLocale::system().name();
-
-    if (localeCodecMap.contains(localeName)) {
-        m_codec = QTextCodec::codecForName(localeCodecMap.value(localeName));
-    } else {
-        m_codec = QTextCodec::codecForName(localeCodecMap.value("default"));
+    m_codec = codecForNameSafe(name);
+    if (!m_codec) {
+        m_codec = codecForNameSafe("GBK");
     }
-#endif
+    if (!m_codec) {
+        m_codec = codecForNameSafe("GB2312");
+    }
+    if (!m_codec) {
+        m_codec = codecForNameSafe("UTF-8");
+    }
+    if (!m_codec) {
+        m_codec = QTextCodec::codecForLocale();
+    }
+
+    m_codecName = m_codec ? QString::fromLatin1(m_codec->name()) : QString("UTF-8");
 }
 
 QTextCodec * TransferCodec::codec() const
 {
-    return m_codec;
+    if (m_codec) {
+        return m_codec;
+    }
+    QTextCodec *utf8 = QTextCodec::codecForName("UTF-8");
+    return utf8 ? utf8 : QTextCodec::codecForLocale();
 }
 
+QString TransferCodec::codecName() const
+{
+    return m_codecName;
+}
+
+QTextCodec *TransferCodec::codecForNameSafe(const QByteArray &name) const
+{
+    if (name.isEmpty()) {
+        return 0;
+    }
+    if (codecMap.contains(name)) {
+        return codecMap.value(name);
+    }
+    return QTextCodec::codecForName(name);
+}
+
+QString TransferCodec::decodeWith(QTextCodec *textCodec, const QByteArray &bytes,
+                                  int *invalidChars) const
+{
+    if (!textCodec) {
+        if (invalidChars) {
+            *invalidChars = bytes.size();
+        }
+        return QString::fromUtf8(bytes);
+    }
+
+    QTextCodec::ConverterState state;
+    const QString text = textCodec->toUnicode(bytes.constData(), bytes.size(),
+                                              &state);
+    int invalid = static_cast<int>(state.invalidChars);
+    if (text.contains(QChar::ReplacementCharacter)) {
+        invalid += text.count(QChar::ReplacementCharacter);
+    }
+    if (invalidChars) {
+        *invalidChars = invalid;
+    }
+    return text;
+}
+
+QString TransferCodec::decode(const QByteArray &bytes) const
+{
+    QList<QByteArray> tryNames;
+    if (!m_codecName.isEmpty()) {
+        tryNames << m_codecName.toLatin1();
+    }
+    tryNames << "GBK" << "GB2312" << "UTF-8";
+
+    QSet<QByteArray> seen;
+    QString best;
+    int bestInvalid = 0x7fffffff;
+
+    foreach (const QByteArray &name, tryNames) {
+        if (seen.contains(name)) {
+            continue;
+        }
+        seen.insert(name);
+
+        QTextCodec *textCodec = codecForNameSafe(name);
+        int invalid = 0;
+        const QString text = decodeWith(textCodec, bytes, &invalid);
+        if (invalid == 0) {
+            return text;
+        }
+        if (invalid < bestInvalid) {
+            bestInvalid = invalid;
+            best = text;
+        }
+    }
+
+    if (!best.isEmpty()) {
+        return best;
+    }
+    return QString::fromUtf8(bytes);
+}
+
+QByteArray TransferCodec::encode(const QString &text) const
+{
+    return codec()->fromUnicode(text);
+}

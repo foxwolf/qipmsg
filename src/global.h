@@ -33,6 +33,7 @@ class Systray;
 class WindowManager;
 class QIcon;
 class FileServer;
+class MessageStore;
 
 namespace Global
 {
@@ -44,6 +45,7 @@ namespace Global
     extern WindowManager *windowManager;
     extern Preferences *preferences;
     extern TransferCodec *transferCodec;
+    extern MessageStore *messageStore;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

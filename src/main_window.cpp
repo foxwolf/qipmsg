@@ -36,6 +36,7 @@
 #include "preferences.h"
 #include "dir_dialog.h"
 #include "send_file_manager.h"
+#include "window_manager.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -108,6 +109,11 @@ void MainWindow::createConnections()
 
     connect(new QShortcut(tr("Ctrl+F"), this), SIGNAL(activated()),
             this, SLOT(showSearchDialog()));
+
+    connect(userView, SIGNAL(doubleClicked(QModelIndex)),
+            this, SLOT(onUserDoubleClicked(QModelIndex)));
+    connect(new QShortcut(tr("Ctrl+O"), this), SIGNAL(activated()),
+            this, SLOT(openSelectedChat()));
 }
 
 void MainWindow::createPeerWidget()
@@ -226,6 +232,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
     // XXX TODO: display level support
     // menu.addMenu(setDisplayLevelMenu);
+    menu.addAction(openChatAct);
     menu.addMenu(selectGroupMenu);
     menu.addAction(sendFileAct);
     menu.addAction(sendDirAct);
@@ -238,6 +245,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
 void MainWindow::createActions()
 {
+    openChatAct = new QAction(tr("Open chat"), this);
+    connect(openChatAct, SIGNAL(triggered()),
+            this, SLOT(openSelectedChat()));
     sendFileAct = new QAction(tr("Send file"), this);
     sendDirAct = new QAction(tr("Sent directory"), this);
     searchUserAct = new QAction(tr("Search user Ctrl+F"), this);
@@ -370,6 +380,9 @@ void MainWindow::sendMessage()
         if (Global::preferences->isLogMsg) {
             logSendMsg(inputEdit->toPlainText(), index.row());
         }
+
+        Global::windowManager->recordOutgoing(ip, recvUser,
+                                              inputEdit->toPlainText());
 
         SendMsg sendMsg = SendMsg(QHostAddress(ip), IPMSG_DEFAULT_PORT,
                                   additionalInfo, ""/* extendedInfo */,
@@ -549,11 +562,33 @@ void MainWindow::logSendMsg(QString text, int row)
 
 void MainWindow::refreshUserList()
 {
-    Global::userManager->m_model
-        ->removeRows(0, Global::userManager->m_model->rowCount());
-    updateUserCount(0);
+    Global::userManager->announcePresence();
+}
 
-    Global::userManager->broadcastEntry();
+void MainWindow::onUserDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+    const QString ip = proxyUserModel->data(
+                proxyUserModel->index(index.row(), USER_VIEW_IP_COLUMN))
+            .toString();
+    if (!ip.isEmpty()) {
+        Global::windowManager->openChat(ip, true);
+    }
+}
+
+void MainWindow::openSelectedChat()
+{
+    QItemSelectionModel *selections = userView->selectionModel();
+    QModelIndexList modelIndexList =
+        selections->selectedRows(USER_VIEW_IP_COLUMN);
+    foreach (QModelIndex index, modelIndexList) {
+        const QString ip = proxyUserModel->data(index).toString();
+        if (!ip.isEmpty()) {
+            Global::windowManager->openChat(ip, true);
+        }
+    }
 }
 
 void MainWindow::addSendFile()

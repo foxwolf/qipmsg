@@ -23,6 +23,7 @@
 #include <QObject>
 
 class QStandardItemModel;
+class QTimer;
 
 class UserManager : public QObject
 {
@@ -35,6 +36,9 @@ public:
 
     void broadcastExit() const;
     void broadcastEntry() const;
+    void broadcastAbsence() const;
+    void announcePresence() const;
+    void applyRefreshTimer();
 
     bool contains(QString ip) const;
 
@@ -45,6 +49,10 @@ public:
     QString group(int row) const;
     QString host(int row) const;
     QString loginName(int row) const;
+    QString status(int row) const;
+    int userCount() const;
+    QString displayNameForIp(const QString &ip) const;
+    QString peerCaption(const QString &ip) const;
 
     Owner ourself() const { return m_ourself; }
     void updateOurself();
@@ -58,16 +66,21 @@ signals:
 private slots:
     void newUserMsg(Msg msg);
     void newExitMsg(Msg msg);
+    void autoRefreshPresence();
 
 private:
     void createModel();
     void updateUser(const Owner &owner, int row);
     void addUser(const Owner &owner, int row);
+    void touchUser(int row, bool absence);
+    void setRowPresence(int row, int presence);
+    void sweepStaleUsers();
+    quint32 presenceFlags(quint32 command) const;
 
     static Owner m_ourself;
 
     QStandardItemModel *m_model;
+    QTimer *m_refreshTimer;
 };
 
 #endif // !USER_MANAGER_H
-

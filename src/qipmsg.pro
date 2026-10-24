@@ -22,6 +22,8 @@ HEADERS += \
 	ipmsg.h \
 	lockfile.h \
 	main_window.h \
+        chat_window.h \
+        message_store.h \
         search_user_dialog.h \
         msg.h \
 	msg_base.h \
@@ -72,6 +74,8 @@ SOURCES += \
 	lockfile.cpp \
 	main.cpp \
 	main_window.cpp \
+        chat_window.cpp \
+        message_store.cpp \
         search_user_dialog.cpp \
         msg.cpp \
 	msg_base.cpp \

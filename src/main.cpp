@@ -82,12 +82,13 @@ int main(int argc, char *argv[])
         QThread::msleep(200);
     }
 
-    Global::userManager->broadcastEntry();
+    Global::userManager->announcePresence();
 
     app.setQuitOnLastWindowClosed(false);
     int rc = app.exec();
 
     Global::userManager->broadcastExit();
+
 
     delete qipmsg;
 

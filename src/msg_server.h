@@ -63,6 +63,8 @@ private:
     void processRecvReadMsg(Msg msg);
     void processRecvSendMsg(Msg msg);
     void processEntryMsg(Msg msg);
+    void processAbsenceMsg(Msg msg);
+    void processGetAbsenceInfo(Msg msg);
 
     QList<QHostAddress> m_broadcastAddresses;
     QList<QHostAddress> m_ipAddresses;

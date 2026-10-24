@@ -209,12 +209,8 @@ void MsgWindow::showReplyMsgBox()
         }
     }
 
-    MainWindow *window = new MainWindow(initReply, m_msg->ip());
-    connect(window, SIGNAL(messageReplyed()),
-            this, SLOT(closeMsgWindow()));
-    Global::systray->mainWindowList.insert(0, window);
-
-    window->show();
+    Global::windowManager->openChat(m_msg->ip(), true, initReply);
+    closeMsgWindow();
 }
 
 void MsgWindow::closeMsgWindow()
@@ -248,6 +244,14 @@ void MsgWindow::openEnvelope()
                     m_msg->packetNoString(), ""/* extendedInfo */, flags);
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
+
+    if (!m_msg->additionalInfo().isEmpty()) {
+        Global::windowManager->recordIncomingText(
+                    m_msg->ip(),
+                    Global::userManager->displayNameForIp(m_msg->ip()),
+                    m_msg->additionalInfo(),
+                    false);
+    }
 }
 
 void MsgWindow::showRecvFile()

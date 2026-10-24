@@ -392,14 +392,15 @@ QByteArray ServeSocket::constructDirSendBlock(QString filePath,
             .arg(Helper::dateTimeToSecsSinceEpoch(fi.lastModified()), 0, 16));
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_CREATETIME, 0, 16)
-            .arg(Helper::dateTimeToSecsSinceEpoch(fi.created()), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(
+                    fi.birthTime().isValid() ? fi.birthTime() : fi.lastModified()), 0, 16));
     str.append(":");
 
-    QByteArray block = Global::transferCodec->codec()->fromUnicode(str);
+    QByteArray block = Global::transferCodec->encode(str);
     QString s = QString("%1").arg(block.size() + TRANSFER_FILE_HEADER_SIZE_LENGTH,
             TRANSFER_FILE_HEADER_SIZE_LENGTH, 16, QChar('0'));
 
-    QByteArray ba = Global::transferCodec->codec()->fromUnicode(s);
+    QByteArray ba = Global::transferCodec->encode(s);
     return ba + block;
 }
 
@@ -422,14 +423,15 @@ QByteArray ServeSocket::constructFileSendBlock(QString filePath) const
             .arg(Helper::dateTimeToSecsSinceEpoch(fi.lastModified()), 0, 16));
     str.append(":");
     str.append(QString("%1=%2").arg(IPMSG_FILE_CREATETIME, 0, 16)
-            .arg(Helper::dateTimeToSecsSinceEpoch(fi.created()), 0, 16));
+            .arg(Helper::dateTimeToSecsSinceEpoch(
+                    fi.birthTime().isValid() ? fi.birthTime() : fi.lastModified()), 0, 16));
     str.append(":");
 
-    QByteArray block = Global::transferCodec->codec()->fromUnicode(str);
+    QByteArray block = Global::transferCodec->encode(str);
     QString s = QString("%1").arg(block.size() + TRANSFER_FILE_HEADER_SIZE_LENGTH,
             TRANSFER_FILE_HEADER_SIZE_LENGTH, 16, QChar('0'));
 
-    QByteArray ba = Global::transferCodec->codec()->fromUnicode(s);
+    QByteArray ba = Global::transferCodec->encode(s);
     return ba + block;
 }
 

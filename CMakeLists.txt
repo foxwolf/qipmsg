@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.0.3 LANGUAGES CXX)
+project(qipmsg VERSION 2.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,6 +19,7 @@ endif()
 
 set(SOURCES
     src/about_dialog.cpp
+    src/chat_window.cpp
     src/dir_dialog.cpp
     src/file_server.cpp
     src/global.cpp
@@ -26,6 +27,7 @@ set(SOURCES
     src/lockfile.cpp
     src/main.cpp
     src/main_window.cpp
+    src/message_store.cpp
     src/msg.cpp
     src/msg_base.cpp
     src/msg_readed_window.cpp
@@ -70,6 +72,7 @@ set(SOURCES
 
 set(HEADERS
     src/about_dialog.h
+    src/chat_window.h
     src/constants.h
     src/dir_dialog.h
     src/file_server.h
@@ -78,6 +81,7 @@ set(HEADERS
     src/ipmsg.h
     src/lockfile.h
     src/main_window.h
+    src/message_store.h
     src/msg.h
     src/msg_base.h
     src/msg_readed_window.h

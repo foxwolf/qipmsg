@@ -68,6 +68,17 @@
 #define USER_VIEW_IP_COLUMN                3
 #define USER_VIEW_LOGIN_NAME_COLUMN        4
 #define USER_VIEW_DISPLAY_LEVEL_COLUMN     5
+#define USER_VIEW_STATUS_COLUMN            6
+
+#define PRESENCE_ONLINE                    0
+#define PRESENCE_AWAY                      1
+#define PRESENCE_STALE                     2
+
+#define DEFAULT_AUTO_REFRESH_SECONDS       30
+#define DEFAULT_STALE_MISSED_REFRESH       3
+#define DEFAULT_AUTO_REPLY_COOLDOWN        60
+#define CHAT_HISTORY_LOAD_LIMIT            500
+#define TRAY_NOTIFY_MS                     4000
 
 #define TRANSFER_FILE_VIEW_NO_COLUMN       0
 #define TRANSFER_FILE_VIEW_FILE_COLUMN     1

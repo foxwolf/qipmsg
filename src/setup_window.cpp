@@ -26,6 +26,7 @@
 #include <QtWidgets>
 #include <QRegularExpression>
 #include <QScreen>
+#include <QSpinBox>
 
 DetailTab::DetailTab(QWidget *parent)
     : QWidget(parent)
@@ -55,7 +56,31 @@ DetailTab::DetailTab(QWidget *parent)
     }
 
     noPopupMessageWhenAway = new QCheckBox(tr("Not popup message when away"));
-    noPopupMessageWhenAway->setEnabled(false);
+    if (Global::preferences->isNoPopupWhenAway) {
+        noPopupMessageWhenAway->setCheckState(Qt::Checked);
+    }
+
+    autoRefreshCheckBox = new QCheckBox(tr("Auto refresh user list (FeiQ AutoRefresh)"));
+    if (Global::preferences->isAutoRefresh) {
+        autoRefreshCheckBox->setCheckState(Qt::Checked);
+    }
+
+    refreshIntervalSpin = new QSpinBox;
+    refreshIntervalSpin->setRange(5, 600);
+    refreshIntervalSpin->setSuffix(tr(" seconds"));
+    refreshIntervalSpin->setValue(Global::preferences->autoRefreshSeconds);
+
+    staleMissedSpin = new QSpinBox;
+    staleMissedSpin->setRange(1, 20);
+    staleMissedSpin->setValue(Global::preferences->staleMissedRefreshCount);
+
+    trayNotifyCheckBox = new QCheckBox(tr("Show tray notification on new message"));
+    if (Global::preferences->isTrayNotify) {
+        trayNotifyCheckBox->setCheckState(Qt::Checked);
+    }
+
+    QLabel *intervalLabel = new QLabel(tr("Refresh interval:"));
+    QLabel *staleLabel = new QLabel(tr("Mark stale after missed refreshes:"));
 
     QGridLayout *layout = new QGridLayout;
     layout->addWidget(autoMinimizeCheckBox, 0, 0, 1, 2);
@@ -64,6 +89,12 @@ DetailTab::DetailTab(QWidget *parent)
     layout->addWidget(buttonAliasCheckBox, 3, 0, 1, 2);
     layout->addWidget(noAutoCloseReplyCheckBox, 4, 0, 1, 2);
     layout->addWidget(noPopupMessageWhenAway, 5, 0, 1, 2);
+    layout->addWidget(autoRefreshCheckBox, 6, 0, 1, 2);
+    layout->addWidget(intervalLabel, 7, 0);
+    layout->addWidget(refreshIntervalSpin, 7, 1);
+    layout->addWidget(staleLabel, 8, 0);
+    layout->addWidget(staleMissedSpin, 8, 1);
+    layout->addWidget(trayNotifyCheckBox, 9, 0, 1, 2);
 
     setLayout(layout);
 }
@@ -74,6 +105,13 @@ void DetailTab::save()
         = singleClickCheckBox->isChecked();
     Global::preferences->noAutoCloseMsgWindowWhenReply
         = noAutoCloseReplyCheckBox->isChecked();
+    Global::preferences->isNoPopupWhenAway
+        = noPopupMessageWhenAway->isChecked();
+    Global::preferences->isAutoRefresh = autoRefreshCheckBox->isChecked();
+    Global::preferences->autoRefreshSeconds = refreshIntervalSpin->value();
+    Global::preferences->staleMissedRefreshCount = staleMissedSpin->value();
+    Global::preferences->isTrayNotify = trayNotifyCheckBox->isChecked();
+    Global::userManager->applyRefreshTimer();
 }
 
 LogTab::LogTab(QWidget *parent)
@@ -130,10 +168,15 @@ TransferTab::TransferTab(QWidget *parent)
     createCodecComboBox();
 
     QLabel *label = new QLabel(tr("Transfer Codec:"));
+    QLabel *hint = new QLabel(tr(
+        "GBK/GB2312 is recommended for FeiQ / 飞鸽 peers. "
+        "UTF-8 is optional for modern clients."));
+    hint->setWordWrap(true);
 
     QGridLayout *mainLayout = new QGridLayout;
     mainLayout->addWidget(label, 0, 0);
     mainLayout->addWidget(codecComboBox, 0, 1);
+    mainLayout->addWidget(hint, 1, 0, 1, 2);
 
     mainLayout->setColumnStretch(0, 10);
     mainLayout->setColumnStretch(1, 30);
@@ -177,6 +220,9 @@ void TransferTab::createCodecComboBox()
     codecComboBox = new QComboBox();
     codecComboBox->setDuplicatesEnabled(false);
 
+    codecComboBox->addItem("GBK");
+    codecComboBox->addItem("GB2312");
+    codecComboBox->addItem("UTF-8");
     codecComboBox->addItems(codecNames);
     int i = codecComboBox->findText(Global::preferences->transferCodecName);
     codecComboBox->setCurrentIndex(i);
@@ -445,12 +491,39 @@ void SetupWindow::createSendRecvSettingsGroupBox()
         quoteMsg->setCheckState(Qt::Checked);
     }
 
+    awayCheck = new QCheckBox(tr("Away"));
+    if (Global::preferences->isAway) {
+        awayCheck->setCheckState(Qt::Checked);
+    }
+    autoReplyCheck = new QCheckBox(tr("Enable auto-reply"));
+    if (Global::preferences->isAutoReply) {
+        autoReplyCheck->setCheckState(Qt::Checked);
+    }
+    autoReplyEdit = new QLineEdit;
+    autoReplyEdit->setPlaceholderText(tr("I am away from my computer."));
+    autoReplyEdit->setText(Global::preferences->autoReplyText);
+    autoReplyCooldownSpin = new QSpinBox;
+    autoReplyCooldownSpin->setRange(5, 3600);
+    autoReplyCooldownSpin->setSuffix(tr(" seconds"));
+    autoReplyCooldownSpin->setValue(Global::preferences->autoReplyCooldownSecs);
+
+    QHBoxLayout *replyLayout = new QHBoxLayout;
+    replyLayout->addWidget(new QLabel(tr("Reply text:")));
+    replyLayout->addWidget(autoReplyEdit);
+    QHBoxLayout *cooldownLayout = new QHBoxLayout;
+    cooldownLayout->addWidget(new QLabel(tr("Reply cooldown:")));
+    cooldownLayout->addWidget(autoReplyCooldownSpin);
+
     QVBoxLayout *vbox = new QVBoxLayout();
     vbox->addWidget(readCheck);
     vbox->addWidget(noAutoPopupMsg);
     vbox->addWidget(noSoundAlarm);
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
+    vbox->addWidget(awayCheck);
+    vbox->addWidget(autoReplyCheck);
+    vbox->addLayout(replyLayout);
+    vbox->addLayout(cooldownLayout);
 
     sendReceiveSettingsGroupBox->setLayout(vbox);
 }
@@ -576,9 +649,13 @@ void SetupWindow::applyPreferences()
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
     Global::preferences->isNoAutoPopupMsg = noAutoPopupMsg->isChecked();
+    Global::preferences->isAway = awayCheck->isChecked();
+    Global::preferences->isAutoReply = autoReplyCheck->isChecked();
+    Global::preferences->autoReplyText = autoReplyEdit->text();
+    Global::preferences->autoReplyCooldownSecs = autoReplyCooldownSpin->value();
 
     Global::userManager->updateOurself();
-    Global::userManager->broadcastEntry();
+    Global::userManager->announcePresence();
 
     Global::preferences->save();
 }

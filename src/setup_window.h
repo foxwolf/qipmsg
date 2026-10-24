@@ -32,6 +32,8 @@ class QSize;
 class QTabWidget;
 class QWidget;
 
+class QSpinBox;
+
 class DetailTab : public QWidget
 {
     Q_OBJECT
@@ -48,6 +50,10 @@ private:
     QCheckBox *buttonAliasCheckBox;
     QCheckBox *noAutoCloseReplyCheckBox;
     QCheckBox *noPopupMessageWhenAway;
+    QCheckBox *autoRefreshCheckBox;
+    QCheckBox *trayNotifyCheckBox;
+    QSpinBox *refreshIntervalSpin;
+    QSpinBox *staleMissedSpin;
 };
 
 class LogTab : public QWidget
@@ -183,6 +189,10 @@ private:
     QCheckBox *noSoundAlarm;
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
+    QCheckBox *awayCheck;
+    QCheckBox *autoReplyCheck;
+    QLineEdit *autoReplyEdit;
+    QSpinBox *autoReplyCooldownSpin;
 
     QPushButton *detailSetupButton;
     QPushButton *urlLinkSetupButton;

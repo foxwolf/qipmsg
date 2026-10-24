@@ -78,6 +78,8 @@ private slots:
     void selectGroup();
     void search(QString searchString);
     void showSearchDialog();
+    void openSelectedChat();
+    void onUserDoubleClicked(const QModelIndex &index);
 
 signals:
     void messageReplyed();
@@ -118,6 +120,7 @@ private:
     QCheckBox *encapCheckBox;
     QCheckBox *lockCheckBox;
 
+    QAction *openChatAct;
     QAction *sendFileAct;
     QAction *sendDirAct;
     QAction *searchUserAct;

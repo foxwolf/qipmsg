@@ -40,13 +40,17 @@ public:
     void show();
 
     QList<MainWindow *> mainWindowList;
+    void notifyNewMessage(const QString &fromName, const QString &preview);
 
 protected:
     void timerEvent(QTimerEvent *event);
 
 private slots:
     void updateToolTip(int i);
+    void refreshTooltip();
     void updateTransferCount(int);
+    void onNewTextMessage(QString fromName, QString preview);
+    void setAway(bool away);
 
 private slots:
     void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
@@ -79,10 +83,12 @@ private:
     QAction *quitAction;
 
     QActionGroup *leaveActionGroup;
+    QAction *awayAction;
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
 
     QString m_iconKey;
+    int m_userCount;
 };
 
 #endif // !SYSTRAY_H

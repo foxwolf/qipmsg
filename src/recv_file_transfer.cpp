@@ -357,8 +357,8 @@ bool RecvFileTransfer::parseHeader(QByteArray &recvBlock,
 
     // XXX NOTE: canParseHeader() make sure we have enough items in list,
     // so we do not need to check size of list before call list.at()
-    transferFile.name = Global::transferCodec->codec()
-        ->toUnicode(list.at(TRANSFERFILE_NAME_POS));
+    transferFile.name = Global::transferCodec->decode(
+            list.at(TRANSFERFILE_NAME_POS));
     transferFile.size = list.at(TRANSFERFILE_SIZE_POS).toLongLong(&ok, 16);
     if (!ok) {
         m_errorString = "RecvFileTransfer::parseHeader: get file size error";
@@ -451,9 +451,7 @@ QByteArray RecvFileTransfer::constructRecvFileDatagram(RecvFileHandle h)
         }
     }
 
-    QByteArray ba;
-    ba.append(s);
-    return ba;
+    return Global::transferCodec->encode(s);
 }
 
 void RecvFileTransfer::stopTransfer()
