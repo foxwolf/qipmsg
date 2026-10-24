@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.2.1 lands the next FeiQ / 飞鸽-compatible essentials (file resume, last-seen peers, history Find, window shake, screenshot, personal signature) and a complete Simplified Chinese UI (`zh_CN` by default). Remaining items stay deferred.
+2.3.0 adds a FeiQ-like contact tree and chat chrome on top of the 2.2 essentials, with a complete Simplified Chinese UI. Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -27,8 +27,10 @@
 - [x] Qt screenshot (full screen / region) sent as a PNG file attachment
 - [x] Personal signature announced as a third NUL field after nickname/group
 - [x] Full Simplified Chinese UI (`qipmsg_zh_CN`), loaded by default
+- [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
+- [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 
-## Later / out of scope for 2.2.1
+## Later / out of scope for 2.3.0
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
@@ -44,9 +46,9 @@
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.2.1
+## How to try 2.3.0
 
-1. Start QIpMsg. Last-seen peers from `~/.qipmsg/peers.json` appear grey (`Stale`) until the next `BR_ENTRY` / `ANSENTRY` refresh.
+1. Start QIpMsg. The main window is a FeiQ-style grouped list (我的好友 / department / 自己 / 黑名单) with a signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
 2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
 3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
 4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
