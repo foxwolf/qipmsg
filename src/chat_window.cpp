@@ -37,6 +37,7 @@
 #include "transfer_file_window.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDateTime>
@@ -66,6 +67,7 @@
 #include <QSplitter>
 #include <QTextBlockFormat>
 #include <QCursor>
+#include <QTextBlock>
 #include <QTextBrowser>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -77,6 +79,7 @@
 #include <QTextTableFormat>
 #include <QToolButton>
 #include <QUrl>
+#include <QUrlQuery>
 #include <QVBoxLayout>
 #include <QWidgetAction>
 
@@ -247,8 +250,15 @@ void ChatWindow::createUi()
     stripLayout->addWidget(m_stripCancel);
     stripLayout->addStretch();
 
+    m_encapCheck = new QCheckBox(tr("&Encap"));
+    m_encapCheck->setToolTip(tr("Send a sealed envelope (hidden until the peer opens it)"));
+    if (Global::preferences->isSealed) {
+        m_encapCheck->setChecked(true);
+    }
+
     QHBoxLayout *buttonLayout = new QHBoxLayout;
     buttonLayout->addStretch();
+    buttonLayout->addWidget(m_encapCheck);
     buttonLayout->addWidget(m_sendButton);
 
     composerLayout->addLayout(stripLayout);
@@ -513,6 +523,89 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     m_historyEdit->ensureCursorVisible();
 }
 
+QString ChatWindow::sealedHref(const QString &packetNo) const
+{
+    QUrl url;
+    url.setScheme(QStringLiteral("qipmsg"));
+    url.setHost(QStringLiteral("open-seal"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("ip"), m_peerIp);
+    query.addQueryItem(QStringLiteral("pkt"), packetNo);
+    url.setQuery(query);
+    return url.toString();
+}
+
+void ChatWindow::appendSealedLetter(const QString &packetNo, const QString &name)
+{
+    const QString timeText = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm");
+    QTextCursor cursor(m_historyEdit->document());
+    cursor.movePosition(QTextCursor::End);
+
+    QTextBlockFormat metaBlock;
+    metaBlock.setTopMargin(10);
+    metaBlock.setBottomMargin(2);
+    metaBlock.setAlignment(Qt::AlignLeft);
+    cursor.insertBlock(metaBlock);
+
+    QTextCharFormat metaFmt;
+    metaFmt.setForeground(QColor("#8A8F98"));
+    metaFmt.setFontPointSize(9);
+    cursor.insertText(QString("%1  %2").arg(name, timeText), metaFmt);
+
+    QTextTableFormat tableFormat;
+    tableFormat.setBorder(0);
+    tableFormat.setBorderStyle(QTextFrameFormat::BorderStyle_None);
+    tableFormat.setCellPadding(8);
+    tableFormat.setCellSpacing(0);
+    tableFormat.setAlignment(Qt::AlignLeft);
+    tableFormat.setLeftMargin(4);
+    tableFormat.setRightMargin(72);
+
+    QTextTable *table = cursor.insertTable(1, 1, tableFormat);
+    QTextTableCell cell = table->cellAt(0, 0);
+    QTextCharFormat cellFmt = cell.format();
+    cellFmt.setBackground(QColor("#FFF7ED"));
+    cellFmt.setForeground(QColor("#9A3412"));
+    cell.setFormat(cellFmt);
+
+    QTextCursor cellCursor = cell.firstCursorPosition();
+    QTextCharFormat linkFmt;
+    linkFmt.setAnchor(true);
+    linkFmt.setAnchorHref(sealedHref(packetNo));
+    linkFmt.setForeground(QColor("#9A3412"));
+    linkFmt.setFontUnderline(true);
+    linkFmt.setFontPointSize(10);
+    cellCursor.insertText(tr("Sealed letter — click to open"), linkFmt);
+
+    cursor.movePosition(QTextCursor::End);
+    m_historyEdit->setTextCursor(cursor);
+    m_historyEdit->ensureCursorVisible();
+}
+
+void ChatWindow::markSealedOpened(const QString &packetNo)
+{
+    const QString href = sealedHref(packetNo);
+    QTextDocument *doc = m_historyEdit->document();
+    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (!frag.isValid() || frag.charFormat().anchorHref() != href) {
+                continue;
+            }
+            QTextCursor edit(doc);
+            edit.setPosition(frag.position());
+            edit.setPosition(frag.position() + frag.length(), QTextCursor::KeepAnchor);
+            QTextCharFormat fmt = frag.charFormat();
+            fmt.setAnchor(false);
+            fmt.setAnchorHref(QString());
+            fmt.setFontUnderline(false);
+            fmt.setForeground(QColor("#6B7280"));
+            edit.insertText(tr("Envelope opened"), fmt);
+            return;
+        }
+    }
+}
+
 QString ChatWindow::localName() const
 {
     return Global::userManager->ourself().name();
@@ -598,6 +691,10 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
     }
 
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    if (m_encapCheck && m_encapCheck->isChecked()) {
+        flags |= IPMSG_SECRETOPT | IPMSG_READCHECKOPT;
+    }
+    flags = Global::userManager->sendFlagsForIp(m_peerIp, flags);
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
 
@@ -654,7 +751,8 @@ void ChatWindow::sendShake()
                 tr("Window shake is not queued for offline peers."));
         return;
     }
-    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    const quint32 flags = Global::userManager->sendFlagsForIp(
+                m_peerIp, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT);
     QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
 
@@ -911,6 +1009,15 @@ void ChatWindow::insertBubbleImages(QTextCursor &cursor, const QStringList &path
 
 void ChatWindow::openChatLink(const QUrl &url)
 {
+    if (url.scheme() == QLatin1String("qipmsg")) {
+        if (url.host() == QLatin1String("open-seal") && Global::windowManager) {
+            const QUrlQuery query(url);
+            Global::windowManager->openSealedLetter(
+                        query.queryItemValue(QStringLiteral("ip")),
+                        query.queryItemValue(QStringLiteral("pkt")));
+        }
+        return;
+    }
     QString path = url.toLocalFile();
     if (path.isEmpty()) {
         path = url.toString();

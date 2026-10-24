@@ -17,6 +17,7 @@
 #include "transfer_codec.h"
 #include "global.h"
 #include "preferences.h"
+#include "protocolutil.h"
 
 #include <QSet>
 
@@ -141,4 +142,22 @@ QString TransferCodec::decode(const QByteArray &bytes) const
 QByteArray TransferCodec::encode(const QString &text) const
 {
     return codec()->fromUnicode(text);
+}
+
+QString TransferCodec::decodeDatagram(const QByteArray &bytes) const
+{
+    quint32 command = 0;
+    if (ProtocolUtil::commandFromDatagram(bytes, &command)
+            && (command & IPMSG_UTF8OPT)) {
+        return QString::fromUtf8(bytes.constData(), bytes.size());
+    }
+    return decode(bytes);
+}
+
+QByteArray TransferCodec::encodeForFlags(const QString &text, quint32 flags) const
+{
+    if (flags & IPMSG_UTF8OPT) {
+        return text.toUtf8();
+    }
+    return encode(text);
 }

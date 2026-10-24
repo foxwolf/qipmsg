@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.7.0 hardens FeiQ 2013 / IPMSG TCP file interop, 64-bit sizes/offsets, and a configurable UDP/TCP listen port + NIC. It sits on 2.6.0 (inline images/emoji), 2.5.2 (light discussion groups), 2.5.1 (offline queue), and 2.5.0 (memo, pinyin, stealth). 2.4.0 UI and 2.3 protocol features stay. Remaining items stay deferred. Light discussion groups are **not** FeiQ multicast chatroom.
+2.11.1 closes four FeiQ P1 gaps on top of 2.7.0: cross-subnet IPv4 range discovery, broadcast-to-online (`BROADCASTOPT`), sealed letters on the chat bubble, and UTF-8 / clipboard capability bits. 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom.
 
 ## In this line of work (done)
 
@@ -40,8 +40,12 @@
 - [x] FeiQ/IPMSG TCP file command accepted as decimal or hex; packet-id dual lookup; 8s connect; cap regular-file reads
 - [x] 64-bit file size/offset on the wire, resume.json strings, and progress display (GB/TB)
 - [x] Configurable UDP/TCP listen port and bind address in Settings → Network (default 2425 / any IPv4, soft-fail)
+- [x] Cross-subnet IPv4 range / CIDR bulk-add into the broadcast discovery list (unicast probe, no server, 1024-host cap)
+- [x] Broadcast to all online peers with `IPMSG_BROADCASTOPT` (main window + tray)
+- [x] Sealed envelope on the chat bubble (`SECRETOPT` / existing `READCHECKOPT`), opened with `READMSG`
+- [x] Announce `CAPUTF8OPT` + `CLIPBOARDOPT`; UTF-8 encode/decode when the peer advertises it; GBK default for FeiQ 2013
 
-## Later / out of scope for 2.7.0
+## Later / out of scope for 2.11.1
 
 1. **Custom emoji / face packs** (2.6.0 ships a small built-in Unicode set only)
 2. **FeiQ plugin system**
@@ -59,7 +63,7 @@
 9. **Hide from specific groups**
    - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
 
-## How to try 2.7.0
+## How to try 2.11.1
 
 1. Start QIpMsg. The main window is a light messenger list (我的好友 / 讨论组 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
 2. Right-click a peer → **Set memo**. The tree caption and chat title use the memo; 对方资料 **Nickname** stays the real IPMSG nickname. Search accepts `zs` / `zhang` for 张三.
@@ -71,6 +75,10 @@
 8. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged. History rows may include an `img` array of local image paths.
 9. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
 10. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
+11. Preferences → broadcast list: add `192.168.2.1`–`192.168.2.20` or `192.168.2.0/24`. The next presence refresh unicasts `BR_ENTRY` to each address (at most 1024). A single broadcast IP such as `192.168.2.255` stays one target.
+12. Type in the main window and choose **Broadcast**, or use the tray item. Each reachable peer gets one `SENDMSG` with `BROADCASTOPT`. Offline peers are skipped. Receivers show a `[Broadcast]` prefix.
+13. Check **Encap** in a chat and send. The other side shows a sealed bubble and does not write the body to history until it is opened (`READMSG` + `READCHECKOPT`). Attachments still use the classic receive window.
+14. Default transfer codec stays GBK. A peer whose entry sets `CAPUTF8OPT` is sent UTF-8 with `UTF8OPT` on later directed messages. Our own entry/answer sets `CAPUTF8OPT` and `CLIPBOARDOPT` without switching the presence body off GBK.
 
 ## Want to help?
 

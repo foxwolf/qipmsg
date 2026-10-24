@@ -90,6 +90,8 @@ void MainWindow::createConnections()
 {
     connect(sendButton, SIGNAL(clicked()),
             this, SLOT(sendMessage()));
+    connect(broadcastButton, SIGNAL(clicked()),
+            this, SLOT(broadcastToOnline()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateUserCount(int)));
@@ -251,6 +253,8 @@ void MainWindow::createSendLayout()
 {
     sendButton = new QPushButton(tr("&Send"));
     sendButton->setObjectName("primaryButton");
+    broadcastButton = new QPushButton(tr("Broadcast"));
+    broadcastButton->setToolTip(tr("Send to every online peer with the broadcast flag"));
     encapCheckBox = new QCheckBox(tr("&Encap"));
     if (Global::preferences->isSealed) {
         encapCheckBox->setCheckState(Qt::Checked);
@@ -262,6 +266,7 @@ void MainWindow::createSendLayout()
 
     sendLayout = new QHBoxLayout;
     sendLayout->addStretch();
+    sendLayout->addWidget(broadcastButton);
     sendLayout->addWidget(sendButton);
     sendLayout->addSpacing(20);
     sendLayout->addWidget(encapCheckBox);
@@ -273,6 +278,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
     menu.addAction(openChatAct);
+    menu.addAction(broadcastAllAct);
     menu.addMenu(selectGroupMenu);
     menu.addAction(sendFileAct);
     menu.addAction(sendDirAct);
@@ -310,6 +316,9 @@ void MainWindow::createActions()
     openChatAct = new QAction(tr("Open chat"), this);
     connect(openChatAct, SIGNAL(triggered()),
             this, SLOT(openSelectedChat()));
+    broadcastAllAct = new QAction(tr("Broadcast to all online"), this);
+    connect(broadcastAllAct, SIGNAL(triggered()),
+            this, SLOT(broadcastToOnline()));
     createDiscussionAct = new QAction(tr("Create discussion group"), this);
     renameDiscussionAct = new QAction(tr("Rename discussion group"), this);
     deleteDiscussionAct = new QAction(tr("Delete discussion group"), this);
@@ -872,10 +881,9 @@ void MainWindow::editPeerMemo()
 
 void MainWindow::sendMessage()
 {
-    quint32 flags = 0;
-    flags |= IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    quint32 baseFlags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     if (encapCheckBox->isChecked()) {
-        flags |= IPMSG_SECRETOPT | IPMSG_READCHECKOPT;
+        baseFlags |= IPMSG_SECRETOPT | IPMSG_READCHECKOPT;
     }
 
     const QStringList ips = selectedPeerIps();
@@ -883,7 +891,7 @@ void MainWindow::sendMessage()
         return;
     }
     if (ips.size() > 1) {
-        flags |= IPMSG_MULTICASTOPT;
+        baseFlags |= IPMSG_MULTICASTOPT;
     }
 
     int queuedCount = 0;
@@ -909,6 +917,7 @@ void MainWindow::sendMessage()
         QString recvHostname = row != -1 ? Global::userManager->host(row)
                                          : QString();
 
+        quint32 flags = Global::userManager->sendFlagsForIp(ip, baseFlags);
         QString additionalInfo = inputEdit->toPlainText();
         additionalInfo.append(QChar('\0'));
 
@@ -953,6 +962,25 @@ void MainWindow::sendMessage()
 
     emit messageReplyed();
     close();
+}
+
+void MainWindow::broadcastToOnline()
+{
+    const QString text = inputEdit->toPlainText();
+    if (text.trimmed().isEmpty()) {
+        QMessageBox::information(this, tr("Broadcast"),
+                tr("Type a message, then broadcast it to every online peer."));
+        return;
+    }
+    const int sent = Global::windowManager->broadcastTextToOnline(text);
+    if (sent <= 0) {
+        QMessageBox::information(this, tr("Broadcast"),
+                tr("No online peers to broadcast to."));
+        return;
+    }
+    QMessageBox::information(this, tr("Broadcast"),
+            tr("Broadcast sent to %n online peer(s).", "", sent));
+    inputEdit->clear();
 }
 
 void MainWindow::dropEvent(QDropEvent *e)

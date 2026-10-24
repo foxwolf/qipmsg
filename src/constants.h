@@ -91,9 +91,11 @@
 #define TRANSFER_FILE_VIEW_USER_COLUMN     4
 #define TRANSFER_FILE_VIEW_KEY_COLUMN      5
 
-// Support file attachment and encrypt
-// #define QIPMSG_CAPACITY         IPMSG_FILEATTACHOPT | IPMSG_ENCRYPTOPT
-#define QIPMSG_CAPACITY         IPMSG_FILEATTACHOPT
+// Announced on BR_ENTRY / BR_ABSENCE / BR_EXIT / ANSENTRY.
+// CAPUTF8OPT: we can receive UTF-8 (UTF8OPT on that datagram).
+// CLIPBOARDOPT: clipboard-image peers may send a file attachment.
+// ENCRYPTOPT stays off; there is no pubkey exchange in this build.
+#define QIPMSG_CAPACITY         (IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT)
 
 // Response file packet
 #define TRANSFER_FILE_HEADER_SIZE_LENGTH      4

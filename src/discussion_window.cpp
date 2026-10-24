@@ -281,12 +281,13 @@ void DiscussionWindow::sendMessage()
     }
 
     const QStringList ips = m_group.memberIps();
-    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    quint32 baseFlags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     if (ips.size() > 1) {
-        flags |= IPMSG_MULTICASTOPT;
+        baseFlags |= IPMSG_MULTICASTOPT;
     }
 
     foreach (const QString &ip, ips) {
+        const quint32 flags = Global::userManager->sendFlagsForIp(ip, baseFlags);
         QString additionalInfo = text;
         additionalInfo.append(QChar('\0'));
         SendMsg sendMsg(QHostAddress(ip),

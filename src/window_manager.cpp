@@ -31,6 +31,7 @@
 #include "systray.h"
 #include "user_manager.h"
 #include "offline_queue.h"
+#include "protocolutil.h"
 
 #include <QHostAddress>
 #include <QMessageBox>
@@ -98,9 +99,51 @@ void WindowManager::playNoticeSound()
     }
 }
 
+QString WindowManager::sealedStorageKey(const QString &ip,
+                                         const QString &packetNo) const
+{
+    return ip + QLatin1Char('\n') + packetNo;
+}
+
+bool WindowManager::openSealedLetter(const QString &ip, const QString &packetNo)
+{
+    const QString key = sealedStorageKey(ip, packetNo);
+    if (!m_sealedLetters.contains(key)) {
+        return false;
+    }
+    SealedLetter letter = m_sealedLetters.value(key);
+    if (!letter.opened) {
+        letter.opened = true;
+        m_sealedLetters.insert(key, letter);
+
+        const int flags = IPMSG_READMSG | IPMSG_READCHECKOPT;
+        SendMsg sendMsg(letter.address, letter.port,
+                        letter.packetNo, ""/* extendedInfo */, flags);
+        Global::msgThread->addSendMsg(Msg(sendMsg));
+
+        const QString peerName = Global::userManager->displayNameForIp(letter.ip);
+        if (Helper::isShakeText(letter.text)) {
+            recordIncomingText(letter.ip, peerName, tr("[Window shake]"), false);
+            applyIncomingShake(letter.ip);
+        } else if (!letter.text.isEmpty()) {
+            QString shown = letter.text;
+            if (letter.broadcast) {
+                shown = tr("[Broadcast] %1").arg(letter.text);
+            }
+            recordIncomingText(letter.ip, peerName, shown, false);
+        }
+    }
+
+    ChatWindow *w = m_chatWindows.value(letter.ip, 0);
+    if (w) {
+        w->markSealedOpened(letter.packetNo);
+    }
+    return true;
+}
+
 void WindowManager::handleIncomingSendMsg(Msg msg)
 {
-    const bool sealed = msg->flags() & IPMSG_READCHECKOPT;
+    const bool sealed = ProtocolUtil::isSecretEnvelope(msg->flags());
     const bool attach = msg->flags() & IPMSG_FILEATTACHOPT;
     const QString text = msg->additionalInfo();
     const QString name = peerDisplayName(msg);
@@ -117,17 +160,36 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
     }
 
     if (!sealed) {
-        if (!text.isEmpty()) {
-            recordIncomingText(msg->ip(), name, text, !autoReply);
+        QString shown = text;
+        if ((msg->flags() & IPMSG_BROADCASTOPT) && !shown.isEmpty()) {
+            shown = tr("[Broadcast] %1").arg(shown);
+        }
+        if (!shown.isEmpty()) {
+            recordIncomingText(msg->ip(), name, shown, !autoReply);
         } else if (attach) {
             recordIncomingText(msg->ip(), name,
                                tr("[File attachment]"), !autoReply);
         }
-    } else if (!autoReply) {
-        emit newTextMessage(name, tr("(Sealed message)"));
-        ChatWindow *w = m_chatWindows.value(msg->ip(), 0);
-        if (!(w && w->isVisible())) {
-            addUnread(msg->ip());
+    } else {
+        SealedLetter letter;
+        letter.packetNo = msg->packetNoString();
+        letter.ip = msg->ip();
+        letter.text = text;
+        letter.address = msg->ipAddress();
+        letter.port = msg->port();
+        letter.opened = false;
+        letter.broadcast = (msg->flags() & IPMSG_BROADCASTOPT) != 0;
+        m_sealedLetters.insert(sealedStorageKey(letter.ip, letter.packetNo), letter);
+
+        ChatWindow *chat = ensureChat(msg->ip());
+        chat->appendSealedLetter(letter.packetNo, name);
+        if (!autoReply) {
+            emit newTextMessage(name, tr("(Sealed message)"));
+            if (shouldPopup() && !attach) {
+                openChat(msg->ip(), true);
+            } else if (!chat->isVisible()) {
+                addUnread(msg->ip());
+            }
         }
     }
 
@@ -136,7 +198,11 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
         playNoticeSound();
     }
 
-    if (sealed || attach) {
+    if (sealed) {
+        if (attach) {
+            createMsgWindow(msg);
+        }
+    } else if (attach) {
         createMsgWindow(msg);
     } else if (shouldPopup()) {
         openChat(msg->ip(), true);
@@ -201,11 +267,47 @@ void WindowManager::recordIncomingText(const QString &ip,
     }
 }
 
+int WindowManager::broadcastTextToOnline(const QString &text)
+{
+    if (text.trimmed().isEmpty() || !Global::userManager || !Global::msgThread) {
+        return 0;
+    }
+
+    // Verified before this action: chat, discussion, main-window multi-send,
+    // offline flush, and auto-reply never set IPMSG_BROADCASTOPT. Multi-send
+    // uses IPMSG_MULTICASTOPT and still unicasts. This action unicasts
+    // SENDMSG|SENDCHECKOPT|BROADCASTOPT to each reachable peer (online or
+    // away). Stale peers are skipped and not queued. The subnet broadcast
+    // address is not used here, so a peer who is already online does not
+    // get a second copy from 255.255.255.255.
+    int sent = 0;
+    const int rows = Global::userManager->userCount();
+    for (int row = 0; row < rows; ++row) {
+        const QString ip = Global::userManager->ip(row);
+        if (!Global::userManager->isReachable(ip)) {
+            continue;
+        }
+        const quint32 flags = Global::userManager->sendFlagsForIp(
+                    ip, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT | IPMSG_BROADCASTOPT);
+        QString additionalInfo = text;
+        additionalInfo.append(QChar('\0'));
+        SendMsg sendMsg(QHostAddress(ip),
+                        Global::userManager->sendPortForIp(ip),
+                        additionalInfo, ""/* extendedInfo */, flags);
+        Global::msgThread->addSendMsg(Msg(sendMsg));
+        recordOutgoing(ip, Global::userManager->displayNameForIp(ip),
+                       tr("[Broadcast] %1").arg(text));
+        ++sent;
+    }
+    return sent;
+}
+
 void WindowManager::deliverText(const QString &ip, const QString &text)
 {
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
-    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    const quint32 flags = Global::userManager->sendFlagsForIp(
+                ip, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT);
     SendMsg sendMsg(QHostAddress(ip),
                     Global::userManager->sendPortForIp(ip),
                     additionalInfo, ""/* extendedInfo */, flags);
@@ -306,7 +408,8 @@ void WindowManager::maybeAutoReply(const Msg &msg)
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
 
-    quint32 flags = IPMSG_SENDMSG | IPMSG_AUTORETOPT | IPMSG_SENDCHECKOPT;
+    const quint32 flags = Global::userManager->sendFlagsForIp(
+                ip, IPMSG_SENDMSG | IPMSG_AUTORETOPT | IPMSG_SENDCHECKOPT);
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));

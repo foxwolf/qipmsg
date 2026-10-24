@@ -38,6 +38,7 @@
 #include "recv_file_finish_dialog.h"
 #include "retry_recv_file_dialog.h"
 #include "send_msg.h"
+#include "protocolutil.h"
 
 #include <QDir>
 #include <QTimer>
@@ -121,7 +122,7 @@ bool MsgWindow::isAttachFile()
 
 bool MsgWindow::isSealed()
 {
-    return m_msg->flags() & IPMSG_READCHECKOPT;
+    return ProtocolUtil::isSecretEnvelope(m_msg->flags());
 }
 
 void MsgWindow::createGroupBox()
@@ -246,20 +247,23 @@ void MsgWindow::openEnvelope()
 
     replyButton->setFocus(Qt::TabFocusReason);
 
-    int flags = 0;
-    flags |= IPMSG_READMSG | IPMSG_READCHECKOPT;
+    if (!Global::windowManager->openSealedLetter(m_msg->ip(),
+                                                 m_msg->packetNoString())) {
+        int flags = 0;
+        flags |= IPMSG_READMSG | IPMSG_READCHECKOPT;
 
-    SendMsg sendMsg(m_msg->ipAddress(), m_msg->port(),
-                    m_msg->packetNoString(), ""/* extendedInfo */, flags);
+        SendMsg sendMsg(m_msg->ipAddress(), m_msg->port(),
+                        m_msg->packetNoString(), ""/* extendedInfo */, flags);
 
-    Global::msgThread->addSendMsg(Msg(sendMsg));
+        Global::msgThread->addSendMsg(Msg(sendMsg));
 
-    if (!m_msg->additionalInfo().isEmpty()) {
-        Global::windowManager->recordIncomingText(
-                    m_msg->ip(),
-                    Global::userManager->displayNameForIp(m_msg->ip()),
-                    m_msg->additionalInfo(),
-                    false);
+        if (!m_msg->additionalInfo().isEmpty()) {
+            Global::windowManager->recordIncomingText(
+                        m_msg->ip(),
+                        Global::userManager->displayNameForIp(m_msg->ip()),
+                        m_msg->additionalInfo(),
+                        false);
+        }
     }
 
     if (isAttachFile()) {

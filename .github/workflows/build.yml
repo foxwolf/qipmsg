@@ -64,6 +64,20 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
 
+      - name: Protocol self-check
+        shell: bash
+        run: |
+          for p in build/qipmsgP1Check build/qipmsgP1Check.exe \
+                   build/Release/qipmsgP1Check.exe; do
+            if [ -f "$p" ]; then
+              "$p"
+              exit 0
+            fi
+          done
+          echo "qipmsgP1Check not found"
+          find build -name 'qipmsgP1Check*' | head
+          exit 1
+
       - name: Locate binary
         shell: bash
         run: |

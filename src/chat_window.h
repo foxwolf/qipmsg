@@ -25,6 +25,7 @@
 
 #include "send_file_model.h"
 
+class QCheckBox;
 class QEvent;
 class QLabel;
 class QListWidget;
@@ -47,6 +48,8 @@ public:
     void appendMessage(const QDateTime &when, const QString &name,
                        const QString &text, bool incoming,
                        const QStringList &imagePaths = QStringList());
+    void appendSealedLetter(const QString &packetNo, const QString &name);
+    void markSealedOpened(const QString &packetNo);
     void loadHistory();
     void setDraft(const QString &text);
     void refreshPeerCaption();
@@ -102,6 +105,7 @@ private:
     void insertEmoji(const QString &glyph);
     bool pasteClipboardImage();
     QStringList imagePathsFromFiles(const QStringList &pathList) const;
+    QString sealedHref(const QString &packetNo) const;
 
     QString m_peerIp;
     QLabel *m_peerLabel;
@@ -124,6 +128,7 @@ private:
     QPushButton *m_clearQueueButton;
     QTextEdit *m_inputEdit;
     QPushButton *m_sendButton;
+    QCheckBox *m_encapCheck;
     QPushButton *m_fileListButton;
     QPushButton *m_stripFile;
     QPushButton *m_stripMonitor;
