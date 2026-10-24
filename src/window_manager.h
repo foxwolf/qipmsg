@@ -71,6 +71,7 @@ public slots:
 private slots:
     void newMsg(Msg msg);
     void destroyMsgReadedWindowList();
+    void refreshChatCaptions();
 
 private:
     void createMsgWindow(Msg msg);

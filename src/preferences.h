@@ -78,6 +78,7 @@ public:
     int staleMissedRefreshCount;
 
     bool isAway;
+    bool isStealth;
     bool isAutoReply;
     QString autoReplyText;
     int autoReplyCooldownSecs;
