@@ -26,6 +26,7 @@
 #include "msg.h"
 
 class ChatWindow;
+class DiscussionWindow;
 class MsgWindow;
 class MsgReadedWindow;
 
@@ -44,6 +45,7 @@ public:
 
     ChatWindow *openChat(const QString &ip, bool raiseWindow = true,
                          const QString &draft = QString());
+    DiscussionWindow *openDiscussion(const QString &id, bool raiseWindow = true);
     void recordOutgoing(const QString &ip, const QString &peerName,
                         const QString &text);
     void recordIncomingText(const QString &ip, const QString &peerName,
@@ -87,10 +89,12 @@ private:
 
     void destroyMsgWindowList();
     void destroyChatWindows();
+    void destroyDiscussionWindows();
 
     QList<MsgWindow *> m_msgWindowList;
     QList<MsgReadedWindow *> m_msgReadedWindowList;
     QMap<QString, ChatWindow *> m_chatWindows;
+    QMap<QString, DiscussionWindow *> m_discussionWindows;
     QMap<QString, int> m_unreadByIp;
     QMap<QString, QDateTime> m_lastAutoReply;
 };
