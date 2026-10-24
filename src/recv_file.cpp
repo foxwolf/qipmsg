@@ -20,9 +20,10 @@
 
 #include <QStringList>
 
-RecvFile::RecvFile(QString ip, QString packetNoString, QString info)
-    : m_ip(ip), m_packetNoString(packetNoString), m_offset(0),
-    m_bytesReaded(0), m_regularFileCount(0), m_state(NotRecv)
+RecvFile::RecvFile(QString ip, QString packetNoString, QString info,
+                   quint16 peerPort)
+    : m_ip(ip), m_peerPort(peerPort), m_packetNoString(packetNoString),
+    m_offset(0), m_bytesReaded(0), m_regularFileCount(0), m_state(NotRecv)
 {
     info.replace(QString(FILE_NAME_BEFORE), QString(FILE_NAME_ESCAPE));
 
@@ -66,15 +67,7 @@ QString RecvFile::sizeString() const
 QString RecvFile::transferStatsInfo() const
 {
     if (m_type == IPMSG_FILE_REGULAR) {
-        QString bytesReadedString;
-        if (m_size >= ONE_MB) {
-            bytesReadedString = QString("%1")
-                .arg(qMax(m_bytesReaded/ONE_MB, 0.1), 0, 'f', 1);
-        } else {
-            bytesReadedString = QString("%1")
-                .arg(qMax(m_bytesReaded/ONE_KB, 1.0), 0, 'f', 0);
-        }
-        QString fileSizeString = bytesReadedString + "/"
+        QString fileSizeString = Helper::sizeStringUnit(m_bytesReaded) + "/"
             + Helper::sizeStringUnit(m_size);
 
         QString transferRateString

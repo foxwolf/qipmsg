@@ -34,6 +34,7 @@
 
 #include "helper.h"
 #include "constants.h"
+#include "ipmsg.h"
 
 QString Helper::m_iniPath;
 QString Helper::m_appPath;
@@ -230,17 +231,99 @@ QString Helper::fileCountString(int fileCount)
 QString Helper::sizeStringUnit(double size, QString sep)
 {
     QString s;
-    if (size >= ONE_MB) {
+    if (size >= ONE_TB) {
+        s = QString("%1%2TB")
+            .arg(size / ONE_TB, 0, 'f', 2)
+            .arg(sep);
+    } else if (size >= ONE_GB) {
+        s = QString("%1%2GB")
+            .arg(size / ONE_GB, 0, 'f', 2)
+            .arg(sep);
+    } else if (size >= ONE_MB) {
         s = QString("%1%2MB")
-            .arg(size/ONE_MB, 0, 'f', 1)
+            .arg(size / ONE_MB, 0, 'f', 1)
             .arg(sep);
     } else {
         s = QString("%1%2KB")
-            .arg(qMax(size/ONE_KB, 1.0), 0, 'f', 0)
+            .arg(qMax(size / ONE_KB, 1.0), 0, 'f', 0)
             .arg(sep);
     }
 
     return s;
+}
+
+bool Helper::isFileTransferMode(quint32 mode)
+{
+    return mode == IPMSG_GETFILEDATA
+        || mode == IPMSG_GETDIRFILES
+        || mode == IPMSG_RELEASEFILES;
+}
+
+quint32 Helper::parseIpmsgCommand(const QByteArray &field, bool *ok)
+{
+    const QByteArray trimmed = field.trimmed();
+    bool okDec = false;
+    bool okHex = false;
+    const quint32 dec = trimmed.toULong(&okDec, 10);
+    const quint32 hex = trimmed.toULong(&okHex, 16);
+
+    if (okDec && isFileTransferMode(GET_MODE(dec))) {
+        if (ok) {
+            *ok = true;
+        }
+        return dec;
+    }
+    if (okHex && isFileTransferMode(GET_MODE(hex))) {
+        if (ok) {
+            *ok = true;
+        }
+        return hex;
+    }
+    if (okDec) {
+        if (ok) {
+            *ok = true;
+        }
+        return dec;
+    }
+    if (okHex) {
+        if (ok) {
+            *ok = true;
+        }
+        return hex;
+    }
+    if (ok) {
+        *ok = false;
+    }
+    return 0;
+}
+
+QStringList Helper::packetNoLookupKeys(const QByteArray &field)
+{
+    QStringList keys;
+    const QString raw = QString::fromLatin1(field.trimmed());
+    if (!raw.isEmpty()) {
+        keys << raw;
+    }
+
+    bool okHex = false;
+    const qint64 hexVal = field.trimmed().toLongLong(&okHex, 16);
+    if (okHex) {
+        const QString s = QString::number(hexVal);
+        if (!keys.contains(s)) {
+            keys << s;
+        }
+    }
+
+    bool okDec = false;
+    const qint64 decVal = field.trimmed().toLongLong(&okDec, 10);
+    if (okDec) {
+        const QString s = QString::number(decVal);
+        if (!keys.contains(s)) {
+            keys << s;
+        }
+    }
+
+    return keys;
 }
 
 QString Helper::secondStringUnit(int second)

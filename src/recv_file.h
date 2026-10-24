@@ -31,7 +31,7 @@ public:
     enum States { NotRecv, ToRecv, RecvOk, RecvFail };
 
     RecvFile(const QString ip, const QString packetNoString,
-             const QString info);
+             const QString info, quint16 peerPort = 0);
     ~RecvFile();
 
     virtual RecvFile* clone() const { return new RecvFile(*this); }
@@ -67,6 +67,9 @@ public:
     QHostAddress ipAddress() const { return QHostAddress(m_ip); }
     QString ip() const { return m_ip; }
 
+    quint16 peerPort() const { return m_peerPort; }
+    void setPeerPort(quint16 port) { m_peerPort = port; }
+
     void setState(States state) { m_state = state; }
     States state() const { return m_state; }
 
@@ -91,6 +94,7 @@ private:
     double percent() const;
 
     QString m_ip;
+    quint16 m_peerPort;
     QString m_packetNoString;
     int m_fileId;
     QString m_name;

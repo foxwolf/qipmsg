@@ -21,6 +21,27 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
+
+namespace {
+
+qint64 jsonInt64(const QJsonValue &value)
+{
+    if (value.isString()) {
+        bool ok = false;
+        const qint64 parsed = value.toString().toLongLong(&ok);
+        if (ok) {
+            return parsed;
+        }
+        return 0;
+    }
+    if (value.isDouble()) {
+        return static_cast<qint64>(value.toDouble());
+    }
+    return static_cast<qint64>(value.toVariant().toLongLong());
+}
+
+} // namespace
 
 ResumeStore::ResumeStore()
 {
@@ -63,8 +84,8 @@ void ResumeStore::load()
         record.packetNo = obj.value("packetNo").toString();
         record.fileId = obj.value("fileId").toInt();
         record.name = obj.value("name").toString();
-        record.size = static_cast<qint64>(obj.value("size").toDouble());
-        record.offset = static_cast<qint64>(obj.value("offset").toDouble());
+        record.size = jsonInt64(obj.value("size"));
+        record.offset = jsonInt64(obj.value("offset"));
         record.saveDir = obj.value("saveDir").toString();
         if (!record.key.isEmpty()) {
             m_items.insert(record.key, record);
@@ -85,8 +106,8 @@ void ResumeStore::persist() const
         obj.insert("packetNo", record.packetNo);
         obj.insert("fileId", record.fileId);
         obj.insert("name", record.name);
-        obj.insert("size", static_cast<double>(record.size));
-        obj.insert("offset", static_cast<double>(record.offset));
+        obj.insert("size", QString::number(record.size));
+        obj.insert("offset", QString::number(record.offset));
         obj.insert("saveDir", record.saveDir);
         array.append(obj);
     }

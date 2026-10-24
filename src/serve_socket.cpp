@@ -128,14 +128,10 @@ bool ServeSocket::canParsePacket(const QByteArray &requestPacket) const
         return false;
     }
 
-    if (bl.count() >= 8) {
-        // Only regular file have offset field.
-        bool ok;
-        int command = bl.at(MSG_FLAGS_POS).toInt(&ok, 16);
-
-        if (command == IPMSG_GETFILEDATA && bl.count() < 9) {
-            return false;
-        }
+    bool ok = false;
+    const quint32 command = Helper::parseIpmsgCommand(bl.at(MSG_FLAGS_POS), &ok);
+    if (ok && GET_MODE(command) == IPMSG_GETFILEDATA && bl.count() < 9) {
+        return false;
     }
 
     return true;
@@ -226,23 +222,35 @@ void ServeSocket::parseRequestPacket(const QByteArray &requestPacket,
 
     // XXX NOTE: canParsePacket() make sure we have enough items in list,
     // so we do not need to check size of list before call list.at()
-    bool ok;
-    long id = list.at(REQUST_FILE_PACKET_ID_POSITION).toLong(&ok, 16);
-    m_packetNoString = QString("%1").arg(id);
-    int fileId = list.at(REQUST_FILE_FILE_ID_POSITION).toLong(&ok, 16);
-    int command = list.at(MSG_FLAGS_POS).toInt(&ok, 16);
+    bool ok = false;
+    bool fileIdOk = false;
+    int fileId = list.at(REQUST_FILE_FILE_ID_POSITION).toInt(&fileIdOk, 16);
+    if (!fileIdOk) {
+        fileId = list.at(REQUST_FILE_FILE_ID_POSITION).toInt(&fileIdOk, 10);
+    }
+    const quint32 command
+        = Helper::parseIpmsgCommand(list.at(MSG_FLAGS_POS), &ok);
 
     QMutexLocker locker(&Global::sendFileManager->m_lock);
 
-    SendFileMap *sendFileMap
-        = Global::sendFileManager->transferFileMap.value(m_packetNoString);
+    SendFileMap *sendFileMap = 0;
+    const QStringList packetKeys = Helper::packetNoLookupKeys(
+                list.at(REQUST_FILE_PACKET_ID_POSITION));
+    foreach (const QString &key, packetKeys) {
+        sendFileMap = Global::sendFileManager->transferFileMap.value(key);
+        if (sendFileMap) {
+            m_packetNoString = key;
+            break;
+        }
+    }
+
     requestFile.isFileSended = false;
-    if (sendFileMap && sendFileMap->canSendFile(fileId)) {
+    if (sendFileMap && fileIdOk && sendFileMap->canSendFile(fileId)) {
         requestFile.isFileSended = true;
         requestFile.fileType = sendFileMap->m_map[fileId]->type();
         requestFile.filePath = sendFileMap->m_map[fileId]->absoluteFilePath();
         requestFile.fileId = fileId;
-        if (command == IPMSG_GETFILEDATA) {
+        if (GET_MODE(command) == IPMSG_GETFILEDATA) {
             requestFile.offset
                 = list.at(REQUST_FILE_OFFSET_POSITION).toLongLong(&ok, 16);
         } else {
