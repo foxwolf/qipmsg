@@ -148,6 +148,13 @@ make
 - Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8.
 - Presence refresh interval and auto-reply live in Preferences (Detail tab + Send/Receive). Tray **Leave → Away / Auto-reply** toggles absence (`BR_ABSENCE`).
 - File receive options live in Preferences → Detail → File: resume (`GETFILEDATA` hex offset), auto-accept, auto-rename, default folder. Directory transfers restart from the tree root (IPMSG dir stream); only regular files persist an offset.
+- UDP listen port and NIC/bind address live in Preferences → Detail → Network (`qipmsg.ini` `[Network]` `udpPort` / `bindAddress`). Default **2425** / any IPv4 (`0.0.0.0`). UDP and TCP file listen share that port. Changes need a restart. Bind failure is logged and the app continues (soft-fail); file receive needs a successful TCP listen.
+- FeiQ 2013 / IPMSG file-transfer assumptions (no new protocol):
+  - TCP `GETFILEDATA` / `GETDIRFILES` command field is accepted as **decimal or hex** (FeiQ often sends hex `60`/`62`; classic IPMSG and older qipmsg send decimal `96`/`98`). Outgoing requests use hex.
+  - File-list and stream sizes/offsets are hex. Qt `QString::arg` width is a minimum, so values above 4 GB are sent in full hex (not truncated to 8 digits).
+  - Packet-id lookup tries the raw field, hex→decimal, and decimal string so FeiQ and qipmsg map keys match.
+  - Resume offset is hex on the wire; `resume.json` stores size/offset as decimal strings (old double values still load). Directory streams have no per-file resume.
+  - TCP connect uses the peer’s last UDP source port (fallback 2425), with an 8 s timeout. Regular-file reads are capped at remaining bytes.
 - Personal signature is sent as a third NUL field after `nickname\0group\0` on `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`. Classic IPMSG ignores extra fields; FeiQ `PersonSign` uses the same extra slot.
 - Window shake is a normal `IPMSG_SENDMSG` whose text is `#@#shake#@#` (also accepted: `{shake}`, `SHAKE`, `窗口抖动`, `#qipmsg-shake#`, and ESC+SHAKE). FeiQ peers that do not implement shake treat it as ordinary text.
 - Screenshot uses `QScreen::grabWindow` (full screen or rubber-band region) and sends a PNG through the existing file-attach path. Wayland/headless sessions may return an empty grab.

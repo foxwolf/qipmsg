@@ -290,6 +290,10 @@
         <source>File</source>
         <translation>文件</translation>
     </message>
+    <message>
+        <source>Network</source>
+        <translation>网络</translation>
+    </message>
 </context>
 <context>
     <name>DetailTab</name>
@@ -398,6 +402,25 @@
         <location filename="../setup_window.cpp" line="273"/>
         <source>Select receive folder</source>
         <translation>选择接收目录</translation>
+    </message>
+</context>
+<context>
+    <name>NetworkTab</name>
+    <message>
+        <source>UDP listen port</source>
+        <translation>UDP 监听端口</translation>
+    </message>
+    <message>
+        <source>Bind address</source>
+        <translation>绑定地址</translation>
+    </message>
+    <message>
+        <source>Changes take effect after restart. UDP discovery and TCP file transfer use the same port (IPMSG / FeiQ, default 2425). Empty / 0.0.0.0 binds any IPv4 NIC. Bind failure is logged and the app continues (soft-fail).</source>
+        <translation>更改后需重启程序。UDP 发现与 TCP 文件传输使用同一端口（IPMSG / 飞秋，默认 2425）。留空或 0.0.0.0 表示绑定任意 IPv4 网卡。绑定失败只写日志，程序继续运行（软失败）。</translation>
+    </message>
+    <message>
+        <source>Any IPv4 (0.0.0.0)</source>
+        <translation>任意 IPv4（0.0.0.0）</translation>
     </message>
 </context>
 <context>
@@ -912,8 +935,8 @@ QIpMsg is distributed in the hope that it will be useful,You should have receive
     </message>
     <message>
         <location filename="../main.cpp" line="153"/>
-        <source>Start tcp server error!</source>
-        <translation>启动 tcp 服务错误!</translation>
+        <source>TCP file server failed to listen. File receive will not work until the port or bind address is free. Change it in Preferences → Detail → Network, then restart.</source>
+        <translation>TCP 文件服务监听失败。在端口或绑定地址空闲前无法接收文件。请到「设置 → 详细 → 网络」修改后重启。</translation>
     </message>
     <message>
         <location filename="../main.cpp" line="155"/>

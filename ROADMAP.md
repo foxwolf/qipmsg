@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.4.0 replaces the FeiQ green chrome with a modern light messenger UI (shared QSS, rounded avatars, chat bubbles, profile card). Protocol features from 2.3 stay. Remaining items stay deferred.
+2.7.0 hardens FeiQ 2013 / IPMSG TCP file interop, 64-bit sizes/offsets, and a configurable UDP/TCP listen port + NIC. 2.4.0 UI and 2.3 protocol features stay. Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -30,8 +30,11 @@
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 - [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
+- [x] FeiQ/IPMSG TCP file command accepted as decimal or hex; packet-id dual lookup; 8s connect; cap regular-file reads
+- [x] 64-bit file size/offset on the wire, resume.json strings, and progress display (GB/TB)
+- [x] Configurable UDP/TCP listen port and bind address in Settings → Network (default 2425 / any IPv4, soft-fail)
 
-## Later / out of scope for 2.4.0
+## Later / out of scope for 2.7.0
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
@@ -47,10 +50,10 @@
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.4.0
+## How to try 2.7.0
 
 1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
-2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
+2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default). Preferences → Detail → Network: UDP/TCP listen port (default 2425) and bind NIC (empty = any IPv4). Restart after changing.
 3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
 4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
 5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
