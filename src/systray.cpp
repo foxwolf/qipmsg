@@ -88,17 +88,20 @@ void Systray::refreshTooltip()
             ? Global::windowManager->unreadCount() : 0;
     const int queued = Global::offlineQueue
             ? Global::offlineQueue->count() : 0;
+    QString tip;
     if (unread > 0) {
-        trayIcon->setToolTip(tr("IP Messenger (%1 users, %2 unread)")
-                             .arg(m_userCount).arg(unread));
+        tip = tr("IP Messenger (%1 users, %2 unread)")
+                .arg(m_userCount).arg(unread);
     } else {
-        trayIcon->setToolTip(tr("IP Messenger (%1)").arg(m_userCount));
+        tip = tr("IP Messenger (%1)").arg(m_userCount);
     }
     if (queued > 0) {
-        trayIcon->setToolTip(trayIcon->toolTip()
-                             + QString(" · ")
-                             + tr("%n queued", "", queued));
+        tip += QString(" · ") + tr("%n queued", "", queued);
     }
+    if (Global::preferences && Global::preferences->isStealth) {
+        tip += QString(" · ") + tr("Stealth");
+    }
+    trayIcon->setToolTip(tip);
 }
 
 void Systray::onNewTextMessage(QString fromName, QString preview)
@@ -129,6 +132,28 @@ void Systray::setAway(bool away)
     }
     Global::preferences->save();
     Global::userManager->announcePresence();
+}
+
+void Systray::setStealth(bool stealth)
+{
+    Global::userManager->applyStealth(stealth);
+    Global::preferences->save();
+    refreshLeaveActions();
+}
+
+void Systray::refreshLeaveActions()
+{
+    if (awayAction) {
+        awayAction->blockSignals(true);
+        awayAction->setChecked(Global::preferences->isAway);
+        awayAction->blockSignals(false);
+    }
+    if (stealthAction) {
+        stealthAction->blockSignals(true);
+        stealthAction->setChecked(Global::preferences->isStealth);
+        stealthAction->blockSignals(false);
+    }
+    refreshTooltip();
 }
 
 void Systray::createActions()
@@ -182,6 +207,13 @@ void Systray::createLeaveMenu()
     connect(awayAction, SIGNAL(toggled(bool)),
             this, SLOT(setAway(bool)));
     leaveMenu->addAction(awayAction);
+
+    stealthAction = new QAction(tr("Stealth / Hide mode"), this);
+    stealthAction->setCheckable(true);
+    stealthAction->setChecked(Global::preferences->isStealth);
+    connect(stealthAction, SIGNAL(toggled(bool)),
+            this, SLOT(setStealth(bool)));
+    leaveMenu->addAction(stealthAction);
     leaveMenu->setEnabled(true);
 }
 
@@ -215,6 +247,8 @@ void Systray::createConnections()
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
+    connect(Global::userManager, SIGNAL(usersChanged()),
+            this, SLOT(refreshLeaveActions()));
     connect(Global::windowManager, SIGNAL(unreadCountChanged(int)),
             this, SLOT(refreshTooltip()));
     connect(Global::windowManager, SIGNAL(newTextMessage(QString,QString)),

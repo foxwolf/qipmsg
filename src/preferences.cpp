@@ -84,6 +84,7 @@ void Preferences::reset()
     staleMissedRefreshCount = DEFAULT_STALE_MISSED_REFRESH;
 
     isAway = false;
+    isStealth = false;
     isAutoReply = false;
     autoReplyText = "";
     autoReplyCooldownSecs = DEFAULT_AUTO_REPLY_COOLDOWN;
@@ -191,6 +192,7 @@ void Preferences::load()
 
     set->beginGroup("Away");
     isAway = set->value("isAway", isAway).toBool();
+    isStealth = set->value("isStealth", isStealth).toBool();
     isAutoReply = set->value("isAutoReply", isAutoReply).toBool();
     autoReplyText = set->value("autoReplyText", autoReplyText).toString();
     autoReplyCooldownSecs = set->value("autoReplyCooldownSecs",
@@ -289,6 +291,7 @@ void Preferences::save()
 
     set->beginGroup("Away");
     set->setValue("isAway", isAway);
+    set->setValue("isStealth", isStealth);
     set->setValue("isAutoReply", isAutoReply);
     set->setValue("autoReplyText", autoReplyText);
     set->setValue("autoReplyCooldownSecs", autoReplyCooldownSecs);

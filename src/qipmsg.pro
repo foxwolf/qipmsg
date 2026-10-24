@@ -63,6 +63,7 @@ HEADERS += \
 	transfer_codec.h \
 	translator.h \
 	owner.h \
+	pinyin.h \
 	sound_thread.h \
 	user_manager.h \
 	transfer_file_window.h \
@@ -120,6 +121,7 @@ SOURCES += \
 	transfer_codec.cpp \
 	translator.cpp \
 	owner.cpp \
+	pinyin.cpp \
 	sound_thread.cpp \
 	user_manager.cpp \
 	transfer_file_window.cpp \

@@ -42,6 +42,8 @@ WindowManager::WindowManager(QObject *parent)
 {
     connect(Global::userManager, SIGNAL(usersChanged()),
             this, SLOT(flushOfflineQueue()));
+    connect(Global::userManager, SIGNAL(usersChanged()),
+            this, SLOT(refreshChatCaptions()));
 }
 
 WindowManager::~WindowManager()
@@ -318,6 +320,17 @@ ChatWindow *WindowManager::ensureChat(const QString &ip)
         w->refreshPeerCaption();
     }
     return w;
+}
+
+void WindowManager::refreshChatCaptions()
+{
+    QMapIterator<QString, ChatWindow *> it(m_chatWindows);
+    while (it.hasNext()) {
+        it.next();
+        if (it.value()) {
+            it.value()->refreshPeerCaption();
+        }
+    }
 }
 
 ChatWindow *WindowManager::openChat(const QString &ip, bool raiseWindow,

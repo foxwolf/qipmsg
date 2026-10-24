@@ -295,8 +295,10 @@ void ChatWindow::createUi()
     QWidget *profileForm = new QWidget;
     profileForm->setObjectName("profileForm");
     QFormLayout *form = new QFormLayout(profileForm);
+    m_profileNick = new QLabel;
     form->setContentsMargins(8, 8, 8, 8);
     form->setLabelAlignment(Qt::AlignLeft);
+    form->addRow(tr("Nickname:"), m_profileNick);
     form->addRow(tr("Host:"), m_profileHost);
     form->addRow(tr("Login:"), m_profileLogin);
     form->addRow(tr("Group:"), m_profileGroup);
@@ -357,6 +359,7 @@ void ChatWindow::refreshProfile()
 {
     const int row = Global::userManager->ipToRow(m_peerIp);
     const QString name = Global::userManager->displayNameForIp(m_peerIp);
+    const QString real = Global::userManager->realNameForIp(m_peerIp);
     const int presence = Global::userManager->presenceForIp(m_peerIp);
     QString status = tr("Offline");
     if (presence == PRESENCE_ONLINE) {
@@ -365,6 +368,7 @@ void ChatWindow::refreshProfile()
         status = tr("Away");
     }
     m_profileName->setText(name);
+    m_profileNick->setText(real.isEmpty() ? QString("-") : real);
     m_profileStatus->setText(status);
     const QString sign = Global::userManager->signatureForIp(m_peerIp);
     m_profileSign->setText(sign.isEmpty() ? tr("No signature") : sign);

@@ -95,6 +95,7 @@ private:
     QLabel *m_headerAvatar;
     QLabel *m_profileAvatar;
     QLabel *m_profileName;
+    QLabel *m_profileNick;
     QLabel *m_profileStatus;
     QLabel *m_profileSign;
     QLabel *m_profileHost;

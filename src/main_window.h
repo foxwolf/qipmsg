@@ -84,6 +84,7 @@ private slots:
     void saveSignature();
     void applyContactFilter(const QString &text);
     void toggleBlacklist();
+    void editPeerMemo();
 
 signals:
     void messageReplyed();
@@ -137,6 +138,7 @@ private:
     QAction *searchUserAct;
     QAction *findHistoryAct;
     QAction *blacklistAct;
+    QAction *setMemoAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;

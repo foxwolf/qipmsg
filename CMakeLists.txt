@@ -38,6 +38,7 @@ set(SOURCES
     src/msg_window.cpp
     src/offline_queue.cpp
     src/owner.cpp
+    src/pinyin.cpp
     src/preferences.cpp
     src/qipmsg.cpp
     src/recv_file.cpp
@@ -97,6 +98,7 @@ set(HEADERS
     src/msg_window.h
     src/offline_queue.h
     src/owner.h
+    src/pinyin.h
     src/preferences.h
     src/qipmsg.h
     src/recv_file.h
