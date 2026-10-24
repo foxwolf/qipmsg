@@ -126,5 +126,14 @@ make
 
 ## Runtime notes
 
-- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings and internal log.
+- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, and **per-peer chat history** in `history/<ip>.jsonl`.
+- Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8.
+- Presence refresh interval and auto-reply live in Preferences (Detail tab + Send/Receive). Tray **Leave → Away / Auto-reply** toggles absence (`BR_ABSENCE`).
 - Translations (`*.qm`) and sounds are embedded via `icons.qrc` and copied by install targets; for portable builds keep `translations/` and `sounds/` next to the executable.
+
+## Trying the 2.1.0 UI
+
+1. Launch `qipmsg`. The user list should fill via `BR_ENTRY` and stay fresh without clicking Refresh.
+2. Double-click a peer to open a chat window. Send with **Ctrl+Enter**. Close the window and double-click again — scrollback should return.
+3. Send a message from another IPMSG/FeiQ client: expect a tray balloon, unread tooltip, and the same chat window to append history.
+4. Enable **Away / Auto-reply** from the tray Leave menu and send another message from a peer; you should see one automatic reply per cooldown.

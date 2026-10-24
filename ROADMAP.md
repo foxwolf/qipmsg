@@ -1,8 +1,8 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-This PR lands the build/cross-platform foundation. Remaining features are ordered by value and implementation risk.
+2.1.0 lands the Feiqiu-like essentials that stay IPMSG-compatible with FeiQ / 飞鸽 peers. Remaining items are ordered by value and risk.
 
-## In this PR (done)
+## In this line of work (done)
 
 - [x] CMake build with Qt6 preferred / Qt5 fallback
 - [x] Remove ALSA, xdg-open, /etc/hostname and other Linux-only dependencies
@@ -10,49 +10,59 @@ This PR lands the build/cross-platform foundation. Remaining features are ordere
 - [x] Cross-platform file/URL opening via `QDesktopServices`
 - [x] Replace Qt4-only APIs (`QRegExp`, `QDirModel`, `qSort`, `toTime_t`, etc.)
 - [x] Document Windows / Linux / macOS build steps in `BUILD.md`
+- [x] Periodic presence refresh (`BR_ENTRY` / `BR_ABSENCE`) with configurable interval
+- [x] Soft-timeout stale peers (grey, then remove after missed refreshes)
+- [x] User list shows nickname, group/部门, host, IP, and status
+- [x] Persistent per-peer chat window (reopen keeps scrollback)
+- [x] Local message history under `~/.qipmsg/history/` (`%USERPROFILE%\.qipmsg\history\`)
+- [x] GBK default transfer codec with decode fallbacks (GBK / GB2312 / UTF-8)
+- [x] Tray balloon on new text + unread count in tooltip
+- [x] Away / auto-reply prefs, cooldown, tray Leave menu, and `BR_ABSENCE`
 
-## Next: Feiqiu-like essentials (high value, low/medium risk)
+## Next: still high value
 
-1. **Stable user list / presence**
-   - Heartbeat/refresh to keep peer list alive across subnets
-   - Preserve user list across restarts
-
-2. **Improved chat UX**
-   - Persistent chat window per peer (currently opens a new send window each time)
-   - Multi-recipient send hardening (already supported, test with real peers)
-   - Basic message history view / searchable log viewer
-
-3. **File & folder transfer hardening**
-   - Resume interrupted transfers
+1. **File & folder transfer hardening**
+   - Resume interrupted transfers (`resumefile.db`-style offset store)
    - Better progress reporting for directory trees
    - Drag-and-drop already exists; verify on Windows/macOS
 
-4. **Cross-platform tray + notifications**
-   - Native OS notifications where available
-   - Unread message badge / tray tooltip
+2. **User list persistence across restarts**
+   - Restore last-seen peers (offline/grey) before the next refresh cycle
 
-5. **Encoding robustness**
-   - Auto-detect GBK vs UTF-8 from peers
-   - Default to GBK/GB2312 for Feiqiu compatibility
+3. **Searchable history viewer**
+   - Chat scrollback is in; a global log search UI is not
 
-## Later: nice-to-have features
+## Later / out of scope for 2.1.0
 
-6. **Auto-reply / away status**
-   - IPMSG `BR_ABSENCE` / `GETABSENCEINFO` support
+4. **Screenshot tool** (FeiQ screen capture)
 
-7. **Group chat / chat rooms**
-   - Broadcast group messages via multicast
-
-8. **Message encryption / signatures**
+5. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY`/`ANSPUBKEY`)
 
-9. **Modern packaging**
-   - NSIS installer for Windows
-   - `.app` bundle + DMG for macOS
-   - Flatpak / AppImage / DEB / RPM for Linux
+6. **Custom emoji / face packs**
 
-10. **UI refresh**
+7. **FeiQ plugin system**
+
+8. **File-share / public folder server**
+
+9. **Group chat / chat rooms**
+   - Broadcast group messages via multicast
+
+10. **Modern packaging**
+    - NSIS installer for Windows
+    - `.app` bundle + DMG for macOS
+    - Flatpak / AppImage / DEB / RPM for Linux
+
+11. **UI refresh**
     - Modern stylesheet, dark/light theme, high-DPI support
+
+## How to try 2.1.0
+
+1. Start QIpMsg. The user list refreshes on a timer (default 30s). Peers that miss several cycles turn grey (`Stale`) and are removed after twice that.
+2. Double-click a user (or right-click **Open chat**) for a reusable chat window. Close and reopen it — history comes from `~/.qipmsg/history/<ip>.jsonl`.
+3. Preferences → Detail/Log: AutoRefresh interval, stale miss count, tray notify, transfer codec (GBK default, UTF-8 optional).
+4. Preferences or tray **Leave → Away / Auto-reply**: toggle away, set reply text and cooldown. Incoming `SENDMSG` gets one auto-reply per peer per cooldown (`IPMSG_AUTORETOPT`). Away announces `BR_ABSENCE`.
+5. New text shows a tray balloon; the tooltip includes unread count. Click the tray icon to raise hidden chats.
 
 ## Want to help?
 
