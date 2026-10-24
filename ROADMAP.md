@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.2.0 lands the next FeiQ / 飞鸽-compatible essentials (file resume, last-seen peers, history Find, window shake, screenshot, personal signature). Remaining items stay deferred.
+2.2.1 lands the next FeiQ / 飞鸽-compatible essentials (file resume, last-seen peers, history Find, window shake, screenshot, personal signature) and a complete Simplified Chinese UI (`zh_CN` by default). Remaining items stay deferred.
 
 ## In this line of work (done)
 
@@ -26,8 +26,9 @@
 - [x] Screen shake (`#@#shake#@#` and common FeiQ-tolerated tokens)
 - [x] Qt screenshot (full screen / region) sent as a PNG file attachment
 - [x] Personal signature announced as a third NUL field after nickname/group
+- [x] Full Simplified Chinese UI (`qipmsg_zh_CN`), loaded by default
 
-## Later / out of scope for 2.2.0
+## Later / out of scope for 2.2.1
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
@@ -43,7 +44,7 @@
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.2.0
+## How to try 2.2.1
 
 1. Start QIpMsg. Last-seen peers from `~/.qipmsg/peers.json` appear grey (`Stale`) until the next `BR_ENTRY` / `ANSENTRY` refresh.
 2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).

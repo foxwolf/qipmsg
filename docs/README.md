@@ -2,7 +2,7 @@
 
 QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户端，兼容飞秋（Feiqiu / FeiQ）等同类局域网通讯工具。
 
-当前版本：**2.2.0**
+当前版本：**2.2.1**
 
 ## 特性
 
@@ -16,10 +16,11 @@ QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户�
 - 系统托盘、未读计数与气泡通知
 - 离开 / 自动回复（冷却、BR_ABSENCE）
 - GBK 默认传输编码，可切换 UTF-8；解码失败时回退
+- 界面默认简体中文（嵌入 `qipmsg_zh_CN.qm`；中文系统语言优先，其它环境回退中文）
 
-## 试用 2.2.0
+## 试用 2.2.1
 
-1. 启动后会先从 `~/.qipmsg/peers.json` 列出上次用户（灰色 / Stale），再按「自动刷新」广播 `BR_ENTRY`（离开时为 `BR_ABSENCE`）。在线应答后恢复正常颜色。
+1. 启动后界面为简体中文。会先从 `~/.qipmsg/peers.json` 列出上次用户（灰色 / 离线），再按「自动刷新」广播 `BR_ENTRY`（离开时为 `BR_ABSENCE`）。在线应答后恢复正常颜色。
 2. 在用户列表中**双击**某用户（或右键「打开会话」）打开持久聊天窗口。关闭后再打开会从 `~/.qipmsg/history/`（Windows：`%USERPROFILE%\.qipmsg\history\`）载入记录。`Ctrl+Enter` 发送。
 3. 聊天工具栏：**抖动**、**截图**（全屏 `Ctrl+Shift+S` / 框选 `Ctrl+Shift+A`）、**附件**、**查找**（`Ctrl+F`）。文件/文件夹可直接拖到聊天窗口。
 4. 托盘或会话「查找历史」搜索全部 `history/*.jsonl`。
