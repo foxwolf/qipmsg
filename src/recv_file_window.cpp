@@ -16,10 +16,12 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
 #include "recv_file_window.h"
 #include "constants.h"
 #include "global.h"
+#include "helper.h"
 #include "preferences.h"
 #include "sizecolumndelegate.h"
 #include "recvfilesortfilterproxymodel.h"
@@ -171,7 +173,7 @@ void RecvFileWindow::createRecvFileView()
 
     recvFileView->setSortingEnabled(false);
     recvFileView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    recvFileView->horizontalHeader()->setMovable(false);
+    recvFileView->horizontalHeader()->setSectionsMovable(false);
     recvFileView->verticalHeader()->hide();
     recvFileView->setSelectionBehavior(QAbstractItemView::SelectRows);
     recvFileView->setTabKeyNavigation(false);
@@ -192,9 +194,10 @@ void RecvFileWindow::createRecvFileView()
     QFontMetrics fm = fontMetrics();
     QHeaderView *header = recvFileView->horizontalHeader();
     header->resizeSection(RECV_FILE_VIEW_NAME_POS,
-            fm.width(tr("normal-length-of-a-file-name.file")));
+            Helper::fontTextWidth(fm, tr("normal-length-of-a-file-name.file")));
     header->resizeSection(RECV_FILE_VIEW_SIZE_POS,
-            qMax(fm.width(tr("Size")), fm.width(" 1000000 KB ")));
+            qMax(Helper::fontTextWidth(fm, tr("Size")),
+                 Helper::fontTextWidth(fm, " 1000000 KB ")));
 }
 
 void RecvFileWindow::selectAll()

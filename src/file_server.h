@@ -30,7 +30,7 @@ public:
 private slots:
 
 protected:
-    void incomingConnection(int socketDescriptor);
+    void incomingConnection(qintptr socketDescriptor) override;
 
 private:
     void startListening();

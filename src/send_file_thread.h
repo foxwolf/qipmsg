@@ -25,7 +25,7 @@ class SendFileThread : public QThread
     Q_OBJECT
 
 public:
-    SendFileThread(int socketDescriptor, QObject *parent = 0);
+    SendFileThread(qintptr socketDescriptor, QObject *parent = 0);
 
     void run();
 
@@ -39,7 +39,7 @@ private slots:
 #endif
 
 private:
-    int m_socketDescriptor;
+    qintptr m_socketDescriptor;
 };
 
 #endif // !SEND_FILE_THREAD_H

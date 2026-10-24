@@ -20,6 +20,7 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
 MsgReadedWindow::MsgReadedWindow(QString nickName)
 {

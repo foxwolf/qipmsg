@@ -34,7 +34,7 @@ public:
         RetParentBlockMode
     };
 
-    ServeSocket(int socketDescriptor, QObject *parent = 0);
+    ServeSocket(qintptr socketDescriptor, QObject *parent = 0);
     ~ServeSocket();
 
     bool startSendFile();
@@ -51,7 +51,7 @@ private:
 
     QString m_errorString;
     QString m_packetNoString;
-    int     m_sockfd;
+    qintptr m_sockfd;
 };
 
 #endif // !SERVE_SOCKET_H

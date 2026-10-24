@@ -17,30 +17,22 @@
 #ifndef SOUND_THREAD_H
 #define SOUND_THREAD_H
 
-#include <QThread>
-#include <QMutex>
-#include <QWaitCondition>
+#include <QObject>
+#include <QSoundEffect>
+#include <QUrl>
 
-class SoundThread : public QThread
+class SoundThread : public QObject
 {
     Q_OBJECT
 
 public:
-    SoundThread(QObject *parent = 0)
-        : QThread(parent), abort(false) {}
+    SoundThread(QObject *parent = 0);
     ~SoundThread();
 
-    void play(QString);
-
-protected:
-    void run();
+    void play(QString path);
 
 private:
-    QString m_soundFile;
-    QMutex m_mutex;
-    QWaitCondition condition;
-    bool abort;
+    QSoundEffect *m_effect;
 };
 
 #endif // !SOUND_THREAD_H
-

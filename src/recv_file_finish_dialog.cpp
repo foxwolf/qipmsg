@@ -16,6 +16,9 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
+#include <QDesktopServices>
+#include <QUrl>
 
 #include "recv_file_finish_dialog.h"
 #include "global.h"
@@ -87,16 +90,9 @@ void RecvFileFinishDialog::createConnections()
 
 void RecvFileFinishDialog::openFile()
 {
-    // XXX NOTE: Qt use 'xdg-open' to open url, but 'xdg-open' not work
-    // properly, so we use the 'qipmsg-xdg-open' to open url. 'qipmsg-xdg-open'
-    // use gvfs-open to open url if gvfs-open exist.
     QString filePath = m_recvFileMap->saveFilePath() + "/"
         + m_recvFileMap->currentFile()->name();
-    QProcess process;
-    process.closeReadChannel(QProcess::StandardOutput);
-    process.closeReadChannel(QProcess::StandardError);
-    process.startDetached(Helper::openUrlProgram(),
-            QStringList() << filePath);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
 
     close();
 }
@@ -111,9 +107,7 @@ void RecvFileFinishDialog::openDir()
     } else {
         filePath = m_recvFileMap->saveFilePath();
     }
-    QProcess process;
-    process.startDetached(Helper::openUrlProgram(),
-            QStringList() << filePath);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
 
     close();
 }

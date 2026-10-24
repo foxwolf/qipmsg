@@ -18,6 +18,7 @@
 #define RECV_FILE_MAP_H
 
 #include "recv_file_handle.h"
+#include "helper.h"
 
 #include <QDateTime>
 #include <QTimer>
@@ -69,7 +70,8 @@ public:
     void setEndTime() { m_end = QDateTime::currentDateTime(); }
 
     quint32 elapse() const {
-        return qMax(m_end.toTime_t() - m_begin.toTime_t(), (quint32)1);
+        return qMax(static_cast<quint32>(Helper::dateTimeToSecsSinceEpoch(m_end)
+                    - Helper::dateTimeToSecsSinceEpoch(m_begin)), 1U);
     }
 
     double totalTransferRateAvg() const {

@@ -1,12 +1,14 @@
 TEMPLATE = app
 
-CONFIG += qt warn_on release
+CONFIG += qt warn_on release c++17
 
-QT += network
-LIBS += -lasound
+QT += network widgets multimedia
+
+greaterThan(QT_MAJOR_VERSION, 5) {
+    QT += core5compat
+}
 
 RESOURCES = icons.qrc
-
 
 HEADERS += \
 	about_dialog.h \
@@ -54,7 +56,6 @@ HEADERS += \
 	transfer_codec.h \
 	translator.h \
 	owner.h \
-	sound.h \
 	sound_thread.h \
 	user_manager.h \
 	transfer_file_window.h \
@@ -105,7 +106,6 @@ SOURCES += \
 	transfer_codec.cpp \
 	translator.cpp \
 	owner.cpp \
-	sound.cpp \
 	sound_thread.cpp \
 	user_manager.cpp \
 	transfer_file_window.cpp \
@@ -127,5 +127,5 @@ unix {
 }
 
 win32 {
+  LIBS += -lws2_32
 }
-

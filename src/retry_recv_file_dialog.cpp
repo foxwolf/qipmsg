@@ -16,6 +16,7 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
 
 #include "retry_recv_file_dialog.h"
 #include "constants.h"

@@ -16,6 +16,7 @@
 
 #include <QtGui>
 #include <QtCore>
+#include <QtWidgets>
 #include <QtDebug>
 #include <QtGlobal>
 
@@ -355,7 +356,7 @@ void MsgWindow::logRecvMsg()
     log.append(m_msg->additionalInfo());
     log.append("\n\n");
 
-    ts << log << flush;
+    ts << log << Qt::flush;
 }
 
 void MsgWindow::updateFileCount()
@@ -378,7 +379,7 @@ void MsgWindow::initRecvFileInfo()
     qDebug() << "MsgWindow::initRecvFileInfo";
 
     QStringList infoList = m_msg->extendedInfo().split(QChar('\a'),
-            QString::SkipEmptyParts);
+            Qt::SkipEmptyParts);
     foreach (QString info, infoList) {
         info.replace(QString(FILE_NAME_BEFORE), QString(FILE_NAME_ESCAPE));
         QStringList l = info.split(QChar(COMMAND_SEPERATOR));

@@ -16,8 +16,10 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
-#include <unistd.h>     // For usleep()
+#include <QRandomGenerator>
+#include <QThread>
 
 #include "qipmsg.h"
 #include "helper.h"
@@ -32,14 +34,15 @@
 #include "constants.h"
 
 static void createHomeDirectory();
-static void myMessageOutput(QtMsgType type, const char *msg);
+static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
+                            const QString &msg);
 static void checkTcpServerError();
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    qInstallMsgHandler(myMessageOutput);
+    qInstallMessageHandler(myMessageOutput);
 
     qRegisterMetaType<Msg>("Msg");
     qRegisterMetaType<QAbstractSocket::SocketError>("QAbstractSocket::SocketError");
@@ -61,10 +64,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // Set seed value.
-    qsrand(QTime(0, 0, 0).secsTo(QTime::currentTime()));
     // Set init package number as random.
-    Helper::setPacketNo(qrand() % 1024);
+    Helper::setPacketNo(QRandomGenerator::global()->bounded(1024));
 
     // XXX TODO: language can be selected.
     // Auto detect language.
@@ -78,7 +79,7 @@ int main(int argc, char *argv[])
     Global::msgThread->start();
     // this make sure thead started
     while (!Global::msgThread->isRunning()) {
-        usleep(200000);
+        QThread::msleep(200);
     }
 
     Global::userManager->broadcastEntry();
@@ -105,9 +106,11 @@ static void createHomeDirectory()
     }
 }
 
-static void myMessageOutput(QtMsgType type, const char *msg) {
-    QString line = "[" + QTime::currentTime().toString() + "] " +
-        QString::fromUtf8(msg);
+static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
+                            const QString &msg) {
+    Q_UNUSED(context)
+
+    QString line = "[" + QTime::currentTime().toString() + "] " + msg;
 
     switch (type) {
         case QtDebugMsg:
@@ -122,17 +125,23 @@ static void myMessageOutput(QtMsgType type, const char *msg) {
 #endif
             Helper::writeInternalLog("WARNING: " + line);
             break;
+        case QtCriticalMsg:
+#ifndef NO_DEBUG_ON_CONSOLE
+            fprintf(stderr, "Critical: %s\n", line.toLocal8Bit().data());
+#endif
+            Helper::writeInternalLog("CRITICAL: " + line);
+            break;
         case QtFatalMsg:
 #ifndef NO_DEBUG_ON_CONSOLE
             fprintf(stderr, "Fatal: %s\n", line.toLocal8Bit().data());
 #endif
             Helper::writeInternalLog("FATAL: " + line);
             abort();                    // deliberately core dump
-        case QtCriticalMsg:
+        case QtInfoMsg:
 #ifndef NO_DEBUG_ON_CONSOLE
-            fprintf(stderr, "Critical: %s\n", line.toLocal8Bit().data());
+            fprintf(stderr, "Info: %s\n", line.toLocal8Bit().data());
 #endif
-            Helper::writeInternalLog("CRITICAL: " + line);
+            Helper::writeInternalLog("INFO: " + line);
             break;
     }
 }

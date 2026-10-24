@@ -20,7 +20,7 @@
 #include <QDialog>
 #include <QFileInfo>
 
-class QDirModel;
+class QFileSystemModel;
 class QTreeView;
 class QItemSelectionModel;
 class QPushButton;
@@ -51,7 +51,7 @@ private:
     bool isFileExist(QFileInfo fileInfo);
     void expandTree();
 
-    QDirModel *model;
+    QFileSystemModel *model;
     QTreeView *tree;
     QItemSelectionModel *selectionModel;
     QPushButton *okButton;

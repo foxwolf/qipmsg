@@ -18,7 +18,11 @@
 #include <QFile>
 #include <QDir>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QTextStream>
+#include <QSysInfo>
+#include <QRegularExpression>
+#include <QtGlobal>
 
 #include "helper.h"
 #include "constants.h"
@@ -82,25 +86,29 @@ QString Helper::iniPath()
 
 QString Helper::loginName()
 {
-    return getEnvironmentVariable(QRegExp("LOGNAME.*"));
+    const QRegularExpression::PatternOptions opts
+        = QRegularExpression::CaseInsensitiveOption;
+    QString name = getEnvironmentVariable(QRegularExpression("^LOGNAME$", opts));
+    if (name.isEmpty()) {
+        name = getEnvironmentVariable(QRegularExpression("^USER$", opts));
+    }
+    if (name.isEmpty()) {
+        name = getEnvironmentVariable(QRegularExpression("^USERNAME$", opts));
+    }
+    return name;
 }
 
 QString Helper::hostname()
 {
-    QString name = getEnvironmentVariable(QRegExp("HOSTNAME.*"));
+    QString name = getEnvironmentVariable(QRegularExpression("^HOSTNAME$"));
 
-    // if no HOSTNAME environment variable is set, read it from /etc/hostname,
-    // for distribution like ubuntu.
+    // QSysInfo::machineHostName() works across Windows / Linux / macOS.
     if (name.isEmpty()) {
-        QFile file("/etc/hostname");
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            name.append(file.readLine());
-            name.remove(QChar('\n'));
-        }
+        name = QSysInfo::machineHostName();
     }
 
     if (name.isEmpty()) {
-        name = QObject::tr("Unkown hostname");
+        name = QObject::tr("Unknown hostname");
     }
 
     return name;
@@ -122,22 +130,23 @@ QString Helper::translationPath()
 
 QString Helper::qtTranslationPath()
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+#else
     return QLibraryInfo::location(QLibraryInfo::TranslationsPath);
+#endif
 }
 
-QString Helper::getEnvironmentVariable(QRegExp regExp)
+QString Helper::getEnvironmentVariable(const QRegularExpression &regExp)
 {
-    QStringList environment = QProcess::systemEnvironment();
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    QStringList keys = env.keys().filter(regExp);
 
-    int index = environment.indexOf(regExp);
-    if (index != -1) {
-        QStringList sl = environment.at(index).split("=");
-        if (sl.size() == 2) {
-            return sl.at(1).toUtf8();
-        }
+    if (!keys.isEmpty()) {
+        return env.value(keys.first());
     }
 
-    return QString("");
+    return QString();
 }
 
 void Helper::setPacketNo(qint64 n)
@@ -175,7 +184,11 @@ void Helper::writeInternalLog(QString line)
     openInternalLogFile();
     QTextStream ts(&m_internalLogFile);
 
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    ts << line << Qt::endl;
+#else
     ts << line << endl;
+#endif
 }
 
 QString Helper::soundPath()
@@ -189,15 +202,6 @@ QString Helper::soundPath()
     }
 #else
     return m_appPath + "/sounds";
-#endif
-}
-
-QString Helper::openUrlProgram()
-{
-#if 0
-    return appPath() + "/qipmsg-xdg-open";
-#else
-    return "xdg-open";
 #endif
 }
 
@@ -239,5 +243,23 @@ QString Helper::secondStringUnit(int second)
 
     // this should never be reached
     return QString();
+}
+
+qint64 Helper::dateTimeToSecsSinceEpoch(const QDateTime &dt)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    return dt.toSecsSinceEpoch();
+#else
+    return dt.toTime_t();
+#endif
+}
+
+int Helper::fontTextWidth(const QFontMetrics &fm, const QString &text)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
+    return fm.horizontalAdvance(text);
+#else
+    return fm.width(text);
+#endif
 }
 

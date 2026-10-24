@@ -21,6 +21,8 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
+#include <QScreen>
 
 static QString contr(const QString &author, const QString &thing);
 static QString trad(const QString &lang, const QString &author);
@@ -51,7 +53,7 @@ AboutDialog::AboutDialog(QWidget *parent)
     adjustSize();
 
     // Put the dialog in the middle of screen
-    QRect rect(QApplication::desktop()->screenGeometry());
+    QRect rect = QGuiApplication::primaryScreen()->geometry();
     move((rect.width() - width()) / 2, (rect.height() - height()) / 2);
 }
 

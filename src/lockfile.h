@@ -19,6 +19,8 @@
 
 #include <QString>
 #include <QObject>
+#include <QLockFile>
+#include <QScopedPointer>
 
 class LockFile : public QObject
 {
@@ -34,9 +36,8 @@ public:
     bool lock();
 
 private:
-    int lockfile(int fd);
     QString fileName;
+    QScopedPointer<QLockFile> m_lockFile;
 };
 
 #endif // !LOCKFILE_H
-

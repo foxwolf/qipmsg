@@ -27,8 +27,11 @@
 #include <QDir>
 #include <QTextCodec>
 
-#include <sys/types.h>
+#ifdef Q_OS_WIN
+#include <sys/utime.h>
+#else
 #include <utime.h>
+#endif
 
 struct TransferFile
 {

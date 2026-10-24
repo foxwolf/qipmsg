@@ -16,11 +16,13 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <QtWidgets>
 
 #include "send_file_window.h"
 #include "dir_dialog.h"
 #include "send_file_model.h"
 #include "constants.h"
+#include "helper.h"
 #include "sizecolumndelegate.h"
 #include "global.h"
 #include "preferences.h"
@@ -59,7 +61,7 @@ void SendFileWindow::createSendFileView(SendFileModel *sendFileModel)
 
     sendFileView->setSortingEnabled(false);
     sendFileView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    sendFileView->horizontalHeader()->setMovable(false);
+    sendFileView->horizontalHeader()->setSectionsMovable(false);
     sendFileView->verticalHeader()->hide();
     sendFileView->setSelectionBehavior(QAbstractItemView::SelectRows);
     sendFileView->setTabKeyNavigation(false);
@@ -78,11 +80,12 @@ void SendFileWindow::createSendFileView(SendFileModel *sendFileModel)
     QFontMetrics fm = fontMetrics();
     QHeaderView *header = sendFileView->horizontalHeader();
     header->resizeSection(SEND_FILE_VIEW_NAME_POS,
-            fm.width(tr("normal-length-of-a-file-name")));
+            Helper::fontTextWidth(fm, tr("normal-length-of-a-file-name")));
     header->resizeSection(SEND_FILE_VIEW_SIZE_POS,
-            qMax(fm.width(tr("Size")), fm.width(" 10000 KB ")));
+            qMax(Helper::fontTextWidth(fm, tr("Size")),
+                 Helper::fontTextWidth(fm, " 10000 KB ")));
     header->resizeSection(SEND_FILE_VIEW_LOCATION_POS,
-            fm.width(tr("/normal/path/of/a/directory/")));
+            Helper::fontTextWidth(fm, tr("/normal/path/of/a/directory/")));
 }
 
 void SendFileWindow::createButtonLayout()

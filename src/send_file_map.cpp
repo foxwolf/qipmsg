@@ -53,7 +53,7 @@ QString SendFileMap::packetString() const
         s.append(COMMAND_SEPERATOR);
         s.append(QString("%1").arg(h->size(), 2, 16, QChar('0')));
         s.append(COMMAND_SEPERATOR);
-        s.append(QString("%1").arg(h->lastModified().toTime_t(),
+        s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(h->lastModified()),
                     0, 16));
         s.append(COMMAND_SEPERATOR);
         if (h->isFile()) {
@@ -63,10 +63,10 @@ QString SendFileMap::packetString() const
         }
         s.append(COMMAND_SEPERATOR);
         s.append(QString("%1=").arg(IPMSG_FILE_MTIME, 0, 16));
-        s.append(QString("%1").arg(h->lastModified().toTime_t(), 0, 16));
+        s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(h->lastModified()), 0, 16));
         s.append(COMMAND_SEPERATOR);
         s.append(QString("%1=").arg(IPMSG_FILE_CREATETIME, 0, 16));
-        s.append(QString("%1").arg(h->created().toTime_t(), 0, 16));
+        s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(h->created()), 0, 16));
         s.append(COMMAND_SEPERATOR);
         s.append(FILELIST_SEPARATOR);
 
