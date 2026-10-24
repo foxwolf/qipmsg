@@ -32,8 +32,8 @@ MsgThread::~MsgThread()
 {
     m_msgServer->processSendMsg();
 
-    exit(0);
-    wait();
+    QThread::exit(0);
+    QThread::wait();
 }
 
 void MsgThread::run()
@@ -58,7 +58,7 @@ void MsgThread::run()
 
     m_msgServer->start();
 
-    exec();
+    QThread::exec();
 }
 
 void MsgThread::addSendMsg(Msg msg)

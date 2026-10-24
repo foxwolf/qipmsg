@@ -103,7 +103,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
-    if (m_tcpSocket.waitForBytesWritten(3000) == -1) {
+    if (!m_tcpSocket.waitForBytesWritten(3000)) {
         m_errorString = m_tcpSocket.errorString();
         return false;
     }
@@ -222,7 +222,7 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
-    if (m_tcpSocket.waitForBytesWritten(3000) == -1) {
+    if (!m_tcpSocket.waitForBytesWritten(3000)) {
         m_errorString = m_tcpSocket.errorString();
         return false;
     }

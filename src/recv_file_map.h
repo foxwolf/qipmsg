@@ -21,6 +21,7 @@
 #include "helper.h"
 
 #include <QDateTime>
+#include <QMap>
 #include <QTimer>
 
 class RecvFileMap

@@ -19,8 +19,10 @@
 
 #include "msg.h"
 
-#include <QThread>
+#include <QAbstractSocket>
+#include <QMap>
 #include <QMutex>
+#include <QThread>
 
 class MsgServer;
 
