@@ -126,7 +126,7 @@ QString SendFileModel::sizeString(QFileInfo &fileInfo) const
 {
     QString s;
     if (fileInfo.isDir()) {
-        s = "Folder";
+        s = tr("Folder");
     } else {
         s = QString("%1").arg(Helper::sizeStringUnit(fileInfo.size(), " "));
     }

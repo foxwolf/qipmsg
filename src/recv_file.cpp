@@ -57,7 +57,7 @@ RecvFile::~RecvFile()
 QString RecvFile::sizeString() const
 {
     if (m_type == IPMSG_FILE_DIR) {
-        return QString("Folder");
+        return QObject::tr("Folder");
     }
 
     return QString("%1").arg(Helper::sizeStringUnit(m_size, " "));

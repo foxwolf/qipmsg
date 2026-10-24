@@ -11,6 +11,7 @@ src/Makefile
 src/qipmsg
 src/.qmake_build/
 *.qm
+!src/translations/*.qm
 
 # IDE
 .idea/

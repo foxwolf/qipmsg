@@ -15,7 +15,10 @@
 //
 
 #include <QApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QLocale>
+#include <QSet>
 
 #include "translator.h"
 #include "helper.h"
@@ -27,6 +30,7 @@ Translator::Translator()
 {
     qApp->installTranslator(&appTrans_);
     qApp->installTranslator(&qtTrans_);
+    qApp->installTranslator(&qtBaseTrans_);
 }
 
 Translator* Translator::instance()
@@ -50,26 +54,96 @@ bool Translator::loadCatalog(QTranslator &t, QString name, QString locale,
     return r;
 }
 
+QStringList Translator::catalogDirs() const
+{
+    QStringList dirs;
+    dirs << QString(":/translations");
+    const QString configured = Helper::translationPath();
+    if (!configured.isEmpty()) {
+        dirs << configured;
+    }
+    if (!Helper::appPath().isEmpty()) {
+        dirs << Helper::appPath() + "/translations";
+        dirs << Helper::appPath();
+    }
+    dirs << QDir::currentPath() + "/translations";
+    dirs << QDir::currentPath();
+
+    QStringList unique;
+    QSet<QString> seen;
+    foreach (const QString &dir, dirs) {
+        if (dir.isEmpty() || seen.contains(dir)) {
+            continue;
+        }
+        seen.insert(dir);
+        unique << dir;
+    }
+    return unique;
+}
+
+QStringList Translator::localeCandidates(const QString &requested) const
+{
+    QStringList locales;
+    if (!requested.isEmpty()) {
+        locales << requested;
+        const int under = requested.indexOf('_');
+        if (under > 0) {
+            locales << requested.left(under);
+        }
+    }
+    // Product default: Simplified Chinese UI.
+    locales << "zh_CN" << "zh";
+
+    QStringList unique;
+    foreach (const QString &locale, locales) {
+        if (!locale.isEmpty() && !unique.contains(locale)) {
+            unique << locale;
+        }
+    }
+    return unique;
+}
+
 void Translator::load(QString locale)
 {
     if (locale.isEmpty()) {
-        locale = QLocale::system().name();
+        const QString sys = QLocale::system().name();
+        if (sys.startsWith(QLatin1String("zh"))) {
+            locale = sys;
+        } else {
+            locale = QString("zh_CN");
+        }
     }
 
-    QString appTransPath = Helper::translationPath();
-    QString qtTransPath = Helper::qtTranslationPath();
+    const QStringList dirs = catalogDirs();
+    const QStringList locales = localeCandidates(locale);
 
-#ifdef Q_OS_WIN
-    // In windows try to load the qt translation from the app path, as
-    // most users won't have Qt installed.
-    loadCatalog(qtTrans_, "qt", locale, appTransPath );
-#else
-    // In linux try to load it first from app path (in case there's an updated
-    // translation), if it fails it will try then from the Qt path.
-    if (! loadCatalog(qtTrans_, "qt", locale, appTransPath ) ) {
-        loadCatalog(qtTrans_, "qt", locale, qtTransPath);
+    QStringList qtDirs = dirs;
+    qtDirs << Helper::qtTranslationPath();
+
+    bool qtLoaded = false;
+    bool qtBaseLoaded = false;
+    foreach (const QString &loc, locales) {
+        foreach (const QString &dir, qtDirs) {
+            if (!qtLoaded && loadCatalog(qtTrans_, "qt", loc, dir)) {
+                qtLoaded = true;
+            }
+            if (!qtBaseLoaded && loadCatalog(qtBaseTrans_, "qtbase", loc, dir)) {
+                qtBaseLoaded = true;
+            }
+            if (qtLoaded && qtBaseLoaded) {
+                break;
+            }
+        }
+        if (qtLoaded && qtBaseLoaded) {
+            break;
+        }
     }
-#endif
-    loadCatalog(appTrans_, PROGRAM, locale, appTransPath);
+
+    foreach (const QString &loc, locales) {
+        foreach (const QString &dir, dirs) {
+            if (loadCatalog(appTrans_, PROGRAM, loc, dir)) {
+                return;
+            }
+        }
+    }
 }
-

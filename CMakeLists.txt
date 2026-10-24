@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.2.0 LANGUAGES CXX)
+project(qipmsg VERSION 2.2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -169,6 +169,14 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS qipmsg RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${QM_FILES} DESTINATION ${CMAKE_INSTALL_DATADIR}/qipmsg/translations)
+
+add_custom_command(TARGET qipmsg POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:qipmsg>/translations"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${QM_FILES}
+            "$<TARGET_FILE_DIR:qipmsg>/translations"
+    COMMENT "Copy zh_CN catalog next to the executable")
 install(DIRECTORY src/icons   DESTINATION ${CMAKE_INSTALL_DATADIR}/qipmsg)
 install(DIRECTORY src/sounds  DESTINATION ${CMAKE_INSTALL_DATADIR}/qipmsg)
 

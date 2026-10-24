@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>icons/qipmsg.xpm</file>
         <file>icons/qipmsg_recv.xpm</file>
+        <file>translations/qipmsg_zh_CN.qm</file>
     </qresource>
 </RCC>
