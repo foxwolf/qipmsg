@@ -386,6 +386,12 @@ int UserManager::presenceForIp(const QString &ip) const
     return row == -1 ? PRESENCE_STALE : presence(row);
 }
 
+bool UserManager::isReachable(const QString &ip) const
+{
+    const int p = presenceForIp(ip);
+    return p == PRESENCE_ONLINE || p == PRESENCE_AWAY;
+}
+
 int UserManager::onlineCount() const
 {
     int count = 0;

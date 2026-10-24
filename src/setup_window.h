@@ -211,6 +211,7 @@ private:
     QCheckBox *noSoundAlarm;
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
+    QCheckBox *offlineQueueCheck;
     QCheckBox *awayCheck;
     QCheckBox *stealthCheck;
     QCheckBox *autoReplyCheck;

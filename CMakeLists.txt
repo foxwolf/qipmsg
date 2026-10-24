@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.5.0 LANGUAGES CXX)
+project(qipmsg VERSION 2.5.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,6 +36,7 @@ set(SOURCES
     src/msg_server.cpp
     src/msg_thread.cpp
     src/msg_window.cpp
+    src/offline_queue.cpp
     src/owner.cpp
     src/pinyin.cpp
     src/preferences.cpp
@@ -95,6 +96,7 @@ set(HEADERS
     src/msg_server.h
     src/msg_thread.h
     src/msg_window.h
+    src/offline_queue.h
     src/owner.h
     src/pinyin.h
     src/preferences.h

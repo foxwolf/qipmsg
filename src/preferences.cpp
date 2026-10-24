@@ -91,6 +91,7 @@ void Preferences::reset()
     isNoPopupWhenAway = true;
 
     isTrayNotify = true;
+    isOfflineQueue = true;
 
     isResumeTransFile = true;
     isAutoRecvFile = false;
@@ -186,6 +187,7 @@ void Preferences::load()
     staleMissedRefreshCount = set->value("staleMissedRefreshCount",
                                          staleMissedRefreshCount).toInt();
     isTrayNotify = set->value("isTrayNotify", isTrayNotify).toBool();
+    isOfflineQueue = set->value("isOfflineQueue", isOfflineQueue).toBool();
     set->endGroup();
 
     set->beginGroup("Away");
@@ -284,6 +286,7 @@ void Preferences::save()
     set->setValue("autoRefreshSeconds", autoRefreshSeconds);
     set->setValue("staleMissedRefreshCount", staleMissedRefreshCount);
     set->setValue("isTrayNotify", isTrayNotify);
+    set->setValue("isOfflineQueue", isOfflineQueue);
     set->endGroup();
 
     set->beginGroup("Away");

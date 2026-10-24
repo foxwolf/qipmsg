@@ -17,6 +17,7 @@
 #include <QtGui>
 #include <QtCore>
 #include <QtWidgets>
+#include <QMessageBox>
 #include <algorithm>
 #include <QHostAddress>
 #include <QInputDialog>
@@ -699,7 +700,24 @@ void MainWindow::sendMessage()
         flags |= IPMSG_MULTICASTOPT;
     }
 
+    int queuedCount = 0;
+    bool warnedFiles = false;
     foreach (const QString &ip, ips) {
+        if (!Global::userManager->isReachable(ip)) {
+            if (hasSendFile() && !warnedFiles) {
+                QMessageBox::information(this, tr("Offline queue"),
+                        tr("File attachments cannot be queued (no transfer server). "
+                           "Text will be queued for offline peers."));
+                warnedFiles = true;
+            }
+            const QString body = inputEdit->toPlainText();
+            if (!body.trimmed().isEmpty()
+                    && Global::windowManager->queueOrDeliverText(ip, body, this)) {
+                ++queuedCount;
+            }
+            continue;
+        }
+
         const int row = Global::userManager->ipToRow(ip);
         QString recvUser = Global::userManager->displayNameForIp(ip);
         QString recvHostname = row != -1 ? Global::userManager->host(row)
@@ -738,6 +756,12 @@ void MainWindow::sendMessage()
         }
 
         Global::msgThread->addSendMsg(Msg(sendMsg));
+    }
+
+    if (queuedCount > 0) {
+        QMessageBox::information(this, tr("Offline queue"),
+                tr("%n message(s) queued and will send when the peer comes online.",
+                   "", queuedCount));
     }
 
     emit messageReplyed();

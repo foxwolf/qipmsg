@@ -22,6 +22,8 @@
 #include <QMap>
 #include <QObject>
 
+class QWidget;
+
 #include "owner.h"
 #include "msg.h"
 
@@ -46,6 +48,9 @@ public:
                          const QString &draft = QString());
     void recordOutgoing(const QString &ip, const QString &peerName,
                         const QString &text);
+    void deliverText(const QString &ip, const QString &text);
+    bool queueOrDeliverText(const QString &ip, const QString &text,
+                            QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
                             const QString &text, bool notifyUser);
 
@@ -71,6 +76,7 @@ public slots:
 private slots:
     void newMsg(Msg msg);
     void destroyMsgReadedWindowList();
+    void flushOfflineQueue();
     void refreshChatCaptions();
 
 private:
