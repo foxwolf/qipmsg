@@ -79,12 +79,14 @@ public:
     int staleMissedRefreshCount;
 
     bool isAway;
+    bool isStealth;
     bool isAutoReply;
     QString autoReplyText;
     int autoReplyCooldownSecs;
     bool isNoPopupWhenAway;
 
     bool isTrayNotify;
+    bool isOfflineQueue;
 
     bool isResumeTransFile;
     bool isAutoRecvFile;

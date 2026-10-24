@@ -85,12 +85,14 @@ void Preferences::reset()
     staleMissedRefreshCount = DEFAULT_STALE_MISSED_REFRESH;
 
     isAway = false;
+    isStealth = false;
     isAutoReply = false;
     autoReplyText = "";
     autoReplyCooldownSecs = DEFAULT_AUTO_REPLY_COOLDOWN;
     isNoPopupWhenAway = true;
 
     isTrayNotify = true;
+    isOfflineQueue = true;
 
     isResumeTransFile = true;
     isAutoRecvFile = false;
@@ -189,10 +191,12 @@ void Preferences::load()
     staleMissedRefreshCount = set->value("staleMissedRefreshCount",
                                          staleMissedRefreshCount).toInt();
     isTrayNotify = set->value("isTrayNotify", isTrayNotify).toBool();
+    isOfflineQueue = set->value("isOfflineQueue", isOfflineQueue).toBool();
     set->endGroup();
 
     set->beginGroup("Away");
     isAway = set->value("isAway", isAway).toBool();
+    isStealth = set->value("isStealth", isStealth).toBool();
     isAutoReply = set->value("isAutoReply", isAutoReply).toBool();
     autoReplyText = set->value("autoReplyText", autoReplyText).toString();
     autoReplyCooldownSecs = set->value("autoReplyCooldownSecs",
@@ -294,10 +298,12 @@ void Preferences::save()
     set->setValue("autoRefreshSeconds", autoRefreshSeconds);
     set->setValue("staleMissedRefreshCount", staleMissedRefreshCount);
     set->setValue("isTrayNotify", isTrayNotify);
+    set->setValue("isOfflineQueue", isOfflineQueue);
     set->endGroup();
 
     set->beginGroup("Away");
     set->setValue("isAway", isAway);
+    set->setValue("isStealth", isStealth);
     set->setValue("isAutoReply", isAutoReply);
     set->setValue("autoReplyText", autoReplyText);
     set->setValue("autoReplyCooldownSecs", autoReplyCooldownSecs);

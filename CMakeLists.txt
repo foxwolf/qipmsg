@@ -22,6 +22,9 @@ set(SOURCES
     src/chat_window.cpp
     src/contactDelegate.cpp
     src/dir_dialog.cpp
+    src/discussion_store.cpp
+    src/discussion_window.cpp
+    src/emoji_pack.cpp
     src/file_server.cpp
     src/global.cpp
     src/helper.cpp
@@ -29,6 +32,7 @@ set(SOURCES
     src/lockfile.cpp
     src/main.cpp
     src/main_window.cpp
+    src/mention_highlighter.cpp
     src/message_store.cpp
     src/msg.cpp
     src/msg_base.cpp
@@ -36,7 +40,9 @@ set(SOURCES
     src/msg_server.cpp
     src/msg_thread.cpp
     src/msg_window.cpp
+    src/offline_queue.cpp
     src/owner.cpp
+    src/pinyin.cpp
     src/preferences.cpp
     src/qipmsg.cpp
     src/recv_file.cpp
@@ -80,6 +86,9 @@ set(HEADERS
     src/contactDelegate.h
     src/constants.h
     src/dir_dialog.h
+    src/discussion_store.h
+    src/discussion_window.h
+    src/emoji_pack.h
     src/file_server.h
     src/global.h
     src/helper.h
@@ -87,6 +96,7 @@ set(HEADERS
     src/ipmsg.h
     src/lockfile.h
     src/main_window.h
+    src/mention_highlighter.h
     src/message_store.h
     src/msg.h
     src/msg_base.h
@@ -94,7 +104,9 @@ set(HEADERS
     src/msg_server.h
     src/msg_thread.h
     src/msg_window.h
+    src/offline_queue.h
     src/owner.h
+    src/pinyin.h
     src/preferences.h
     src/qipmsg.h
     src/recv_file.h

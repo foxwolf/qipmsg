@@ -17,6 +17,7 @@
 #include "window_manager.h"
 #include "chat_window.h"
 #include "constants.h"
+#include "discussion_window.h"
 #include "global.h"
 #include "helper.h"
 #include "main_window.h"
@@ -29,13 +30,21 @@
 #include "sound_thread.h"
 #include "systray.h"
 #include "user_manager.h"
+#include "offline_queue.h"
 
+#include <QHostAddress>
+#include <QMessageBox>
 #include <QPoint>
+#include <QSet>
 #include <QSize>
 
 WindowManager::WindowManager(QObject *parent)
     : QObject(parent)
 {
+    connect(Global::userManager, SIGNAL(usersChanged()),
+            this, SLOT(flushOfflineQueue()));
+    connect(Global::userManager, SIGNAL(usersChanged()),
+            this, SLOT(refreshChatCaptions()));
 }
 
 WindowManager::~WindowManager()
@@ -43,6 +52,7 @@ WindowManager::~WindowManager()
     destroyMsgWindowList();
     destroyMsgReadedWindowList();
     destroyChatWindows();
+    destroyDiscussionWindows();
 }
 
 void WindowManager::newMsg(Msg msg)
@@ -158,7 +168,8 @@ void WindowManager::applyIncomingShake(const QString &ip)
 void WindowManager::recordIncomingText(const QString &ip,
                                        const QString &peerName,
                                        const QString &text,
-                                       bool notifyUser)
+                                       bool notifyUser,
+                                       const QStringList &imagePaths)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -166,11 +177,13 @@ void WindowManager::recordIncomingText(const QString &ip,
     record.peerName = peerName;
     record.direction = "in";
     record.text = text;
+    record.imagePaths = imagePaths;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
-        w->appendMessage(record.timestamp, peerName, text, true);
+        w->appendMessage(record.timestamp, peerName, text, true,
+                         record.imagePaths);
         if (!w->isVisible()) {
             addUnread(ip);
         }
@@ -188,8 +201,69 @@ void WindowManager::recordIncomingText(const QString &ip,
     }
 }
 
+void WindowManager::deliverText(const QString &ip, const QString &text)
+{
+    QString additionalInfo = text;
+    additionalInfo.append(QChar('\0'));
+    quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    SendMsg sendMsg(QHostAddress(ip),
+                    Global::userManager->sendPortForIp(ip),
+                    additionalInfo, ""/* extendedInfo */, flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+    recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text);
+}
+
+bool WindowManager::queueOrDeliverText(const QString &ip, const QString &text,
+                                       QWidget *askParent)
+{
+    if (text.isEmpty()) {
+        return false;
+    }
+    if (Global::userManager->isReachable(ip)) {
+        deliverText(ip, text);
+        return true;
+    }
+    if (!Global::preferences->isOfflineQueue) {
+        const int ret = QMessageBox::question(
+                    askParent,
+                    tr("Peer offline"),
+                    tr("%1 is offline. Queue this message and send when they come online?")
+                    .arg(Global::userManager->displayNameForIp(ip)),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::Yes);
+        if (ret != QMessageBox::Yes) {
+            return false;
+        }
+    }
+    Global::offlineQueue->enqueue(ip, text);
+    return true;
+}
+
+void WindowManager::flushOfflineQueue()
+{
+    if (!Global::offlineQueue || !Global::userManager) {
+        return;
+    }
+
+    QSet<QString> ips;
+    foreach (const OfflineItem &item, Global::offlineQueue->items()) {
+        ips.insert(item.ip);
+    }
+
+    foreach (const QString &ip, ips) {
+        if (!Global::userManager->isReachable(ip)) {
+            continue;
+        }
+        const QList<OfflineItem> pending = Global::offlineQueue->takeForIp(ip);
+        foreach (const OfflineItem &item, pending) {
+            deliverText(ip, item.text);
+        }
+    }
+}
+
 void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
-                                   const QString &text)
+                                   const QString &text,
+                                   const QStringList &imagePaths)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -197,12 +271,13 @@ void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
     record.peerName = peerName;
     record.direction = "out";
     record.text = text;
+    record.imagePaths = imagePaths;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
-                         text, false);
+                         text, false, record.imagePaths);
     }
 }
 
@@ -253,6 +328,36 @@ ChatWindow *WindowManager::ensureChat(const QString &ip)
         w->refreshPeerCaption();
     }
     return w;
+}
+
+DiscussionWindow *WindowManager::openDiscussion(const QString &id,
+                                                bool raiseWindow)
+{
+    if (id.isEmpty()) {
+        return 0;
+    }
+    DiscussionWindow *w = m_discussionWindows.value(id, 0);
+    if (!w) {
+        w = new DiscussionWindow(id);
+        m_discussionWindows.insert(id, w);
+    }
+    if (raiseWindow) {
+        w->show();
+        w->raise();
+        w->activateWindow();
+    }
+    return w;
+}
+
+void WindowManager::refreshChatCaptions()
+{
+    QMapIterator<QString, ChatWindow *> it(m_chatWindows);
+    while (it.hasNext()) {
+        it.next();
+        if (it.value()) {
+            it.value()->refreshPeerCaption();
+        }
+    }
 }
 
 ChatWindow *WindowManager::openChat(const QString &ip, bool raiseWindow,
@@ -358,6 +463,16 @@ void WindowManager::destroyChatWindows()
         delete it.value();
     }
     m_chatWindows.clear();
+}
+
+void WindowManager::destroyDiscussionWindows()
+{
+    QMapIterator<QString, DiscussionWindow *> it(m_discussionWindows);
+    while (it.hasNext()) {
+        it.next();
+        delete it.value();
+    }
+    m_discussionWindows.clear();
 }
 
 void WindowManager::visibleAllMsgWindow()

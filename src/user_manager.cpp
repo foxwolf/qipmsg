@@ -29,6 +29,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QStandardItemModel>
 #include <QStringList>
 #include <QTimer>
@@ -299,11 +300,30 @@ void UserManager::broadcastAbsence() const
 
 void UserManager::announcePresence() const
 {
+    if (Global::preferences->isStealth) {
+        return;
+    }
     if (Global::preferences->isAway) {
         broadcastAbsence();
     } else {
         broadcastEntry();
     }
+}
+
+void UserManager::applyStealth(bool stealth)
+{
+    if (Global::preferences->isStealth == stealth) {
+        return;
+    }
+    Global::preferences->isStealth = stealth;
+    if (stealth) {
+        // FeiQ HideMode: leave the list first so peers who already saw us
+        // mark us offline, then stay silent on later BR_ENTRY.
+        broadcastExit();
+    } else {
+        announcePresence();
+    }
+    notifyUsersChanged();
 }
 
 bool UserManager::contains(QString ip) const
@@ -370,6 +390,12 @@ int UserManager::presenceForIp(const QString &ip) const
     return row == -1 ? PRESENCE_STALE : presence(row);
 }
 
+bool UserManager::isReachable(const QString &ip) const
+{
+    const int p = presenceForIp(ip);
+    return p == PRESENCE_ONLINE || p == PRESENCE_AWAY;
+}
+
 int UserManager::onlineCount() const
 {
     int count = 0;
@@ -392,7 +418,27 @@ int UserManager::userCount() const
     return m_model->rowCount();
 }
 
-QString UserManager::displayNameForIp(const QString &ip) const
+QString UserManager::memoForIp(const QString &ip) const
+{
+    return m_memos.value(ip);
+}
+
+void UserManager::setMemoForIp(const QString &ip, const QString &memo)
+{
+    if (ip.isEmpty()) {
+        return;
+    }
+    const QString trimmed = memo.trimmed();
+    if (trimmed.isEmpty()) {
+        m_memos.remove(ip);
+    } else {
+        m_memos.insert(ip, trimmed);
+    }
+    scheduleSavePeers();
+    notifyUsersChanged();
+}
+
+QString UserManager::realNameForIp(const QString &ip) const
 {
     const int row = ipToRow(ip);
     if (row != -1) {
@@ -402,6 +448,15 @@ QString UserManager::displayNameForIp(const QString &ip) const
         }
     }
     return ip;
+}
+
+QString UserManager::displayNameForIp(const QString &ip) const
+{
+    const QString memo = memoForIp(ip);
+    if (!memo.isEmpty()) {
+        return memo;
+    }
+    return realNameForIp(ip);
 }
 
 QString UserManager::peerCaption(const QString &ip) const
@@ -416,7 +471,14 @@ QString UserManager::peerCaption(const QString &ip) const
     const QString extra = groupName.isEmpty()
             ? hostName
             : groupName + "/" + hostName;
-    QString caption = QString("%1 (%2) %3").arg(name(row), extra, ip);
+    const QString real = name(row);
+    const QString memo = memoForIp(ip);
+    QString caption;
+    if (!memo.isEmpty() && memo != real) {
+        caption = QString("%1 [%2] (%3) %4").arg(memo, real, extra, ip);
+    } else {
+        caption = QString("%1 (%2) %3").arg(real, extra, ip);
+    }
     const QString sign = signature(row);
     if (!sign.isEmpty()) {
         caption += "\n" + sign;
@@ -483,7 +545,14 @@ void UserManager::loadPersistedPeers()
     for (int i = 0; i < array.size(); ++i) {
         const QJsonObject obj = array.at(i).toObject();
         const QString ip = obj.value("ip").toString();
-        if (ip.isEmpty() || contains(ip)) {
+        if (ip.isEmpty()) {
+            continue;
+        }
+        const QString memo = obj.value("memo").toString().trimmed();
+        if (!memo.isEmpty()) {
+            m_memos.insert(ip, memo);
+        }
+        if (contains(ip)) {
             continue;
         }
         Owner owner;
@@ -515,18 +584,34 @@ void UserManager::loadPersistedPeers()
 void UserManager::savePersistedPeers()
 {
     QJsonArray array;
+    QSet<QString> written;
     for (int row = 0; row < m_model->rowCount(); ++row) {
         QJsonObject obj;
-        obj.insert("ip", ip(row));
+        const QString peerIp = ip(row);
+        obj.insert("ip", peerIp);
         obj.insert("name", name(row));
         obj.insert("group", group(row));
         obj.insert("host", host(row));
         obj.insert("login", loginName(row));
         obj.insert("sign", signature(row));
-        obj.insert("port", peerPort(ip(row)));
+        obj.insert("port", peerPort(peerIp));
+        const QString memo = memoForIp(peerIp);
+        if (!memo.isEmpty()) {
+            obj.insert("memo", memo);
+        }
         obj.insert("lastSeen",
                    m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
                                  Qt::UserRole).toDateTime().toString(Qt::ISODate));
+        array.append(obj);
+        written.insert(peerIp);
+    }
+    for (auto it = m_memos.constBegin(); it != m_memos.constEnd(); ++it) {
+        if (written.contains(it.key()) || it.value().isEmpty()) {
+            continue;
+        }
+        QJsonObject obj;
+        obj.insert("ip", it.key());
+        obj.insert("memo", it.value());
         array.append(obj);
     }
 

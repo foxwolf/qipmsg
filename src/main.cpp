@@ -31,6 +31,7 @@
 #include "send_msg.h"
 #include "recv_msg.h"
 #include "user_manager.h"
+#include "preferences.h"
 #include "constants.h"
 
 static void createHomeDirectory();
@@ -87,7 +88,9 @@ int main(int argc, char *argv[])
     app.setQuitOnLastWindowClosed(false);
     int rc = app.exec();
 
-    Global::userManager->broadcastExit();
+    if (!Global::preferences->isStealth) {
+        Global::userManager->broadcastExit();
+    }
 
 
     delete qipmsg;

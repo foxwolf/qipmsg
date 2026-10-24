@@ -20,7 +20,9 @@
 #include "owner.h"
 #include "msg.h"
 
+#include <QMap>
 #include <QObject>
+#include <QString>
 
 class QStandardItemModel;
 class QTimer;
@@ -39,6 +41,7 @@ public:
     void broadcastEntry() const;
     void broadcastAbsence() const;
     void announcePresence() const;
+    void applyStealth(bool stealth);
     void applyRefreshTimer();
 
     bool contains(QString ip) const;
@@ -53,9 +56,13 @@ public:
     QString status(int row) const;
     int presence(int row) const;
     int presenceForIp(const QString &ip) const;
+    bool isReachable(const QString &ip) const;
     int userCount() const;
     int onlineCount() const;
     QString displayNameForIp(const QString &ip) const;
+    QString realNameForIp(const QString &ip) const;
+    QString memoForIp(const QString &ip) const;
+    void setMemoForIp(const QString &ip, const QString &memo);
     QString peerCaption(const QString &ip) const;
     QString signature(int row) const;
     QString signatureForIp(const QString &ip) const;
@@ -96,6 +103,7 @@ private:
     QStandardItemModel *m_model;
     QTimer *m_refreshTimer;
     QTimer *m_saveTimer;
+    QMap<QString, QString> m_memos;
 };
 
 #endif // !USER_MANAGER_H

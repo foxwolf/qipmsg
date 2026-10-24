@@ -217,6 +217,14 @@ void MsgServer::processEntryMsg(Msg msg)
 {
     emit newUserMsg(msg);
 
+    // Stealth / FeiQ HideMode: still record the peer so we can see them,
+    // but do not answer BR_ENTRY with ANSENTRY. Directed SENDMSG and
+    // GETABSENCEINFO remain answered so peers who already know our IP
+    // can still reach us.
+    if (Global::preferences->isStealth) {
+        return;
+    }
+
     quint32 flags = IPMSG_ANSENTRY;
     if (Global::preferences->isAway) {
         flags |= IPMSG_ABSENCEOPT;

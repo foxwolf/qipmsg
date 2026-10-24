@@ -16,6 +16,7 @@
 
 #include "chat_window.h"
 #include "constants.h"
+#include "emoji_pack.h"
 #include "global.h"
 #include "helper.h"
 #include "history_search_window.h"
@@ -29,13 +30,17 @@
 #include "send_file_map.h"
 #include "send_file_window.h"
 #include "send_msg.h"
+#include "offline_queue.h"
 #include "user_manager.h"
 #include "window_manager.h"
 
 #include "transfer_file_window.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QDateTime>
+#include <QDesktopServices>
 #include <QList>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -43,33 +48,50 @@
 #include <QFileInfo>
 #include <QFrame>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHostAddress>
+#include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QShortcut>
 #include <QShowEvent>
 #include <QSplitter>
 #include <QTextBlockFormat>
+#include <QCursor>
+#include <QTextBrowser>
 #include <QTextCursor>
+#include <QTextDocument>
+#include <QVariant>
 #include <QTextEdit>
+#include <QTextImageFormat>
 #include <QTextTable>
 #include <QTextTableCell>
 #include <QTextTableFormat>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidgetAction>
 
 ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
     : QWidget(parent), m_peerIp(ip), m_historyLoaded(false)
 {
     setAcceptDrops(true);
     createUi();
+    m_inputEdit->installEventFilter(this);
     refreshPeerCaption();
+    refreshQueuePanel();
+    if (Global::offlineQueue) {
+        connect(Global::offlineQueue, SIGNAL(queueChanged()),
+                this, SLOT(refreshQueuePanel()));
+    }
     setWindowIcon(*Global::iconSet.value("normal"));
 }
 
@@ -145,6 +167,9 @@ void ChatWindow::createUi()
     shot->setMenu(shotMenu);
     shot->setPopupMode(QToolButton::InstantPopup);
     toolLayout->addWidget(shot);
+    toolLayout->addWidget(makeToolButton(tr("Emoji"),
+                                         tr("Insert emoji"),
+                                         SLOT(showEmojiPicker())));
     toolLayout->addWidget(makeToolButton(tr("Window shake"),
                                          tr("Window shake"), SLOT(sendShake())));
     toolLayout->addWidget(makeToolButton(tr("Find"),
@@ -159,12 +184,16 @@ void ChatWindow::createUi()
     connect(m_fileListButton, SIGNAL(clicked()),
             this, SLOT(showSendFileList()));
 
-    m_historyEdit = new QTextEdit;
+    m_historyEdit = new QTextBrowser;
     m_historyEdit->setObjectName("historyView");
     m_historyEdit->setReadOnly(true);
     m_historyEdit->setAcceptRichText(true);
     m_historyEdit->setTabChangesFocus(true);
     m_historyEdit->setFrameShape(QFrame::NoFrame);
+    m_historyEdit->setOpenLinks(false);
+    m_historyEdit->setOpenExternalLinks(false);
+    connect(m_historyEdit, SIGNAL(anchorClicked(QUrl)),
+            this, SLOT(openChatLink(QUrl)));
 
     m_inputEdit = new QTextEdit;
     m_inputEdit->setObjectName("composerEdit");
@@ -226,6 +255,32 @@ void ChatWindow::createUi()
     composerLayout->addWidget(m_inputEdit);
     composerLayout->addLayout(buttonLayout);
 
+    m_queuePanel = new QWidget;
+    m_queuePanel->setObjectName("offlineQueuePanel");
+    m_queueBanner = new QLabel;
+    m_queueBanner->setObjectName("offlineQueueBanner");
+    m_queueBanner->setWordWrap(true);
+    m_queueList = new QListWidget;
+    m_queueList->setMaximumHeight(96);
+    m_cancelQueuedButton = new QPushButton(tr("Cancel selected"));
+    m_clearQueueButton = new QPushButton(tr("Clear queue"));
+    connect(m_cancelQueuedButton, SIGNAL(clicked()),
+            this, SLOT(cancelSelectedQueued()));
+    connect(m_clearQueueButton, SIGNAL(clicked()),
+            this, SLOT(clearQueued()));
+    QHBoxLayout *queueButtons = new QHBoxLayout;
+    queueButtons->setContentsMargins(0, 0, 0, 0);
+    queueButtons->addWidget(m_cancelQueuedButton);
+    queueButtons->addWidget(m_clearQueueButton);
+    queueButtons->addStretch();
+    QVBoxLayout *queueLayout = new QVBoxLayout(m_queuePanel);
+    queueLayout->setContentsMargins(12, 8, 12, 4);
+    queueLayout->setSpacing(4);
+    queueLayout->addWidget(m_queueBanner);
+    queueLayout->addWidget(m_queueList);
+    queueLayout->addLayout(queueButtons);
+    m_queuePanel->hide();
+
     QWidget *chatPane = new QWidget;
     QVBoxLayout *chatLayout = new QVBoxLayout(chatPane);
     chatLayout->setContentsMargins(0, 0, 0, 0);
@@ -233,6 +288,7 @@ void ChatWindow::createUi()
     chatLayout->addWidget(header);
     chatLayout->addWidget(toolbar);
     chatLayout->addWidget(m_historyEdit, 3);
+    chatLayout->addWidget(m_queuePanel);
     chatLayout->addWidget(composer);
 
     QWidget *profilePanel = new QWidget;
@@ -260,8 +316,10 @@ void ChatWindow::createUi()
     QWidget *profileForm = new QWidget;
     profileForm->setObjectName("profileForm");
     QFormLayout *form = new QFormLayout(profileForm);
+    m_profileNick = new QLabel;
     form->setContentsMargins(8, 8, 8, 8);
     form->setLabelAlignment(Qt::AlignLeft);
+    form->addRow(tr("Nickname:"), m_profileNick);
     form->addRow(tr("Host:"), m_profileHost);
     form->addRow(tr("Login:"), m_profileLogin);
     form->addRow(tr("Group:"), m_profileGroup);
@@ -322,6 +380,7 @@ void ChatWindow::refreshProfile()
 {
     const int row = Global::userManager->ipToRow(m_peerIp);
     const QString name = Global::userManager->displayNameForIp(m_peerIp);
+    const QString real = Global::userManager->realNameForIp(m_peerIp);
     const int presence = Global::userManager->presenceForIp(m_peerIp);
     QString status = tr("Offline");
     if (presence == PRESENCE_ONLINE) {
@@ -330,6 +389,7 @@ void ChatWindow::refreshProfile()
         status = tr("Away");
     }
     m_profileName->setText(name);
+    m_profileNick->setText(real.isEmpty() ? QString("-") : real);
     m_profileStatus->setText(status);
     const QString sign = Global::userManager->signatureForIp(m_peerIp);
     m_profileSign->setText(sign.isEmpty() ? tr("No signature") : sign);
@@ -373,7 +433,8 @@ void ChatWindow::loadHistory()
     foreach (const ChatRecord &record, records) {
         const bool incoming = (record.direction != QLatin1String("out"));
         const QString name = incoming ? record.peerName : localName();
-        appendMessage(record.timestamp, name, record.text, incoming);
+        appendMessage(record.timestamp, name, record.text, incoming,
+                      record.imagePaths);
     }
 }
 
@@ -388,7 +449,8 @@ void ChatWindow::setDraft(const QString &text)
 }
 
 void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
-                               const QString &text, bool incoming)
+                               const QString &text, bool incoming,
+                               const QStringList &imagePaths)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -430,7 +492,21 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     QTextCharFormat textFmt;
     textFmt.setForeground(incoming ? QColor("#1F2937") : QColor("#FFFFFF"));
     textFmt.setFontPointSize(10);
-    cellCursor.insertText(text, textFmt);
+    const QString displayText = EmojiPack::applyAliases(text);
+    if (!displayText.isEmpty()) {
+        cellCursor.insertText(displayText, textFmt);
+    }
+
+    QStringList paths = existingImagePaths(imagePaths);
+    if (paths.isEmpty()) {
+        paths = imagePathsFromText(text);
+    }
+    if (!paths.isEmpty()) {
+        if (!displayText.isEmpty()) {
+            cellCursor.insertBlock();
+        }
+        insertBubbleImages(cellCursor, paths);
+    }
 
     cursor.movePosition(QTextCursor::End);
     m_historyEdit->setTextCursor(cursor);
@@ -460,8 +536,67 @@ void ChatWindow::sendMessage()
     m_inputEdit->setFocus();
 }
 
+void ChatWindow::refreshQueuePanel()
+{
+    if (!m_queuePanel || !Global::offlineQueue) {
+        return;
+    }
+    const QList<OfflineItem> items = Global::offlineQueue->itemsForIp(m_peerIp);
+    m_queueList->clear();
+    foreach (const OfflineItem &item, items) {
+        QListWidgetItem *row = new QListWidgetItem(
+                    QString("%1  %2")
+                    .arg(item.created.toString("hh:mm:ss"), item.text));
+        row->setData(Qt::UserRole, item.id);
+        row->setToolTip(item.text);
+        m_queueList->addItem(row);
+    }
+    if (items.isEmpty()) {
+        m_queuePanel->hide();
+        return;
+    }
+    m_queueBanner->setText(tr("Offline queue · %n message(s) — send when the peer comes online",
+                              "", items.size()));
+    m_queuePanel->show();
+}
+
+void ChatWindow::cancelSelectedQueued()
+{
+    if (!Global::offlineQueue) {
+        return;
+    }
+    foreach (QListWidgetItem *row, m_queueList->selectedItems()) {
+        Global::offlineQueue->removeById(row->data(Qt::UserRole).toString());
+    }
+}
+
+void ChatWindow::clearQueued()
+{
+    if (!Global::offlineQueue) {
+        return;
+    }
+    Global::offlineQueue->removeForIp(m_peerIp);
+}
+
 void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 {
+    if (!Global::userManager->isReachable(m_peerIp)) {
+        if (!pathList.isEmpty()) {
+            QMessageBox::information(this, tr("Offline queue"),
+                    tr("File attachments cannot be queued (no transfer server). "
+                       "The text will be queued if present."));
+        }
+        const QString body = text;
+        if (body.trimmed().isEmpty()) {
+            return;
+        }
+        if (!Global::windowManager->queueOrDeliverText(m_peerIp, body, this)) {
+            return;
+        }
+        refreshQueuePanel();
+        return;
+    }
+
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
@@ -507,12 +642,18 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 
     if (!recorded.isEmpty()) {
         Global::windowManager->recordOutgoing(m_peerIp,
-                Global::userManager->displayNameForIp(m_peerIp), recorded);
+                Global::userManager->displayNameForIp(m_peerIp), recorded,
+                imagePathsFromFiles(pathList));
     }
 }
 
 void ChatWindow::sendShake()
 {
+    if (!Global::userManager->isReachable(m_peerIp)) {
+        QMessageBox::information(this, tr("Offline queue"),
+                tr("Window shake is not queued for offline peers."));
+        return;
+    }
     quint32 flags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
     QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
@@ -692,6 +833,191 @@ void ChatWindow::logOutgoing(const QString &text)
     s.append(text);
     s.append("\n\n");
     ts << s << Qt::flush;
+}
+
+QStringList ChatWindow::imagePathsFromFiles(const QStringList &pathList) const
+{
+    QStringList images;
+    foreach (const QString &path, pathList) {
+        if (Helper::isImageFile(path) && QFileInfo::exists(path)) {
+            images << QFileInfo(path).absoluteFilePath();
+        }
+    }
+    return images;
+}
+
+QStringList ChatWindow::existingImagePaths(const QStringList &paths) const
+{
+    QStringList existing;
+    foreach (const QString &path, paths) {
+        const QString resolved = Helper::resolveImagePath(
+                    path, Helper::imageSearchDirs());
+        if (!resolved.isEmpty() && !existing.contains(resolved)) {
+            existing << resolved;
+        }
+    }
+    return existing;
+}
+
+QStringList ChatWindow::imagePathsFromText(const QString &text) const
+{
+    QStringList found;
+    const QRegularExpression fileRe(
+                QStringLiteral("(?:file://)?(/?[^\\s]+\\.(?:png|jpe?g|gif|bmp|webp))"),
+                QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator it = fileRe.globalMatch(text);
+    while (it.hasNext()) {
+        const QString token = it.next().captured(1);
+        const QString resolved = Helper::resolveImagePath(
+                    token, Helper::imageSearchDirs());
+        if (!resolved.isEmpty() && !found.contains(resolved)) {
+            found << resolved;
+        }
+    }
+    return found;
+}
+
+void ChatWindow::insertBubbleImages(QTextCursor &cursor, const QStringList &paths)
+{
+    QTextDocument *doc = m_historyEdit->document();
+    foreach (const QString &path, paths) {
+        const QPixmap thumb = Helper::imageThumbnail(
+                    path, CHAT_IMAGE_THUMB_WIDTH, CHAT_IMAGE_THUMB_HEIGHT);
+        if (thumb.isNull()) {
+            continue;
+        }
+
+        const QString key = QString("qipmsg-img-%1").arg(qHash(path));
+        doc->addResource(QTextDocument::ImageResource, QUrl(key), thumb);
+
+        QTextImageFormat imageFormat;
+        imageFormat.setName(key);
+        imageFormat.setWidth(thumb.width());
+        imageFormat.setHeight(thumb.height());
+        imageFormat.setAnchor(true);
+        imageFormat.setAnchorHref(QUrl::fromLocalFile(path).toString());
+        cursor.insertImage(imageFormat);
+        cursor.insertBlock();
+
+        QTextCharFormat linkFmt;
+        linkFmt.setAnchor(true);
+        linkFmt.setAnchorHref(QUrl::fromLocalFile(path).toString());
+        linkFmt.setForeground(QColor("#93C5FD"));
+        linkFmt.setFontPointSize(9);
+        cursor.insertText(QFileInfo(path).fileName(), linkFmt);
+        cursor.insertBlock();
+    }
+}
+
+void ChatWindow::openChatLink(const QUrl &url)
+{
+    QString path = url.toLocalFile();
+    if (path.isEmpty()) {
+        path = url.toString();
+    }
+    if (path.isEmpty()) {
+        return;
+    }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void ChatWindow::insertEmoji(const QString &glyph)
+{
+    if (glyph.isEmpty()) {
+        return;
+    }
+    m_inputEdit->insertPlainText(glyph);
+    m_inputEdit->setFocus();
+}
+
+void ChatWindow::showEmojiPicker()
+{
+    QMenu menu(this);
+    menu.setObjectName("emojiMenu");
+
+    QWidget *grid = new QWidget(&menu);
+    QGridLayout *layout = new QGridLayout(grid);
+    layout->setContentsMargins(8, 8, 8, 8);
+    layout->setSpacing(4);
+
+    const QList<EmojiItem> items = EmojiPack::items();
+    for (int i = 0; i < items.size(); ++i) {
+        const EmojiItem item = items.at(i);
+        QToolButton *button = new QToolButton(grid);
+        button->setAutoRaise(true);
+        button->setText(item.glyph);
+        button->setToolTip(item.tip);
+        button->setFixedSize(32, 32);
+        QFont font = button->font();
+        font.setPixelSize(18);
+        button->setFont(font);
+        connect(button, &QToolButton::clicked, this, [this, &menu, item]() {
+            insertEmoji(item.glyph);
+            menu.close();
+        });
+        layout->addWidget(button, i / 8, i % 8);
+    }
+
+    QWidgetAction *action = new QWidgetAction(&menu);
+    action->setDefaultWidget(grid);
+    menu.addAction(action);
+
+    QWidget *senderWidget = qobject_cast<QWidget *>(sender());
+    const QPoint pos = senderWidget
+            ? senderWidget->mapToGlobal(QPoint(0, senderWidget->height()))
+            : QCursor::pos();
+    menu.exec(pos);
+}
+
+bool ChatWindow::pasteClipboardImage()
+{
+    const QMimeData *mime = QApplication::clipboard()->mimeData();
+    if (!mime) {
+        return false;
+    }
+
+    if (mime->hasImage()) {
+        const QPixmap pixmap = qvariant_cast<QPixmap>(mime->imageData());
+        if (pixmap.isNull()) {
+            return false;
+        }
+        const QString path = ScreenCapture::savePixmap(pixmap, "paste");
+        if (path.isEmpty()) {
+            return false;
+        }
+        m_sendFileModel.addFile(path);
+        updateFileCount();
+        return true;
+    }
+
+    if (mime->hasUrls()) {
+        bool added = false;
+        foreach (const QUrl &url, mime->urls()) {
+            const QString path = url.toLocalFile();
+            if (!path.isEmpty() && Helper::isImageFile(path)
+                    && QFileInfo::exists(path)) {
+                m_sendFileModel.addFile(path);
+                added = true;
+            }
+        }
+        if (added) {
+            updateFileCount();
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ChatWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_inputEdit && event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+        if (keyEvent->matches(QKeySequence::Paste) && pasteClipboardImage()) {
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void ChatWindow::closeEvent(QCloseEvent *event)

@@ -31,10 +31,14 @@
 #include <QRegularExpression>
 #include <QtGlobal>
 #include <QStyleFactory>
+#include <QImageReader>
+#include <QUrl>
 
 #include "helper.h"
 #include "constants.h"
 #include "ipmsg.h"
+#include "global.h"
+#include "preferences.h"
 
 QString Helper::m_iniPath;
 QString Helper::m_appPath;
@@ -364,6 +368,93 @@ QString Helper::defaultRecvPath()
 QString Helper::screenshotDir()
 {
     return appHomePath() + "/screenshots";
+}
+
+bool Helper::isImageFile(const QString &path)
+{
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    return suffix == QLatin1String("png")
+        || suffix == QLatin1String("jpg")
+        || suffix == QLatin1String("jpeg")
+        || suffix == QLatin1String("gif")
+        || suffix == QLatin1String("bmp")
+        || suffix == QLatin1String("webp");
+}
+
+QStringList Helper::imageSearchDirs()
+{
+    QStringList dirs;
+    dirs << screenshotDir() << defaultRecvPath();
+    if (Global::preferences) {
+        if (!Global::preferences->autoRecvPath.isEmpty()) {
+            dirs.prepend(Global::preferences->autoRecvPath);
+        }
+        if (!Global::preferences->lastSaveFilePath.isEmpty()) {
+            dirs << Global::preferences->lastSaveFilePath;
+        }
+    }
+    dirs.removeDuplicates();
+    return dirs;
+}
+
+QString Helper::resolveImagePath(const QString &nameOrPath,
+                                 const QStringList &searchDirs)
+{
+    const QString trimmed = nameOrPath.trimmed();
+    if (trimmed.isEmpty()) {
+        return QString();
+    }
+
+    QString path = trimmed;
+    if (path.startsWith(QLatin1String("file://"))) {
+        path = QUrl(path).toLocalFile();
+    }
+
+    const QFileInfo info(path);
+    if (info.isAbsolute() && info.isFile() && isImageFile(path)) {
+        return info.absoluteFilePath();
+    }
+
+    const QString name = info.fileName();
+    if (!isImageFile(name)) {
+        return QString();
+    }
+
+    foreach (const QString &dir, searchDirs) {
+        if (dir.isEmpty()) {
+            continue;
+        }
+        const QString candidate = QDir(dir).filePath(name);
+        if (QFileInfo::exists(candidate) && isImageFile(candidate)) {
+            return QFileInfo(candidate).absoluteFilePath();
+        }
+    }
+    return QString();
+}
+
+QPixmap Helper::imageThumbnail(const QString &path, int maxWidth, int maxHeight)
+{
+    QImageReader reader(path);
+    reader.setAutoTransform(true);
+    if (!reader.canRead()) {
+        return QPixmap();
+    }
+
+    QSize size = reader.size();
+    if (size.isValid()) {
+        size.scale(maxWidth, maxHeight, Qt::KeepAspectRatio);
+        reader.setScaledSize(size);
+    }
+
+    const QImage image = reader.read();
+    if (image.isNull()) {
+        return QPixmap();
+    }
+    if (!size.isValid()) {
+        return QPixmap::fromImage(image.scaled(maxWidth, maxHeight,
+                    Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+    return QPixmap::fromImage(image);
 }
 
 QString Helper::uniqueFileName(const QString &dir, const QString &name)

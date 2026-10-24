@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.7.0 hardens FeiQ 2013 / IPMSG TCP file interop, 64-bit sizes/offsets, and a configurable UDP/TCP listen port + NIC. 2.4.0 UI and 2.3 protocol features stay. Remaining items stay deferred.
+2.7.0 hardens FeiQ 2013 / IPMSG TCP file interop, 64-bit sizes/offsets, and a configurable UDP/TCP listen port + NIC. It sits on 2.6.0 (inline images/emoji), 2.5.2 (light discussion groups), 2.5.1 (offline queue), and 2.5.0 (memo, pinyin, stealth). 2.4.0 UI and 2.3 protocol features stay. Remaining items stay deferred. Light discussion groups are **not** FeiQ multicast chatroom.
 
 ## In this line of work (done)
 
@@ -30,16 +30,23 @@
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 - [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
+- [x] Local memo / remark nicknames persisted in `peers.json` (`memo`; no Qt Sql)
+- [x] Contact search: substring + Chinese pinyin initials (GB2312 ranges) and common full pinyin
+- [x] Stealth / HideMode: skip `ANSENTRY` and presence broadcasts; tray + settings toggle
+- [x] Offline text queue (`offline_queue.json`; flush on ANSENTRY / online refresh)
+- [x] Light discussion groups (local JSON member set + multi-send UX; not FeiQ multicast)
+- [x] Inline image preview in chat bubbles (send/receive/screenshot/clipboard)
+- [x] Basic Unicode emoji pack in the chat toolbar (wire text; FeiQ tokens rendered locally)
 - [x] FeiQ/IPMSG TCP file command accepted as decimal or hex; packet-id dual lookup; 8s connect; cap regular-file reads
 - [x] 64-bit file size/offset on the wire, resume.json strings, and progress display (GB/TB)
 - [x] Configurable UDP/TCP listen port and bind address in Settings → Network (default 2425 / any IPv4, soft-fail)
 
 ## Later / out of scope for 2.7.0
 
-1. **Custom emoji / face packs**
+1. **Custom emoji / face packs** (2.6.0 ships a small built-in Unicode set only)
 2. **FeiQ plugin system**
 3. **File-share / public folder server**
-4. **Group chat / 群 chat rooms**
+4. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
 5. **Voice**
 6. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
@@ -49,15 +56,21 @@
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
+9. **Hide from specific groups**
+   - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
 
 ## How to try 2.7.0
 
-1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
-2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default). Preferences → Detail → Network: UDP/TCP listen port (default 2425) and bind NIC (empty = any IPv4). Restart after changing.
-3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
-4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
-5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
-6. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
+1. Start QIpMsg. The main window is a light messenger list (我的好友 / 讨论组 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
+2. Right-click a peer → **Set memo**. The tree caption and chat title use the memo; 对方资料 **Nickname** stays the real IPMSG nickname. Search accepts `zs` / `zhang` for 张三.
+3. Multi-select two or more contacts → right-click **创建讨论组**. Groups persist in `~/.qipmsg/discussions.json`. Double-click a discussion to send the same text to each member. Replies stay 1:1. @name highlight is local only.
+4. Preferences → Send/Receive, or tray **Leave → Stealth / Hide mode**: no `ANSENTRY` to `BR_ENTRY`, no own `BR_ENTRY`/`BR_ABSENCE`; enabling stealth sends `BR_EXIT` first.
+5. Send text to a grey/offline peer: it appears in the chat **Offline queue**. When that peer broadcasts `BR_ENTRY` / `ANSENTRY`, queued texts flush in order. Attachments and shake are not queued.
+6. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default). Preferences → Detail → Network: UDP/TCP listen port (default 2425) and bind NIC (empty = any IPv4). Restart after changing.
+7. Double-click a user for the chat window. Toolbar: **Emoji**, **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat, or paste an image with `Ctrl+V`. Image attachments show a thumbnail in the bubble; click to open full size.
+8. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged. History rows may include an `img` array of local image paths.
+9. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
+10. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
 
 ## Want to help?
 

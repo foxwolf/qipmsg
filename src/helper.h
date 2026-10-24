@@ -73,6 +73,12 @@ public:
     static QString defaultRecvPath();
     static QString screenshotDir();
     static QString uniqueFileName(const QString &dir, const QString &name);
+    static bool isImageFile(const QString &path);
+    static QString resolveImagePath(const QString &nameOrPath,
+                                    const QStringList &searchDirs);
+    static QPixmap imageThumbnail(const QString &path, int maxWidth,
+                                  int maxHeight);
+    static QStringList imageSearchDirs();
     static QString shakeToken();
     static bool isShakeText(const QString &text);
     static void shakeWidget(QWidget *widget);

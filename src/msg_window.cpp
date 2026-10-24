@@ -535,6 +535,26 @@ void MsgWindow::recvFileFinish()
 
     removeRecvOkFile();
 
+    QStringList imagePaths;
+    QStringList imageNames;
+    foreach (RecvFileHandle h, m_recvFileMap.m_map) {
+        if (h->state() != RecvFile::RecvOk || !Helper::isImageFile(h->saveName())) {
+            continue;
+        }
+        const QString path = m_recvFileMap.saveFilePath() + "/" + h->saveName();
+        if (QFileInfo::exists(path)) {
+            imagePaths << path;
+            imageNames << h->saveName();
+        }
+    }
+    if (!imagePaths.isEmpty()) {
+        Global::windowManager->recordIncomingText(
+                    m_msg->ip(),
+                    Global::userManager->displayNameForIp(m_msg->ip()),
+                    tr("[Received image] %1").arg(imageNames.join(", ")),
+                    false, imagePaths);
+    }
+
     RecvFileFinishDialog *recvFileFinishDialog
         = new RecvFileFinishDialog(&m_recvFileMap, this);
     connect(recvFileFinishDialog, SIGNAL(fileChecked()),
