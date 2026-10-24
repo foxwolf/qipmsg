@@ -73,6 +73,8 @@ HEADERS += \
 	owner.h \
 	pinyin.h \
 	sound_thread.h \
+	stickerPicker.h \
+	stickerStore.h \
 	user_manager.h \
 	transfer_file_window.h \
 	transfer_file_model.h \
@@ -132,6 +134,8 @@ SOURCES += \
 	serve_socket.cpp \
 	setup_window.cpp \
 	sizecolumndelegate.cpp \
+	stickerPicker.cpp \
+	stickerStore.cpp \
 	systray.cpp \
 	file_server.cpp \
 	transfer_codec.cpp \

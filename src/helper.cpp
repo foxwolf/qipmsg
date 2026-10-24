@@ -384,7 +384,8 @@ bool Helper::isImageFile(const QString &path)
 QStringList Helper::imageSearchDirs()
 {
     QStringList dirs;
-    dirs << screenshotDir() << defaultRecvPath();
+    dirs << screenshotDir() << defaultRecvPath()
+         << (appHomePath() + "/stickers");
     if (Global::preferences) {
         if (!Global::preferences->autoRecvPath.isEmpty()) {
             dirs.prepend(Global::preferences->autoRecvPath);

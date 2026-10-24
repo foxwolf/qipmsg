@@ -75,6 +75,8 @@ set(SOURCES
     src/setup_window.cpp
     src/sizecolumndelegate.cpp
     src/sound_thread.cpp
+    src/stickerPicker.cpp
+    src/stickerStore.cpp
     src/systray.cpp
     src/transfer_codec.cpp
     src/transfer_file_model.cpp
@@ -143,6 +145,8 @@ set(HEADERS
     src/setup_window.h
     src/sizecolumndelegate.h
     src/sound_thread.h
+    src/stickerPicker.h
+    src/stickerStore.h
     src/systray.h
     src/transfer_codec.h
     src/transfer_file_model.h
