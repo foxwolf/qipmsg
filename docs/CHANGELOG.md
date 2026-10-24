@@ -1,6 +1,6 @@
 # QIpMsg 变更日志
 
-## 2.0.2 — 2026-10-24
+## 2.0.3 — 2026-10-24
 
 ### xx
 - 迁移构建系统到 CMake，优先 Qt6、兼容 Qt5
@@ -17,6 +17,7 @@
 - 修复 Qt 5/6 下 QMessageBox、QHeaderView、QSortFilterProxyModel 等弃用/移除接口
 - 替换 QRegExp、QDirModel、qSort、QString::SkipEmptyParts 等 Qt4 专有 API
 - 修复登录名环境变量匹配失败，并补充 Windows 的 USERNAME
+- 修复 Windows 下 UDP 绑定到 IPv6 Any 导致广播失败并弹出阻塞错误框的问题
 
 #### 编译
 - 使用 QLockFile 替代 POSIX flock/fcntl，修复 Windows MinGW 下 S_IRUSR、struct flock、F_SETLK 无法编译
