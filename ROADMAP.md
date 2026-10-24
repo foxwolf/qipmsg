@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.4.0 replaces the FeiQ green chrome with a modern light messenger UI (shared QSS, rounded avatars, chat bubbles, profile card). Protocol features from 2.3 stay. Remaining items stay deferred.
+2.5.2 adds light discussion groups on top of the 2.4.0 messenger UI: a named local member set, multi-send chat, and optional @mention highlight. This is **not** FeiQ multicast chatroom. Protocol features from 2.3 stay. Full group rooms stay deferred.
 
 ## In this line of work (done)
 
@@ -30,13 +30,14 @@
 - [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
 - [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 - [x] Modern light stylesheet (WeChat / Slack-lite / Fluent-ish), rounded avatars, chat bubbles
+- [x] Light discussion groups (local JSON member set + multi-send UX; not FeiQ multicast)
 
-## Later / out of scope for 2.4.0
+## Later / out of scope for 2.5.2
 
 1. **Custom emoji / face packs**
 2. **FeiQ plugin system**
 3. **File-share / public folder server**
-4. **Group chat / 群 chat rooms**
+4. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
 5. **Voice**
 6. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
@@ -47,9 +48,9 @@
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-## How to try 2.4.0
+## How to try 2.5.2
 
-1. Start QIpMsg. The main window is a light messenger list (我的好友 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
+1. Start QIpMsg. The main window is a light messenger list (我的好友 / 讨论组 / department / 自己 / 黑名单) with a rounded avatar, signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh. Multi-select two or more contacts → right-click **创建讨论组**. Groups persist in `~/.qipmsg/discussions.json`. Double-click a discussion to send the same text to each member. Replies stay 1:1. @name highlight is local only.
 2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
 3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
 4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
