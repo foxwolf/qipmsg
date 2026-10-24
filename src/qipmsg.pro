@@ -12,6 +12,7 @@ RESOURCES = icons.qrc
 
 HEADERS += \
 	about_dialog.h \
+	autostart.h \
 	msg_server.h \
 	constants.h \
 	version.h \
@@ -77,6 +78,7 @@ HEADERS += \
 
 SOURCES += \
 	about_dialog.cpp \
+	autostart.cpp \
 	msg_server.cpp \
 	dir_dialog.cpp \
 	recv_file_finish_dialog.cpp \

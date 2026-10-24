@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.11.1 LANGUAGES CXX)
+project(qipmsg VERSION 2.15.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,6 +19,7 @@ endif()
 
 set(SOURCES
     src/about_dialog.cpp
+    src/autostart.cpp
     src/chat_window.cpp
     src/contactDelegate.cpp
     src/dir_dialog.cpp
@@ -83,6 +84,7 @@ set(SOURCES
 
 set(HEADERS
     src/about_dialog.h
+    src/autostart.h
     src/chat_window.h
     src/contactDelegate.h
     src/constants.h
@@ -158,7 +160,7 @@ endif()
 
 add_executable(qipmsg ${SOURCES} ${HEADERS} ${RESOURCES} ${QM_FILES})
 
-add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp)
+add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp)
 target_include_directories(qipmsgP1Check PRIVATE src)
 
 target_include_directories(qipmsg PRIVATE src)

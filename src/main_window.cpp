@@ -934,13 +934,15 @@ void MainWindow::sendMessage()
             logSendMsg(inputEdit->toPlainText(), ip);
         }
 
-        Global::windowManager->recordOutgoing(ip, recvUser,
-                                              inputEdit->toPlainText());
-
         SendMsg sendMsg = SendMsg(QHostAddress(ip),
                                   Global::userManager->sendPortForIp(ip),
                                   additionalInfo, ""/* extendedInfo */,
                                   flags);
+
+        Global::windowManager->recordOutgoing(
+                    ip, recvUser, inputEdit->toPlainText(), QStringList(),
+                    sendMsg.packetNoString(),
+                    (baseFlags & IPMSG_READCHECKOPT) != 0);
 
         if (hasSendFile()) {
             m_sendFileMap->setRecvUser(recvUser);

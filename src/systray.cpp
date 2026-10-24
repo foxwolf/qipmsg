@@ -102,6 +102,9 @@ void Systray::refreshTooltip()
     if (Global::preferences && Global::preferences->isStealth) {
         tip += QString(" · ") + tr("Stealth");
     }
+    if (Global::preferences && Global::preferences->isDoNotDisturb) {
+        tip += QString(" · ") + tr("Do not disturb");
+    }
     trayIcon->setToolTip(tip);
 }
 
@@ -113,6 +116,9 @@ void Systray::onNewTextMessage(QString fromName, QString preview)
 
 void Systray::notifyNewMessage(const QString &fromName, const QString &preview)
 {
+    if (Global::preferences->isDoNotDisturb) {
+        return;
+    }
     if (!Global::preferences->isTrayNotify) {
         return;
     }
@@ -142,6 +148,18 @@ void Systray::setStealth(bool stealth)
     refreshLeaveActions();
 }
 
+void Systray::setDoNotDisturb(bool enabled)
+{
+    Global::preferences->isDoNotDisturb = enabled;
+    Global::preferences->save();
+    refreshLeaveActions();
+}
+
+void Systray::syncActions()
+{
+    refreshLeaveActions();
+}
+
 void Systray::refreshLeaveActions()
 {
     if (awayAction) {
@@ -153,6 +171,11 @@ void Systray::refreshLeaveActions()
         stealthAction->blockSignals(true);
         stealthAction->setChecked(Global::preferences->isStealth);
         stealthAction->blockSignals(false);
+    }
+    if (doNotDisturbAction) {
+        doNotDisturbAction->blockSignals(true);
+        doNotDisturbAction->setChecked(Global::preferences->isDoNotDisturb);
+        doNotDisturbAction->blockSignals(false);
     }
     refreshTooltip();
 }
@@ -170,6 +193,12 @@ void Systray::createActions()
     findHistoryAction = new QAction(tr("Find in history..."), 0);
     offlineQueueAction = new QAction(tr("Offline message queue"), 0);
     broadcastAction = new QAction(tr("Broadcast to all online..."), 0);
+    doNotDisturbAction = new QAction(tr("Do not disturb (don't pop message windows)"), this);
+    doNotDisturbAction->setCheckable(true);
+    doNotDisturbAction->setChecked(Global::preferences->isDoNotDisturb);
+    doNotDisturbAction->setToolTip(tr(
+            "Suppress tray balloons and auto-raised chat windows. "
+            "Not the same as Away / auto-reply."));
     quitAction = new QAction(tr("Quit IP Messenger"), 0);
 }
 
@@ -193,6 +222,8 @@ void Systray::createMenus()
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
+    trayIconMenu->addSeparator();
+    trayIconMenu->addAction(doNotDisturbAction);
     trayIconMenu->addSeparator();
     leaveMenu = new QMenu(tr("Leave"));
     createLeaveMenu();
@@ -218,6 +249,9 @@ void Systray::createLeaveMenu()
             this, SLOT(setStealth(bool)));
     leaveMenu->addAction(stealthAction);
     leaveMenu->setEnabled(true);
+
+    connect(doNotDisturbAction, SIGNAL(toggled(bool)),
+            this, SLOT(setDoNotDisturb(bool)));
 }
 
 void Systray::show()
@@ -236,6 +270,8 @@ void Systray::createConnections()
     connect(quitAction, SIGNAL(triggered()), this, SLOT(quit()));
     connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
             this, SLOT(trayIconActivated(QSystemTrayIcon::ActivationReason)));
+    connect(trayIconMenu, SIGNAL(aboutToShow()),
+            this, SLOT(refreshLeaveActions()));
 
     connect(delAckWindowAction, SIGNAL(triggered()),
             Global::windowManager, SLOT(destroyMsgReadedWindowList()));

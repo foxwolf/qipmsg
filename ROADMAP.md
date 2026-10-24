@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.11.1 closes four FeiQ P1 gaps on top of 2.7.0: cross-subnet IPv4 range discovery, broadcast-to-online (`BROADCASTOPT`), sealed letters on the chat bubble, and UTF-8 / clipboard capability bits. 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom.
+2.15.2 adds four everyday tray/settings items on top of 2.11.1: opt-in start-with-login, do-not-disturb (no popups), presence sounds with a flap limit, and a read-receipt label on the outgoing bubble. 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom.
 
 ## In this line of work (done)
 
@@ -44,8 +44,12 @@
 - [x] Broadcast to all online peers with `IPMSG_BROADCASTOPT` (main window + tray)
 - [x] Sealed envelope on the chat bubble (`SECRETOPT` / existing `READCHECKOPT`), opened with `READMSG`
 - [x] Announce `CAPUTF8OPT` + `CLIPBOARDOPT`; UTF-8 encode/decode when the peer advertises it; GBK default for FeiQ 2013
+- [x] Opt-in start with login (Windows HKCU Run, XDG autostart, macOS LaunchAgent). Default off
+- [x] Do-not-disturb tray + preference: no balloon and no auto-raise; history and unread stay. Not `BR_ABSENCE`
+- [x] Optional online/offline sounds (`info.wav` / `warning.wav`) with startup quiet time and per-peer / global rate limit
+- [x] Outgoing bubble shows Read when `READMSG` arrives; opening a seal still sends `READMSG` as before
 
-## Later / out of scope for 2.11.1
+## Later / out of scope for 2.15.2
 
 1. **Custom emoji / face packs** (2.6.0 ships a small built-in Unicode set only)
 2. **FeiQ plugin system**
@@ -62,6 +66,13 @@
    - Flatpak / AppImage / DEB / RPM for Linux
 9. **Hide from specific groups**
    - Per-group stealth is out of scope for 2.5.0 (LAN discovery has no server to enforce it)
+
+## How to try 2.15.2
+
+1. Preferences → Detail: **Start with the system** is unchecked. Enable it, then the next login launches this binary (Windows current-user Run value `QIpMsg`, Linux `~/.config/autostart/qipmsg-autostart.desktop`, macOS `~/Library/LaunchAgents/org.qipmsg.login.plist`). Unchecking removes only that entry. FeiQ's startup entry is not touched. The current session does not spawn a second copy.
+2. Tray **Do not disturb (don't pop message windows)** or the same checkbox under Send/Receive. New text does not balloon and does not raise a chat. The unread tooltip and history still update. Click the tray to open chats yourself. Away / auto-reply is a different menu (**Leave**).
+3. Send/Receive: **Sound when peers come online or go offline** is off. Turn it on. The first 8 seconds after launch stay quiet. One peer will not beep again for 20 seconds. A burst closer than 1.5 seconds keeps a single beep. Away ↔ online does not beep; explicit exit and a later entry do (`warning.wav` / `info.wav`).
+4. Check **Encap** and send. When the peer opens the seal, their `READMSG` (original packet number in the body, same as before) flips that outgoing bubble to **Read**. If that chat is not visible and **Envelope open check** is still on, the old acknowledge window also appears. Do-not-disturb suppresses that window; the bubble/history mark remains.
 
 ## How to try 2.11.1
 

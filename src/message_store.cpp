@@ -20,6 +20,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -113,11 +114,78 @@ bool MessageStore::append(const ChatRecord &record)
         }
         obj.insert("img", images);
     }
+    if (!record.packetNo.isEmpty()) {
+        obj.insert("pkt", record.packetNo);
+    }
+    if (record.expectRead) {
+        obj.insert("er", true);
+    }
+    if (record.readReceipt) {
+        obj.insert("rd", true);
+    }
 
     QTextStream ts(&file);
     ts << QJsonDocument(obj).toJson(QJsonDocument::Compact) << '\n';
     ts.flush();
     return true;
+}
+
+bool MessageStore::markRead(const QString &peerIp, const QString &packetNo)
+{
+    if (packetNo.isEmpty()) {
+        return false;
+    }
+
+    QMutexLocker locker(&m_lock);
+    QFile file(filePathForIp(peerIp));
+    if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QStringList lines;
+    bool changed = false;
+    QTextStream input(&file);
+    while (!input.atEnd()) {
+        const QString line = input.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            lines << line;
+            continue;
+        }
+        QJsonParseError error;
+        const QJsonDocument doc = QJsonDocument::fromJson(trimmed.toUtf8(), &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            lines << line;
+            continue;
+        }
+        QJsonObject obj = doc.object();
+        const bool outgoing = obj.value("d").toString() == QLatin1String("out");
+        if (outgoing && obj.value("pkt").toString() == packetNo
+                && !obj.value("rd").toBool()) {
+            obj.insert("rd", true);
+            lines << QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+            changed = true;
+        } else {
+            lines << line;
+        }
+    }
+    file.close();
+    if (!changed) {
+        return false;
+    }
+
+    QSaveFile out(file.fileName());
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
+    {
+        QTextStream output(&out);
+        for (int i = 0; i < lines.size(); ++i) {
+            output << lines.at(i) << '\n';
+        }
+        output.flush();
+    }
+    return out.commit();
 }
 
 QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
@@ -159,6 +227,9 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
         record.direction = obj.value("d").toString();
         record.text = obj.value("x").toString();
         record.imagePaths = imagePathsFromJson(obj.value("img"));
+        record.packetNo = obj.value("pkt").toString();
+        record.expectRead = obj.value("er").toBool();
+        record.readReceipt = obj.value("rd").toBool();
         records.append(record);
     }
 

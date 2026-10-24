@@ -20,6 +20,7 @@
 #include "owner.h"
 #include "msg.h"
 
+#include <QDateTime>
 #include <QMap>
 #include <QObject>
 #include <QString>
@@ -94,6 +95,7 @@ private:
     void addUser(const Owner &owner, int row);
     void touchUser(int row, bool absence);
     void setRowPresence(int row, int presence);
+    void notePresenceSound(const QString &ip, int oldPresence, int newPresence);
     void sweepStaleUsers();
     quint32 presenceFlags(quint32 command) const;
     quint32 peerCapsForIp(const QString &ip) const;
@@ -108,6 +110,9 @@ private:
     QTimer *m_refreshTimer;
     QTimer *m_saveTimer;
     QMap<QString, QString> m_memos;
+    bool m_presenceSoundArmed;
+    QDateTime m_lastPresenceSoundAt;
+    QMap<QString, QDateTime> m_peerPresenceSoundAt;
 };
 
 #endif // !USER_MANAGER_H

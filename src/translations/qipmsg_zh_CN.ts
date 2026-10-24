@@ -301,6 +301,16 @@
         <source> Time: </source>
         <translation> 时间: </translation>
     </message>
+    <message>
+        <location filename="../chat_window.cpp" line="541" />
+        <source>Read</source>
+        <translation>已读</translation>
+    </message>
+    <message>
+        <location filename="../chat_window.cpp" line="544" />
+        <source>Unread</source>
+        <translation>未读</translation>
+    </message>
 </context>
 <context>
     <name>ContributorTab</name>
@@ -420,6 +430,11 @@
         <location filename="../setup_window.cpp" line="87" />
         <source>Mark stale after missed refreshes:</source>
         <translation>连续未应答次数后标为过期：</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="88" />
+        <source>Start with the system</source>
+        <translation>开机时启动</translation>
     </message>
 </context>
 <context>
@@ -1858,6 +1873,26 @@ window to set display level</source>
         <source>Not popup message</source>
         <translation>不自动弹出收到的消息</translation>
     </message>
+    <message>
+        <location filename="../setup_window.cpp" line="655" />
+        <source>Sound when peers come online or go offline</source>
+        <translation>好友上线或下线时播放声音</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="656" />
+        <source>Off by default. After startup, the first few seconds stay quiet. The same peer will not beep again for 20 seconds, and bursts share one beep.</source>
+        <translation>默认关闭。启动后前几秒保持安静。同一好友 20 秒内不会再次出声，短时间一批上下线只响一声。</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="662" />
+        <source>Do not disturb (don't pop message windows)</source>
+        <translation>勿扰（不弹出消息窗口）</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="665" />
+        <source>Independent of Away / auto-reply. Hides tray balloons and does not raise chat windows. History and the unread count still update.</source>
+        <translation>与离开/自动回复无关。不弹托盘气泡，也不把会话窗口抬到前面。历史和未读数仍会更新。</translation>
+    </message>
 </context>
 <context>
     <name>SizeColumnDelegate</name>
@@ -2011,6 +2046,21 @@ window to set display level</source>
         <location filename="../systray.cpp" line="425" />
         <source>Show file transfer monitor (%1)</source>
         <translation>文件传送监视器 (%1)</translation>
+    </message>
+    <message>
+        <location filename="../systray.cpp" line="108" />
+        <source>Do not disturb</source>
+        <translation>勿扰</translation>
+    </message>
+    <message>
+        <location filename="../systray.cpp" line="196" />
+        <source>Do not disturb (don't pop message windows)</source>
+        <translation>勿扰（不弹出消息窗口）</translation>
+    </message>
+    <message>
+        <location filename="../systray.cpp" line="199" />
+        <source>Suppress tray balloons and auto-raised chat windows. Not the same as Away / auto-reply.</source>
+        <translation>不弹托盘气泡，也不自动升起会话窗口。这不是离开/自动回复。</translation>
     </message>
 </context>
 <context>
@@ -2207,6 +2257,29 @@ window to set display level</source>
         <location filename="../window_manager.cpp" line="405" />
         <source>I am away from my computer.</source>
         <translation>我现在不在电脑旁。</translation>
+    </message>
+</context>
+<context>
+    <name>AutoStart</name>
+    <message>
+        <location filename="../autostart.cpp" line="186" />
+        <source>Off until you enable it. The next login starts QIpMsg from the current-user Run key (QIpMsg). FeiQ's own startup entry is left alone.</source>
+        <translation>默认关闭。下次登录时从当前用户的 Run 启动项（名称 QIpMsg）启动。不会改动飞秋自己的启动项。</translation>
+    </message>
+    <message>
+        <location filename="../autostart.cpp" line="190" />
+        <source>Off until you enable it. A per-user LaunchAgent starts QIpMsg at the next login. It is not loaded into the current session.</source>
+        <translation>默认关闭。用户 LaunchAgent 在下次登录时启动，不会在当前这次会话里再拉起一份。</translation>
+    </message>
+    <message>
+        <location filename="../autostart.cpp" line="194" />
+        <source>Off until you enable it. The next graphical login starts QIpMsg from an XDG autostart entry under your config directory.</source>
+        <translation>默认关闭。下次图形登录时从配置目录里的 XDG 自启项启动。</translation>
+    </message>
+    <message>
+        <location filename="../autostart.cpp" line="198" />
+        <source>Start with the system is not available on this platform.</source>
+        <translation>当前平台不支持开机启动。</translation>
     </message>
 </context>
 </TS>

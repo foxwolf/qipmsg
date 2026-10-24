@@ -21,6 +21,8 @@
 #include "transfer_codec.h"
 #include "helper.h"
 #include "protocolutil.h"
+#include "autostart.h"
+#include "systray.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -83,6 +85,15 @@ DetailTab::DetailTab(QWidget *parent)
         trayNotifyCheckBox->setCheckState(Qt::Checked);
     }
 
+    startWithOsCheck = new QCheckBox(tr("Start with the system"));
+    startWithOsCheck->setToolTip(AutoStart::describe());
+    if (!AutoStart::supported()) {
+        startWithOsCheck->setEnabled(false);
+    }
+    if (Global::preferences->isStartWithOs) {
+        startWithOsCheck->setCheckState(Qt::Checked);
+    }
+
     QLabel *intervalLabel = new QLabel(tr("Refresh interval:"));
     QLabel *staleLabel = new QLabel(tr("Mark stale after missed refreshes:"));
 
@@ -99,6 +110,10 @@ DetailTab::DetailTab(QWidget *parent)
     layout->addWidget(staleLabel, 8, 0);
     layout->addWidget(staleMissedSpin, 8, 1);
     layout->addWidget(trayNotifyCheckBox, 9, 0, 1, 2);
+    layout->addWidget(startWithOsCheck, 10, 0, 1, 2);
+    QLabel *startHint = new QLabel(AutoStart::describe());
+    startHint->setWordWrap(true);
+    layout->addWidget(startHint, 11, 0, 1, 2);
 
     setLayout(layout);
 }
@@ -115,6 +130,7 @@ void DetailTab::save()
     Global::preferences->autoRefreshSeconds = refreshIntervalSpin->value();
     Global::preferences->staleMissedRefreshCount = staleMissedSpin->value();
     Global::preferences->isTrayNotify = trayNotifyCheckBox->isChecked();
+    Global::preferences->isStartWithOs = startWithOsCheck->isChecked();
     Global::userManager->applyRefreshTimer();
 }
 
@@ -540,6 +556,9 @@ void DetailSetupDialog::apply()
     networkTab->save();
 
     Global::preferences->save();
+    if (Global::systray) {
+        Global::systray->syncActions();
+    }
 }
 
 SetupWindow::SetupWindow(QWidget *parent)
@@ -637,6 +656,20 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isNoSoundAlarm) {
         noSoundAlarm->setCheckState(Qt::Checked);
     }
+    presenceSoundCheck = new QCheckBox(tr("Sound when peers come online or go offline"));
+    presenceSoundCheck->setToolTip(tr(
+            "Off by default. After startup, the first few seconds stay quiet. "
+            "The same peer will not beep again for 20 seconds, and bursts share one beep."));
+    if (Global::preferences->isPresenceSound) {
+        presenceSoundCheck->setCheckState(Qt::Checked);
+    }
+    doNotDisturbCheck = new QCheckBox(tr("Do not disturb (don't pop message windows)"));
+    doNotDisturbCheck->setToolTip(tr(
+            "Independent of Away / auto-reply. Hides tray balloons and does not "
+            "raise chat windows. History and the unread count still update."));
+    if (Global::preferences->isDoNotDisturb) {
+        doNotDisturbCheck->setCheckState(Qt::Checked);
+    }
     sealedSend = new QCheckBox(tr("Send sealed message by default"));
     if (Global::preferences->isSealed) {
         sealedSend->setCheckState(Qt::Checked);
@@ -680,7 +713,9 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     QVBoxLayout *vbox = new QVBoxLayout();
     vbox->addWidget(readCheck);
     vbox->addWidget(noAutoPopupMsg);
+    vbox->addWidget(doNotDisturbCheck);
     vbox->addWidget(noSoundAlarm);
+    vbox->addWidget(presenceSoundCheck);
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
     vbox->addWidget(offlineQueueCheck);
@@ -839,6 +874,8 @@ void SetupWindow::applyPreferences()
 
     Global::preferences->isReadCheck = readCheck->isChecked();
     Global::preferences->isNoSoundAlarm = noSoundAlarm->isChecked();
+    Global::preferences->isPresenceSound = presenceSoundCheck->isChecked();
+    Global::preferences->isDoNotDisturb = doNotDisturbCheck->isChecked();
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
     Global::preferences->isOfflineQueue = offlineQueueCheck->isChecked();
@@ -858,6 +895,9 @@ void SetupWindow::applyPreferences()
     }
 
     Global::preferences->save();
+    if (Global::systray) {
+        Global::systray->syncActions();
+    }
 }
 
 void SetupWindow::detailSetup()

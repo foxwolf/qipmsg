@@ -296,7 +296,8 @@ void DiscussionWindow::sendMessage()
         Global::msgThread->addSendMsg(Msg(sendMsg));
         if (Global::windowManager) {
             Global::windowManager->recordOutgoing(ip,
-                    Global::userManager->displayNameForIp(ip), text);
+                    Global::userManager->displayNameForIp(ip), text,
+                    QStringList(), sendMsg.packetNoString(), false);
         }
     }
 

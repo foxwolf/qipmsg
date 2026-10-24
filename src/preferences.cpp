@@ -20,6 +20,7 @@
 #include <QDir>
 
 #include "preferences.h"
+#include "autostart.h"
 #include "constants.h"
 #include "global.h"
 #include "helper.h"
@@ -93,6 +94,11 @@ void Preferences::reset()
 
     isTrayNotify = true;
     isOfflineQueue = true;
+    isDoNotDisturb = false;
+    isPresenceSound = false;
+    onlineSound = Helper::soundPath() + "/info.wav";
+    offlineSound = Helper::soundPath() + "/warning.wav";
+    isStartWithOs = false;
 
     isResumeTransFile = true;
     isAutoRecvFile = false;
@@ -130,11 +136,14 @@ void Preferences::load()
     isNoAutoPopupMsg = set->value("isNoAutoPopupMsg",
             isNoAutoPopupMsg).toBool();
     isQuoteMsg = set->value("isQuoteMsg", isQuoteMsg).toBool();
+    isDoNotDisturb = set->value("isDoNotDisturb", isDoNotDisturb).toBool();
     set->endGroup();
 
     set->beginGroup("Other");
     quoteMark = set->value("quoteMark", quoteMark).toString();
     noticeSound = set->value("noticeSound", noticeSound).toString();
+    onlineSound = set->value("onlineSound", onlineSound).toString();
+    offlineSound = set->value("offlineSound", offlineSound).toString();
     set->endGroup();
 
     set->beginGroup("Detail");
@@ -192,7 +201,16 @@ void Preferences::load()
                                          staleMissedRefreshCount).toInt();
     isTrayNotify = set->value("isTrayNotify", isTrayNotify).toBool();
     isOfflineQueue = set->value("isOfflineQueue", isOfflineQueue).toBool();
+    isPresenceSound = set->value("isPresenceSound", isPresenceSound).toBool();
     set->endGroup();
+
+    set->beginGroup("System");
+    isStartWithOs = set->value("isStartWithOs", isStartWithOs).toBool();
+    set->endGroup();
+    if (!AutoStart::apply(isStartWithOs)) {
+        qWarning("Preferences::load: autostart apply failed (enabled=%d)",
+                 isStartWithOs ? 1 : 0);
+    }
 
     set->beginGroup("Away");
     isAway = set->value("isAway", isAway).toBool();
@@ -254,6 +272,7 @@ void Preferences::save()
     set->setValue("isQuoteMsg", QString("%1").arg(isQuoteMsg));
     set->setValue("isReadCheck", QString("%1").arg(isReadCheck));
     set->setValue("isNoSoundAlarm", QString("%1").arg(isNoSoundAlarm));
+    set->setValue("isDoNotDisturb", isDoNotDisturb);
     set->endGroup();
 
     set->beginGroup("Detail");
@@ -264,6 +283,8 @@ void Preferences::save()
     set->beginGroup("Other");
     set->setValue("quoteMark", quoteMark);
     set->setValue("noticeSound", noticeSound);
+    set->setValue("onlineSound", onlineSound);
+    set->setValue("offlineSound", offlineSound);
     set->endGroup();
 
     set->beginGroup("Log");
@@ -299,7 +320,16 @@ void Preferences::save()
     set->setValue("staleMissedRefreshCount", staleMissedRefreshCount);
     set->setValue("isTrayNotify", isTrayNotify);
     set->setValue("isOfflineQueue", isOfflineQueue);
+    set->setValue("isPresenceSound", isPresenceSound);
     set->endGroup();
+
+    set->beginGroup("System");
+    set->setValue("isStartWithOs", isStartWithOs);
+    set->endGroup();
+    if (!AutoStart::apply(isStartWithOs)) {
+        qWarning("Preferences::save: autostart apply failed (enabled=%d)",
+                 isStartWithOs ? 1 : 0);
+    }
 
     set->beginGroup("Away");
     set->setValue("isAway", isAway);

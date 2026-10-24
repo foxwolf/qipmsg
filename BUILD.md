@@ -171,7 +171,16 @@ make
 
 ## Version
 
-**2.11.1** adds cross-subnet IPv4 ranges, broadcast-to-online, chat sealed letters, and UTF-8/clipboard capability bits on top of **2.7.0** (FeiQ/IPMSG TCP file interop, 64-bit sizes/offsets, configurable UDP/TCP port + NIC) and the merged 2.6.0 / 2.5.x line.
+**2.15.2** adds opt-in login autostart, do-not-disturb, presence sounds, and read-receipt bubble labels on top of **2.11.1** (cross-subnet ranges, broadcast-to-online, sealed letters, UTF-8/clipboard bits) and **2.7.0** (FeiQ/IPMSG TCP file interop).
+
+## Trying the 2.15.2 tray and settings
+
+All four are off until you turn them on (do-not-disturb and presence sound default off; autostart defaults off and never writes a login entry by itself).
+
+1. Preferences → Detail → **Start with the system**. Windows: `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value `QIpMsg` (quoted when the path has spaces). Linux: `$XDG_CONFIG_HOME/autostart/qipmsg-autostart.desktop` or `~/.config/autostart/`. macOS: `~/Library/LaunchAgents/org.qipmsg.login.plist` (`RunAtLoad`, loaded on the next Aqua login, not via `launchctl` in the current session). Uncheck to delete only that entry.
+2. Tray item **Do not disturb (don't pop message windows)** (not under Leave) or Send/Receive checkbox. While on, `shouldPopup()` is false and tray balloons are skipped. `recordIncomingText` still appends history and increments unread. Manual tray click / Open chat still works. `BR_ABSENCE` is unchanged.
+3. Send/Receive → **Sound when peers come online or go offline**. Uses `sounds/info.wav` and `sounds/warning.wav` (override with `qipmsg.ini` `[Other] onlineSound` / `offlineSound`). Armed 8 seconds after start. Same IP is silent for 20 seconds after a beep; any presence beep closer than 1.5 seconds is dropped. Online ↔ away does not beep.
+4. An outgoing message sent with **Encap** (`SECRETOPT|READCHECKOPT`) shows **Unread** under the bubble. A `READMSG` whose body is the original decimal packet number (or an empty body with that number in the packet-number field) switches the label to **Read** and sets `"rd": true` on that history line (`pkt` / `er` are optional JSONL fields). Opening a seal still sends `READMSG|READCHECKOPT` with the original packet number in the body. No new command or option bit.
 
 ## Trying the 2.11.1 protocol gaps
 

@@ -87,6 +87,11 @@ public:
 
     bool isTrayNotify;
     bool isOfflineQueue;
+    bool isDoNotDisturb;
+    bool isPresenceSound;
+    QString onlineSound;
+    QString offlineSound;
+    bool isStartWithOs;
 
     bool isResumeTransFile;
     bool isAutoRecvFile;

@@ -77,6 +77,9 @@
 #define DEFAULT_AUTO_REFRESH_SECONDS       30
 #define DEFAULT_STALE_MISSED_REFRESH       3
 #define DEFAULT_AUTO_REPLY_COOLDOWN        60
+#define PRESENCE_SOUND_ARM_MS              8000
+#define PRESENCE_SOUND_PEER_GAP_MS         20000
+#define PRESENCE_SOUND_GLOBAL_GAP_MS       1500
 #define CHAT_HISTORY_LOAD_LIMIT            500
 #define TRAY_NOTIFY_MS                     4000
 #define SHAKE_TOKEN                        "#@#shake#@#"

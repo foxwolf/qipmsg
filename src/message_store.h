@@ -28,12 +28,18 @@
 class ChatRecord
 {
 public:
+    ChatRecord()
+        : expectRead(false), readReceipt(false) {}
+
     QDateTime timestamp;
     QString peerIp;
     QString peerName;
     QString direction;
     QString text;
     QStringList imagePaths;
+    QString packetNo;
+    bool expectRead;
+    bool readReceipt;
 };
 
 class MessageStore
@@ -42,6 +48,7 @@ public:
     MessageStore();
 
     bool append(const ChatRecord &record);
+    bool markRead(const QString &peerIp, const QString &packetNo);
     QList<ChatRecord> loadHistory(const QString &peerIp,
                                   int limit = CHAT_HISTORY_LOAD_LIMIT) const;
     QList<ChatRecord> search(const QString &needle, int limit) const;
