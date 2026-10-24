@@ -1,8 +1,8 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-This PR lands the build/cross-platform foundation. Remaining features are ordered by value and implementation risk.
+2.3.0 adds a FeiQ-like contact tree and chat chrome on top of the 2.2 essentials, with a complete Simplified Chinese UI. Remaining items stay deferred.
 
-## In this PR (done)
+## In this line of work (done)
 
 - [x] CMake build with Qt6 preferred / Qt5 fallback
 - [x] Remove ALSA, xdg-open, /etc/hostname and other Linux-only dependencies
@@ -10,50 +10,51 @@ This PR lands the build/cross-platform foundation. Remaining features are ordere
 - [x] Cross-platform file/URL opening via `QDesktopServices`
 - [x] Replace Qt4-only APIs (`QRegExp`, `QDirModel`, `qSort`, `toTime_t`, etc.)
 - [x] Document Windows / Linux / macOS build steps in `BUILD.md`
+- [x] Periodic presence refresh (`BR_ENTRY` / `BR_ABSENCE`) with configurable interval
+- [x] Soft-timeout stale peers (grey; last-seen rows stay after restart)
+- [x] User list shows nickname, group/部门, host, IP, status, and signature tooltip
+- [x] Persistent per-peer chat window (reopen keeps scrollback)
+- [x] Local message history under `~/.qipmsg/history/` (`%USERPROFILE%\.qipmsg\history\`)
+- [x] Global Find across all history JSONL files
+- [x] GBK default transfer codec with decode fallbacks (GBK / GB2312 / UTF-8)
+- [x] Tray balloon on new text + unread tooltip
+- [x] Away / auto-reply prefs, cooldown, tray Leave menu, and `BR_ABSENCE`
+- [x] TCP file resume via `~/.qipmsg/resume.json` (plain JSON, no Qt Sql)
+- [x] Directory-tree receive progress (current child + folder/file counts)
+- [x] Auto-accept / default recv path / auto-rename preferences
+- [x] Chat drag-and-drop attach (same `toLocalFile()` path as the send window)
+- [x] Screen shake (`#@#shake#@#` and common FeiQ-tolerated tokens)
+- [x] Qt screenshot (full screen / region) sent as a PNG file attachment
+- [x] Personal signature announced as a third NUL field after nickname/group
+- [x] Full Simplified Chinese UI (`qipmsg_zh_CN`), loaded by default
+- [x] FeiQ-like main contact tree (signature, online count, search, groups, blacklist)
+- [x] FeiQ-like chat header, Chinese toolbar, 对方资料, disabled stubs
 
-## Next: Feiqiu-like essentials (high value, low/medium risk)
+## Later / out of scope for 2.3.0
 
-1. **Stable user list / presence**
-   - Heartbeat/refresh to keep peer list alive across subnets
-   - Preserve user list across restarts
-
-2. **Improved chat UX**
-   - Persistent chat window per peer (currently opens a new send window each time)
-   - Multi-recipient send hardening (already supported, test with real peers)
-   - Basic message history view / searchable log viewer
-
-3. **File & folder transfer hardening**
-   - Resume interrupted transfers
-   - Better progress reporting for directory trees
-   - Drag-and-drop already exists; verify on Windows/macOS
-
-4. **Cross-platform tray + notifications**
-   - Native OS notifications where available
-   - Unread message badge / tray tooltip
-
-5. **Encoding robustness**
-   - Auto-detect GBK vs UTF-8 from peers
-   - Default to GBK/GB2312 for Feiqiu compatibility
-
-## Later: nice-to-have features
-
-6. **Auto-reply / away status**
-   - IPMSG `BR_ABSENCE` / `GETABSENCEINFO` support
-
-7. **Group chat / chat rooms**
-   - Broadcast group messages via multicast
-
-8. **Message encryption / signatures**
-   - IPMSG public key exchange (`GETPUBKEY`/`ANSPUBKEY`)
-
-9. **Modern packaging**
+1. **Custom emoji / face packs**
+2. **FeiQ plugin system**
+3. **File-share / public folder server**
+4. **Group chat / 群 chat rooms**
+5. **Voice**
+6. **Message encryption / signatures**
+   - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
+7. **Full skin rewrite**
+   - Modern stylesheet, dark/light theme, high-DPI polish
+8. **Modern packaging**
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 
-10. **UI refresh**
-    - Modern stylesheet, dark/light theme, high-DPI support
+## How to try 2.3.0
+
+1. Start QIpMsg. The main window is a FeiQ-style grouped list (我的好友 / department / 自己 / 黑名单) with a signature field and online count. Last-seen peers from `~/.qipmsg/peers.json` appear grey until the next refresh.
+2. Preferences → Detail → File: resume interrupted transfers, auto-accept incoming files, auto-rename, default receive folder (`~/.qipmsg/recv` by default).
+3. Double-click a user for the chat window. Toolbar: **Shake**, **Screenshot** (full / region; `Ctrl+Shift+S` / `Ctrl+Shift+A`), **Attach**, **Find** (`Ctrl+F`). Drag files/folders onto the chat (Windows uses the same `file://` drop path as the main send window).
+4. Tray or chat **Find in history** searches all `~/.qipmsg/history/*.jsonl` rows. Per-chat scrollback is unchanged.
+5. Preferences nickname box: personal signature. It is appended after `name\0group\0` on entry packets (classic IPMSG ignores the extra field). Peer signatures show in the user-list tooltip and chat caption.
+6. Incoming `#@#shake#@#` / `{shake}` / `SHAKE` / `窗口抖动` shakes the chat or a visible main window. Outgoing Shake sends `#@#shake#@#`.
 
 ## Want to help?
 
-Pick an item, open an issue to discuss the design, then submit a focused PR.
+Pick a deferred item, open an issue to discuss the design, then submit a focused PR.

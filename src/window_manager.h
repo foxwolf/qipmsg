@@ -17,13 +17,15 @@
 #ifndef WINDOW_MANAGER_H
 #define WINDOW_MANAGER_H
 
-#include <QObject>
+#include <QDateTime>
 #include <QList>
-#include <QMutex>
+#include <QMap>
+#include <QObject>
 
 #include "owner.h"
 #include "msg.h"
 
+class ChatWindow;
 class MsgWindow;
 class MsgReadedWindow;
 
@@ -38,6 +40,14 @@ public:
     void visibleMsgWindow();
     void visibleAllMsgWindow();
     void visibleAllMsgReadedWindow();
+    void raiseUnreadChats();
+
+    ChatWindow *openChat(const QString &ip, bool raiseWindow = true,
+                         const QString &draft = QString());
+    void recordOutgoing(const QString &ip, const QString &peerName,
+                        const QString &text);
+    void recordIncomingText(const QString &ip, const QString &peerName,
+                            const QString &text, bool notifyUser);
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);
@@ -48,6 +58,15 @@ public:
     }
 
     int hidedMsgWindowCount() const;
+    int unreadCount() const;
+    int hiddenAlertCount() const;
+
+signals:
+    void unreadCountChanged(int count);
+    void newTextMessage(QString fromName, QString preview);
+
+public slots:
+    void clearUnread(QString ip);
 
 private slots:
     void newMsg(Msg msg);
@@ -56,11 +75,24 @@ private slots:
 private:
     void createMsgWindow(Msg msg);
     void createMsgReadedWindow(Msg msg);
+    void handleIncomingSendMsg(Msg msg);
+    void maybeAutoReply(const Msg &msg);
+    void playNoticeSound();
+    bool shouldPopup() const;
+    QString peerDisplayName(const Msg &msg) const;
+    void applyIncomingShake(const QString &ip);
+    ChatWindow *ensureChat(const QString &ip);
+    void addUnread(const QString &ip);
+    void emitUnread();
 
     void destroyMsgWindowList();
+    void destroyChatWindows();
 
     QList<MsgWindow *> m_msgWindowList;
     QList<MsgReadedWindow *> m_msgReadedWindowList;
+    QMap<QString, ChatWindow *> m_chatWindows;
+    QMap<QString, int> m_unreadByIp;
+    QMap<QString, QDateTime> m_lastAutoReply;
 };
 
 #endif // !WINDOW_MANAGER_H

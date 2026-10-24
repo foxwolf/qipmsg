@@ -17,8 +17,10 @@
 #ifndef TRANSFER_CODEC_H
 #define TRANSFER_CODEC_H
 
-#include <QObject>
+#include <QByteArray>
 #include <QMap>
+#include <QString>
+#include <QTextCodec>
 
 class TransferCodec
 {
@@ -28,15 +30,19 @@ public:
     void setTransCodec(const QString &codecName);
     QTextCodec * codec() const;
 
-private:
-    void initTransCodec();
-    void initLocaleCodecMap();
+    QString decode(const QByteArray &bytes) const;
+    QByteArray encode(const QString &text) const;
+    QString codecName() const;
 
-    QMultiMap<QString, QByteArray> localeCodecMap;
+private:
+    QTextCodec *codecForNameSafe(const QByteArray &name) const;
+    QString decodeWith(QTextCodec *textCodec, const QByteArray &bytes,
+                       int *invalidChars) const;
+
     QMultiMap<QByteArray, QTextCodec *> codecMap;
 
-    QTextCodec *m_codec;   // codec for transfer message
+    QTextCodec *m_codec;
+    QString m_codecName;
 };
 
 #endif // !TRANSFER_CODEC_H
-

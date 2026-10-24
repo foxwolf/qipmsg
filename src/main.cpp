@@ -67,10 +67,9 @@ int main(int argc, char *argv[])
     // Set init package number as random.
     Helper::setPacketNo(QRandomGenerator::global()->bounded(1024));
 
-    // XXX TODO: language can be selected.
-    // Auto detect language.
-    QString language = "";
-    Translator::instance()->load(language);
+    // Default UI is Simplified Chinese (zh_CN). Chinese system locales
+    // still select zh_*; other locales fall back to the zh_CN catalog.
+    Translator::instance()->load(QString());
 
     QIpMsg *qipmsg = new QIpMsg;
 
@@ -82,12 +81,13 @@ int main(int argc, char *argv[])
         QThread::msleep(200);
     }
 
-    Global::userManager->broadcastEntry();
+    Global::userManager->announcePresence();
 
     app.setQuitOnLastWindowClosed(false);
     int rc = app.exec();
 
     Global::userManager->broadcastExit();
+
 
     delete qipmsg;
 

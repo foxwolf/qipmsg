@@ -21,9 +21,8 @@
 
 #include <QMap>
 #include <QString>
+#include <QStringList>
 #include <QSemaphore>
-
-class QStringList;
 
 
 class SendFileMap : public QObject

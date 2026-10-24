@@ -66,7 +66,8 @@ QString SendFileMap::packetString() const
         s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(h->lastModified()), 0, 16));
         s.append(COMMAND_SEPERATOR);
         s.append(QString("%1=").arg(IPMSG_FILE_CREATETIME, 0, 16));
-        s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(h->created()), 0, 16));
+        s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(
+                    h->birthTime().isValid() ? h->birthTime() : h->lastModified()), 0, 16));
         s.append(COMMAND_SEPERATOR);
         s.append(FILELIST_SEPARATOR);
 

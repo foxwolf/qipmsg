@@ -24,8 +24,10 @@
 #include "msg_window.h"
 #include "owner.h"
 #include "recv_file_window.h"
+#include "recv_file.h"
 #include "constants.h"
 #include "global.h"
+#include "helper.h"
 #include "user_manager.h"
 #include "msg_thread.h"
 #include "window_manager.h"
@@ -36,6 +38,9 @@
 #include "recv_file_finish_dialog.h"
 #include "retry_recv_file_dialog.h"
 #include "send_msg.h"
+
+#include <QDir>
+#include <QTimer>
 
 
 MsgWindow::MsgWindow(Msg msg, QWidget *parent)
@@ -98,6 +103,10 @@ MsgWindow::MsgWindow(Msg msg, QWidget *parent)
     }
 
     move(Global::randomNearMiddlePoint());
+
+    if (isAttachFile() && !isSealed()) {
+        QTimer::singleShot(0, this, SLOT(maybeAutoAcceptFiles()));
+    }
 }
 
 QSize MsgWindow::sizeHint() const
@@ -209,12 +218,8 @@ void MsgWindow::showReplyMsgBox()
         }
     }
 
-    MainWindow *window = new MainWindow(initReply, m_msg->ip());
-    connect(window, SIGNAL(messageReplyed()),
-            this, SLOT(closeMsgWindow()));
-    Global::systray->mainWindowList.insert(0, window);
-
-    window->show();
+    Global::windowManager->openChat(m_msg->ip(), true, initReply);
+    closeMsgWindow();
 }
 
 void MsgWindow::closeMsgWindow()
@@ -248,6 +253,53 @@ void MsgWindow::openEnvelope()
                     m_msg->packetNoString(), ""/* extendedInfo */, flags);
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
+
+    if (!m_msg->additionalInfo().isEmpty()) {
+        Global::windowManager->recordIncomingText(
+                    m_msg->ip(),
+                    Global::userManager->displayNameForIp(m_msg->ip()),
+                    m_msg->additionalInfo(),
+                    false);
+    }
+
+    if (isAttachFile()) {
+        QTimer::singleShot(0, this, SLOT(maybeAutoAcceptFiles()));
+    }
+}
+
+void MsgWindow::maybeAutoAcceptFiles()
+{
+    if (!isAttachFile()) {
+        return;
+    }
+    if (!Global::preferences->isAutoRecvFile) {
+        return;
+    }
+    if (m_recvFileMap.transferState() == RecvFileMap::Transfer) {
+        return;
+    }
+
+    QString path = Global::preferences->autoRecvPath;
+    if (path.isEmpty()) {
+        path = Helper::defaultRecvPath();
+    }
+    QDir dir(path);
+    if (!dir.exists() && !dir.mkpath(".")) {
+        return;
+    }
+
+    QList<int> fileIdList;
+    foreach (RecvFileHandle h, m_recvFileMap.m_map) {
+        if (h->state() == RecvFile::NotRecv || h->state() == RecvFile::RecvFail) {
+            fileIdList << h->fileId();
+        }
+    }
+    if (fileIdList.isEmpty()) {
+        return;
+    }
+
+    Global::preferences->lastSaveFilePath = path;
+    saveFile(fileIdList, path);
 }
 
 void MsgWindow::showRecvFile()

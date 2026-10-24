@@ -77,7 +77,27 @@ void Preferences::reset()
     lastSendDirPath = QDir::homePath();
     // End internel use
 
-    transferCodecName = "GB2312";
+    transferCodecName = "GBK";
+
+    isAutoRefresh = true;
+    autoRefreshSeconds = DEFAULT_AUTO_REFRESH_SECONDS;
+    staleMissedRefreshCount = DEFAULT_STALE_MISSED_REFRESH;
+
+    isAway = false;
+    isAutoReply = false;
+    autoReplyText = "";
+    autoReplyCooldownSecs = DEFAULT_AUTO_REPLY_COOLDOWN;
+    isNoPopupWhenAway = true;
+
+    isTrayNotify = true;
+
+    isResumeTransFile = true;
+    isAutoRecvFile = false;
+    isAutoRecvRename = true;
+    autoRecvPath = Helper::defaultRecvPath();
+
+    personSign = "";
+    blacklistIps.clear();
 }
 
 void Preferences::load()
@@ -152,6 +172,47 @@ void Preferences::load()
     set->beginGroup("Transfer");
     transferCodecName
         = set->value("transferCodecName", transferCodecName).toString();
+    if (transferCodecName.compare("GB2312", Qt::CaseInsensitive) == 0) {
+        // GBK is a superset and matches classic FeiQ / 飞鸽 peers better.
+        transferCodecName = "GBK";
+    }
+    set->endGroup();
+
+    set->beginGroup("Presence");
+    isAutoRefresh = set->value("isAutoRefresh", isAutoRefresh).toBool();
+    autoRefreshSeconds = set->value("autoRefreshSeconds",
+                                    autoRefreshSeconds).toInt();
+    staleMissedRefreshCount = set->value("staleMissedRefreshCount",
+                                         staleMissedRefreshCount).toInt();
+    isTrayNotify = set->value("isTrayNotify", isTrayNotify).toBool();
+    set->endGroup();
+
+    set->beginGroup("Away");
+    isAway = set->value("isAway", isAway).toBool();
+    isAutoReply = set->value("isAutoReply", isAutoReply).toBool();
+    autoReplyText = set->value("autoReplyText", autoReplyText).toString();
+    autoReplyCooldownSecs = set->value("autoReplyCooldownSecs",
+                                       autoReplyCooldownSecs).toInt();
+    isNoPopupWhenAway = set->value("isNoPopupWhenAway",
+                                   isNoPopupWhenAway).toBool();
+    set->endGroup();
+
+    set->beginGroup("FileRecv");
+    isResumeTransFile = set->value("isResumeTransFile",
+                                   isResumeTransFile).toBool();
+    isAutoRecvFile = set->value("isAutoRecvFile", isAutoRecvFile).toBool();
+    isAutoRecvRename = set->value("isAutoRecvRename",
+                                  isAutoRecvRename).toBool();
+    autoRecvPath = set->value("autoRecvPath", autoRecvPath).toString();
+    set->endGroup();
+
+    set->beginGroup("Profile");
+    personSign = set->value("personSign", personSign).toString();
+    set->endGroup();
+
+    set->beginGroup("Blacklist");
+    blacklistIps = set->value("ips", QString()).toString()
+            .split(QChar('\r'), Qt::SkipEmptyParts);
     set->endGroup();
 
 }
@@ -214,6 +275,36 @@ void Preferences::save()
 
     set->beginGroup("Transfer");
     set->setValue("transferCodecName", transferCodecName);
+    set->endGroup();
+
+    set->beginGroup("Presence");
+    set->setValue("isAutoRefresh", isAutoRefresh);
+    set->setValue("autoRefreshSeconds", autoRefreshSeconds);
+    set->setValue("staleMissedRefreshCount", staleMissedRefreshCount);
+    set->setValue("isTrayNotify", isTrayNotify);
+    set->endGroup();
+
+    set->beginGroup("Away");
+    set->setValue("isAway", isAway);
+    set->setValue("isAutoReply", isAutoReply);
+    set->setValue("autoReplyText", autoReplyText);
+    set->setValue("autoReplyCooldownSecs", autoReplyCooldownSecs);
+    set->setValue("isNoPopupWhenAway", isNoPopupWhenAway);
+    set->endGroup();
+
+    set->beginGroup("FileRecv");
+    set->setValue("isResumeTransFile", isResumeTransFile);
+    set->setValue("isAutoRecvFile", isAutoRecvFile);
+    set->setValue("isAutoRecvRename", isAutoRecvRename);
+    set->setValue("autoRecvPath", autoRecvPath);
+    set->endGroup();
+
+    set->beginGroup("Profile");
+    set->setValue("personSign", personSign);
+    set->endGroup();
+
+    set->beginGroup("Blacklist");
+    set->setValue("ips", blacklistIps.join("\r"));
     set->endGroup();
 }
 

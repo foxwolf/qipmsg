@@ -15,14 +15,20 @@
 //
 
 #include "window_manager.h"
+#include "chat_window.h"
+#include "constants.h"
 #include "global.h"
-#include "msg_window.h"
+#include "helper.h"
+#include "main_window.h"
+#include "message_store.h"
 #include "msg_readed_window.h"
 #include "msg_thread.h"
-#include "constants.h"
-#include "helper.h"
-#include "sound_thread.h"
+#include "msg_window.h"
 #include "preferences.h"
+#include "send_msg.h"
+#include "sound_thread.h"
+#include "systray.h"
+#include "user_manager.h"
 
 #include <QPoint>
 #include <QSize>
@@ -36,13 +42,14 @@ WindowManager::~WindowManager()
 {
     destroyMsgWindowList();
     destroyMsgReadedWindowList();
+    destroyChatWindows();
 }
 
 void WindowManager::newMsg(Msg msg)
 {
     switch (GET_MODE(msg->flags())) {
     case IPMSG_SENDMSG:
-        createMsgWindow(msg);
+        handleIncomingSendMsg(msg);
         break;
     case IPMSG_READMSG:
         createMsgReadedWindow(msg);
@@ -53,19 +60,269 @@ void WindowManager::newMsg(Msg msg)
     }
 }
 
+QString WindowManager::peerDisplayName(const Msg &msg) const
+{
+    const QString fromList = Global::userManager->displayNameForIp(msg->ip());
+    if (!fromList.isEmpty() && fromList != msg->ip()) {
+        return fromList;
+    }
+    const QString ownerName = msg->owner().name();
+    return ownerName.isEmpty() ? msg->ip() : ownerName;
+}
+
+bool WindowManager::shouldPopup() const
+{
+    if (Global::preferences->isNoAutoPopupMsg) {
+        return false;
+    }
+    if (Global::preferences->isAway && Global::preferences->isNoPopupWhenAway) {
+        return false;
+    }
+    return true;
+}
+
+void WindowManager::playNoticeSound()
+{
+    if (!Global::preferences->isNoSoundAlarm) {
+        Global::soundThread->play(Global::preferences->noticeSound);
+    }
+}
+
+void WindowManager::handleIncomingSendMsg(Msg msg)
+{
+    const bool sealed = msg->flags() & IPMSG_READCHECKOPT;
+    const bool attach = msg->flags() & IPMSG_FILEATTACHOPT;
+    const QString text = msg->additionalInfo();
+    const QString name = peerDisplayName(msg);
+    const bool autoReply = msg->flags() & IPMSG_AUTORETOPT;
+    const bool isShake = !sealed && !attach && Helper::isShakeText(text);
+
+    if (isShake) {
+        recordIncomingText(msg->ip(), name, tr("[Window shake]"), !autoReply);
+        applyIncomingShake(msg->ip());
+        if (!autoReply) {
+            playNoticeSound();
+        }
+        return;
+    }
+
+    if (!sealed) {
+        if (!text.isEmpty()) {
+            recordIncomingText(msg->ip(), name, text, !autoReply);
+        } else if (attach) {
+            recordIncomingText(msg->ip(), name,
+                               tr("[File attachment]"), !autoReply);
+        }
+    } else if (!autoReply) {
+        emit newTextMessage(name, tr("(Sealed message)"));
+        ChatWindow *w = m_chatWindows.value(msg->ip(), 0);
+        if (!(w && w->isVisible())) {
+            addUnread(msg->ip());
+        }
+    }
+
+    if (!autoReply) {
+        maybeAutoReply(msg);
+        playNoticeSound();
+    }
+
+    if (sealed || attach) {
+        createMsgWindow(msg);
+    } else if (shouldPopup()) {
+        openChat(msg->ip(), true);
+    }
+}
+
+void WindowManager::applyIncomingShake(const QString &ip)
+{
+    ChatWindow *w = ensureChat(ip);
+    if (shouldPopup()) {
+        openChat(ip, true);
+        w->shakeWindow();
+        return;
+    }
+    if (w->isVisible()) {
+        w->shakeWindow();
+        return;
+    }
+    if (Global::systray) {
+        foreach (MainWindow *mw, Global::systray->mainWindowList) {
+            if (mw && mw->isVisible()) {
+                Helper::shakeWidget(mw);
+                return;
+            }
+        }
+    }
+}
+
+void WindowManager::recordIncomingText(const QString &ip,
+                                       const QString &peerName,
+                                       const QString &text,
+                                       bool notifyUser)
+{
+    ChatRecord record;
+    record.timestamp = QDateTime::currentDateTime();
+    record.peerIp = ip;
+    record.peerName = peerName;
+    record.direction = "in";
+    record.text = text;
+    Global::messageStore->append(record);
+
+    ChatWindow *w = m_chatWindows.value(ip, 0);
+    if (w) {
+        w->appendMessage(record.timestamp, peerName, text, true);
+        if (!w->isVisible()) {
+            addUnread(ip);
+        }
+    } else {
+        addUnread(ip);
+    }
+
+    if (notifyUser) {
+        QString preview = text;
+        preview.replace('\n', ' ');
+        if (preview.size() > 80) {
+            preview = preview.left(80) + "...";
+        }
+        emit newTextMessage(peerName, preview);
+    }
+}
+
+void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
+                                   const QString &text)
+{
+    ChatRecord record;
+    record.timestamp = QDateTime::currentDateTime();
+    record.peerIp = ip;
+    record.peerName = peerName;
+    record.direction = "out";
+    record.text = text;
+    Global::messageStore->append(record);
+
+    ChatWindow *w = m_chatWindows.value(ip, 0);
+    if (w) {
+        w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
+                         text, false);
+    }
+}
+
+void WindowManager::maybeAutoReply(const Msg &msg)
+{
+    if (!(Global::preferences->isAway || Global::preferences->isAutoReply)) {
+        return;
+    }
+    if (msg->flags() & IPMSG_AUTORETOPT) {
+        return;
+    }
+
+    const QString ip = msg->ip();
+    const QDateTime now = QDateTime::currentDateTime();
+    const int cooldown = qMax(5, Global::preferences->autoReplyCooldownSecs);
+    if (m_lastAutoReply.contains(ip)
+            && m_lastAutoReply.value(ip).secsTo(now) < cooldown) {
+        return;
+    }
+
+    QString text = Global::preferences->autoReplyText.trimmed();
+    if (text.isEmpty()) {
+        text = tr("I am away from my computer.");
+    }
+
+    QString additionalInfo = text;
+    additionalInfo.append(QChar('\0'));
+
+    quint32 flags = IPMSG_SENDMSG | IPMSG_AUTORETOPT | IPMSG_SENDCHECKOPT;
+    SendMsg sendMsg(msg->ipAddress(), msg->port(),
+                    additionalInfo, ""/* extendedInfo */, flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+
+    m_lastAutoReply.insert(ip, now);
+    recordOutgoing(ip, peerDisplayName(msg), text);
+}
+
+ChatWindow *WindowManager::ensureChat(const QString &ip)
+{
+    ChatWindow *w = m_chatWindows.value(ip, 0);
+    if (!w) {
+        w = new ChatWindow(ip);
+        w->loadHistory();
+        m_chatWindows.insert(ip, w);
+        connect(w, SIGNAL(chatShown(QString)),
+                this, SLOT(clearUnread(QString)));
+    } else {
+        w->refreshPeerCaption();
+    }
+    return w;
+}
+
+ChatWindow *WindowManager::openChat(const QString &ip, bool raiseWindow,
+                                    const QString &draft)
+{
+    ChatWindow *w = ensureChat(ip);
+    if (!draft.isEmpty()) {
+        w->setDraft(draft);
+    }
+    if (raiseWindow) {
+        w->show();
+        w->raise();
+        w->activateWindow();
+    }
+    return w;
+}
+
+void WindowManager::addUnread(const QString &ip)
+{
+    m_unreadByIp[ip] = m_unreadByIp.value(ip, 0) + 1;
+    emitUnread();
+}
+
+void WindowManager::clearUnread(QString ip)
+{
+    if (m_unreadByIp.value(ip, 0) == 0) {
+        return;
+    }
+    m_unreadByIp.remove(ip);
+    emitUnread();
+}
+
+int WindowManager::unreadCount() const
+{
+    int count = 0;
+    QMapIterator<QString, int> it(m_unreadByIp);
+    while (it.hasNext()) {
+        it.next();
+        count += it.value();
+    }
+    return count;
+}
+
+int WindowManager::hiddenAlertCount() const
+{
+    return hidedMsgWindowCount() + unreadCount();
+}
+
+void WindowManager::emitUnread()
+{
+    emit unreadCountChanged(unreadCount());
+}
+
+void WindowManager::raiseUnreadChats()
+{
+    const QList<QString> ips = m_unreadByIp.keys();
+    foreach (const QString &ip, ips) {
+        if (m_unreadByIp.value(ip, 0) > 0) {
+            openChat(ip, true);
+        }
+    }
+}
+
 void WindowManager::createMsgWindow(Msg msg)
 {
         MsgWindow *msgWindow = new MsgWindow(msg);
 
         m_msgWindowList.insert(0, msgWindow);
 
-        // play sound
-        if (!Global::preferences->isNoSoundAlarm) {
-            QString soundFile = Global::preferences->noticeSound;
-            Global::soundThread->play(soundFile);
-        }
-
-        if (!Global::preferences->isNoAutoPopupMsg) {
+        if (shouldPopup()) {
             msgWindow->show();
         }
 }
@@ -93,10 +350,19 @@ void WindowManager::destroyMsgWindowList()
     }
 }
 
+void WindowManager::destroyChatWindows()
+{
+    QMapIterator<QString, ChatWindow *> it(m_chatWindows);
+    while (it.hasNext()) {
+        it.next();
+        delete it.value();
+    }
+    m_chatWindows.clear();
+}
+
 void WindowManager::visibleAllMsgWindow()
 {
     foreach (MsgWindow *w, m_msgWindowList) {
-        // this make the window on top
         w->setWindowFlags(w->windowFlags() | Qt::WindowStaysOnTopHint);
         QPoint pos = w->pos();
         w->move(pos);
@@ -105,6 +371,7 @@ void WindowManager::visibleAllMsgWindow()
         w->move(pos);
         w->show();
     }
+    raiseUnreadChats();
 }
 
 void WindowManager::visibleMsgWindow()
@@ -114,6 +381,7 @@ void WindowManager::visibleMsgWindow()
             w->show();
         }
     }
+    raiseUnreadChats();
 }
 
 void WindowManager::visibleAllMsgReadedWindow()
@@ -140,4 +408,3 @@ int WindowManager::hidedMsgWindowCount() const
 
     return count;
 }
-

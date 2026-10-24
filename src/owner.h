@@ -43,11 +43,15 @@ public:
     QString host() const { return m_host; }
 
     QString ip() const { return m_ipAddress.toString(); }
+    void setIp(const QString &ip) { m_ipAddress = QHostAddress(ip); }
 
     void setDisplayLevel(QString displayLevel) {
         m_displayLevel = displayLevel;
     }
     QString displayLevel() const { return m_displayLevel; }
+
+    void setSignature(const QString &signature) { m_signature = signature; }
+    QString signature() const { return m_signature; }
 
 private:
     // Get group name or absence string
@@ -61,6 +65,7 @@ private:
     QHostAddress m_ipAddress;
     quint16 m_port;
     QString m_displayLevel;
+    QString m_signature;
 };
 
 #endif // !OWNER_H

@@ -17,6 +17,7 @@
 #ifndef TRANSLATOR_H
 #define TRANSLATOR_H
 
+#include <QStringList>
 #include <QTranslator>
 
 class Translator
@@ -30,9 +31,12 @@ public:
 private:
     static bool loadCatalog(QTranslator &t, QString name, QString locale,
                             QString dir);
+    QStringList catalogDirs() const;
+    QStringList localeCandidates(const QString &requested) const;
 
     QTranslator appTrans_;
     QTranslator qtTrans_;
+    QTranslator qtBaseTrans_;
 };
 
 #endif // !TRANSLATOR_H

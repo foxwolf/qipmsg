@@ -35,7 +35,7 @@ void SizeColumnDelegate::paint(QPainter *painter,
     myOption.displayAlignment = Qt::AlignRight | Qt::AlignVCenter;
 
     QString s;
-    if (text == "Folder") {
+    if (text == "Folder" || text == tr("Folder")) {
         s = tr("Folder");
     } else {
         bool ok;

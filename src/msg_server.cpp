@@ -151,8 +151,7 @@ void MsgServer::readPacket()
             continue;
         }
 
-        QString packet
-            = Global::transferCodec->codec()->toUnicode(datagram);
+        QString packet = Global::transferCodec->decode(datagram);
 
         RecvMsg recvMsg(packet, senderIp, senderPort);
 
@@ -178,7 +177,11 @@ void MsgServer::processRecvMsg(Msg msg)
         break;
 
     case IPMSG_BR_ABSENCE:
-        // XXX TODO: support it
+        processAbsenceMsg(msg);
+        break;
+
+    case IPMSG_GETABSENCEINFO:
+        processGetAbsenceInfo(msg);
         break;
 
     case IPMSG_SENDMSG:
@@ -209,10 +212,35 @@ void MsgServer::processEntryMsg(Msg msg)
 {
     emit newUserMsg(msg);
 
+    quint32 flags = IPMSG_ANSENTRY;
+    if (Global::preferences->isAway) {
+        flags |= IPMSG_ABSENCEOPT;
+    }
+
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
                     Global::userManager->entryMessage(),
-                    ""/* extendedInfo */, IPMSG_ANSENTRY);
+                    ""/* extendedInfo */, flags);
 
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
+void MsgServer::processAbsenceMsg(Msg msg)
+{
+    emit newUserMsg(msg);
+}
+
+void MsgServer::processGetAbsenceInfo(Msg msg)
+{
+    QString info;
+    if (Global::preferences->isAway || Global::preferences->isAutoReply) {
+        info = Global::preferences->autoReplyText.trimmed();
+        if (info.isEmpty()) {
+            info = tr("I am away from my computer.");
+        }
+    }
+
+    SendMsg sendMsg(msg->ipAddress(), msg->port(),
+                    info, ""/* extendedInfo */, IPMSG_SENDABSENCEINFO);
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
 
@@ -290,6 +318,7 @@ void MsgServer::handleMsg(Msg &msg)
         case IPMSG_ANSENTRY:
         case IPMSG_ANSREADMSG:
         case IPMSG_RELEASEFILES:
+        case IPMSG_SENDABSENCEINFO:
             broadcastMsg(msg);
             Global::msgThread->removeSendMsgNotLock(msg->packetNoString());
             break;
@@ -330,8 +359,7 @@ bool MsgServer::isResendNeeded(Msg &msg) const
 
 void MsgServer::broadcastMsg(Msg &msg)
 {
-    QByteArray datagram
-        = Global::transferCodec->codec()->fromUnicode(msg->packet());
+    QByteArray datagram = Global::transferCodec->encode(msg->packet());
 
     if (m_udpSocket.writeDatagram(datagram, msg->ipAddress(),
                                        msg->port()) == -1) {
@@ -389,8 +417,7 @@ void MsgServer::broadcastUserMsg(Msg &msg)
 
     updateAddresses();
 
-    QByteArray datagram = Global::transferCodec->codec()
-        ->fromUnicode(msg->packet());
+    QByteArray datagram = Global::transferCodec->encode(msg->packet());
 
     if (m_broadcastAddresses.isEmpty()) {
         qWarning() << "MsgServer::broadcastUserMsg: no usable IPv4 broadcast address";

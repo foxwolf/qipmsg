@@ -23,7 +23,9 @@
 #include "user_manager.h"
 #include "helper.h"
 #include "about_dialog.h"
+#include "history_search_window.h"
 #include "transfer_file_window.h"
+#include "constants.h"
 
 #include <QAction>
 #include <QMenu>
@@ -49,9 +51,10 @@ Systray::Systray(QObject *parent)
     startTimer(500);
 
     m_iconKey = "normal";
+    m_userCount = 0;
     trayIcon->setIcon(*Global::iconSet.value(m_iconKey));
     trayIcon->setContextMenu(trayIconMenu);
-    trayIcon->setToolTip(tr("IP Messenger(%1)").arg(0));
+    refreshTooltip();
 }
 
 Systray::~Systray()
@@ -62,7 +65,7 @@ Systray::~Systray()
 
 void Systray::timerEvent(QTimerEvent *event)
 {
-    if (Global::windowManager->hidedMsgWindowCount() > 0) {
+    if (Global::windowManager->hiddenAlertCount() > 0) {
         if (m_iconKey == "normal") {
             m_iconKey = "receive";
         } else {
@@ -74,7 +77,50 @@ void Systray::timerEvent(QTimerEvent *event)
 
 void Systray::updateToolTip(int i)
 {
-    trayIcon->setToolTip(tr("IP Messenger (%1)").arg(i));
+    m_userCount = i;
+    refreshTooltip();
+}
+
+void Systray::refreshTooltip()
+{
+    const int unread = Global::windowManager
+            ? Global::windowManager->unreadCount() : 0;
+    if (unread > 0) {
+        trayIcon->setToolTip(tr("IP Messenger (%1 users, %2 unread)")
+                             .arg(m_userCount).arg(unread));
+    } else {
+        trayIcon->setToolTip(tr("IP Messenger (%1)").arg(m_userCount));
+    }
+}
+
+void Systray::onNewTextMessage(QString fromName, QString preview)
+{
+    notifyNewMessage(fromName, preview);
+    refreshTooltip();
+}
+
+void Systray::notifyNewMessage(const QString &fromName, const QString &preview)
+{
+    if (!Global::preferences->isTrayNotify) {
+        return;
+    }
+    if (!trayIcon->supportsMessages()) {
+        return;
+    }
+    trayIcon->showMessage(tr("New message from %1").arg(fromName),
+                          preview,
+                          QSystemTrayIcon::Information,
+                          TRAY_NOTIFY_MS);
+}
+
+void Systray::setAway(bool away)
+{
+    Global::preferences->isAway = away;
+    if (away && !Global::preferences->isAutoReply) {
+        Global::preferences->isAutoReply = true;
+    }
+    Global::preferences->save();
+    Global::userManager->announcePresence();
 }
 
 void Systray::createActions()
@@ -87,6 +133,7 @@ void Systray::createActions()
     aboutAction = new QAction(tr("About..."), 0);
     aboutQtAction = new QAction(tr("About Qt"), 0);
     readMsgLogAction = new QAction(tr("Read message log file"), 0);
+    findHistoryAction = new QAction(tr("Find in history..."), 0);
     quitAction = new QAction(tr("Quit IP Messenger"), 0);
 }
 
@@ -104,12 +151,12 @@ void Systray::createMenus()
     trayIconMenu->addAction(setupAction);
     trayIconMenu->addAction(aboutAction);
     trayIconMenu->addAction(readMsgLogAction);
+    trayIconMenu->addAction(findHistoryAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
     trayIconMenu->addSeparator();
     leaveMenu = new QMenu(tr("Leave"));
-    leaveMenu->setEnabled(false);
     createLeaveMenu();
     trayIconMenu->addMenu(leaveMenu);
 
@@ -119,7 +166,13 @@ void Systray::createMenus()
 
 void Systray::createLeaveMenu()
 {
-    // XXX TODO: not finished yet.
+    awayAction = new QAction(tr("Away / Auto-reply"), this);
+    awayAction->setCheckable(true);
+    awayAction->setChecked(Global::preferences->isAway);
+    connect(awayAction, SIGNAL(toggled(bool)),
+            this, SLOT(setAway(bool)));
+    leaveMenu->addAction(awayAction);
+    leaveMenu->setEnabled(true);
 }
 
 void Systray::show()
@@ -145,9 +198,15 @@ void Systray::createConnections()
             this, SLOT(setAllWindowVisible()));
     connect(readMsgLogAction, SIGNAL(triggered()),
             this, SLOT(readLog()));
+    connect(findHistoryAction, SIGNAL(triggered()),
+            this, SLOT(findInHistory()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
+    connect(Global::windowManager, SIGNAL(unreadCountChanged(int)),
+            this, SLOT(refreshTooltip()));
+    connect(Global::windowManager, SIGNAL(newTextMessage(QString,QString)),
+            this, SLOT(onNewTextMessage(QString,QString)));
 }
 
 void Systray::setup()
@@ -178,8 +237,7 @@ void Systray::trayIconActivated(QSystemTrayIcon::ActivationReason reason)
         if (Global::preferences->isSingleClickSendWindow) {
             createMainWindow();
         }
-        if (Global::preferences->isNoAutoPopupMsg
-            && Global::windowManager->hidedMsgWindowCount() > 0) {
+        if (Global::windowManager->hiddenAlertCount() > 0) {
             Global::windowManager->visibleMsgWindow();
             m_iconKey = "normal";
             trayIcon->setIcon(*Global::iconSet.value(m_iconKey));
@@ -215,6 +273,14 @@ void Systray::destroyMainWindowList()
 }
 
 // XXX NOTE: We do not use external editor.
+void Systray::findInHistory()
+{
+    HistorySearchWindow *window = new HistorySearchWindow;
+    window->show();
+    window->raise();
+    window->activateWindow();
+}
+
 void Systray::readLog()
 {
     if (Global::preferences->logFilePath.isEmpty()) {

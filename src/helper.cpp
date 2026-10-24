@@ -16,7 +16,10 @@
 
 #include <QLibraryInfo>
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
+#include <QPropertyAnimation>
+#include <QWidget>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QTextStream>
@@ -261,5 +264,85 @@ int Helper::fontTextWidth(const QFontMetrics &fm, const QString &text)
 #else
     return fm.width(text);
 #endif
+}
+
+QString Helper::defaultRecvPath()
+{
+    return appHomePath() + "/recv";
+}
+
+QString Helper::screenshotDir()
+{
+    return appHomePath() + "/screenshots";
+}
+
+QString Helper::uniqueFileName(const QString &dir, const QString &name)
+{
+    QDir d(dir);
+    if (!d.exists(name)) {
+        return name;
+    }
+
+    const QFileInfo info(name);
+    const QString base = info.completeBaseName();
+    const QString suffix = info.suffix();
+    for (int i = 1; i < 10000; ++i) {
+        const QString candidate = suffix.isEmpty()
+                ? QString("%1 (%2)").arg(base).arg(i)
+                : QString("%1 (%2).%3").arg(base).arg(i).arg(suffix);
+        if (!d.exists(candidate)) {
+            return candidate;
+        }
+    }
+    return name;
+}
+
+QString Helper::shakeToken()
+{
+    return QString::fromUtf8(SHAKE_TOKEN);
+}
+
+bool Helper::isShakeText(const QString &text)
+{
+    const QString t = text.trimmed();
+    if (t.isEmpty()) {
+        return false;
+    }
+    if (t == QLatin1String(SHAKE_TOKEN)
+            || t == QLatin1String("{shake}")
+            || t.compare(QLatin1String("SHAKE"), Qt::CaseInsensitive) == 0
+            || t == QString::fromUtf8("窗口抖动")
+            || t == QLatin1String("#qipmsg-shake#")) {
+        return true;
+    }
+    if (t.contains(QChar(0x1b))
+            && t.contains(QLatin1String("SHAKE"), Qt::CaseInsensitive)) {
+        return true;
+    }
+    return false;
+}
+
+void Helper::shakeWidget(QWidget *widget)
+{
+    if (!widget) {
+        return;
+    }
+    widget->show();
+    widget->raise();
+    widget->activateWindow();
+
+    const QPoint origin = widget->pos();
+    QPropertyAnimation *anim = new QPropertyAnimation(widget, "pos", widget);
+    anim->setDuration(420);
+    anim->setKeyValueAt(0.00, origin);
+    anim->setKeyValueAt(0.12, origin + QPoint(10, 0));
+    anim->setKeyValueAt(0.24, origin + QPoint(-10, 0));
+    anim->setKeyValueAt(0.36, origin + QPoint(8, 0));
+    anim->setKeyValueAt(0.48, origin + QPoint(-8, 0));
+    anim->setKeyValueAt(0.60, origin + QPoint(5, 0));
+    anim->setKeyValueAt(0.72, origin + QPoint(-5, 0));
+    anim->setKeyValueAt(0.86, origin + QPoint(2, 0));
+    anim->setKeyValueAt(1.00, origin);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 

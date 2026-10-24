@@ -23,6 +23,7 @@
 #include <QObject>
 
 class QStandardItemModel;
+class QTimer;
 
 class UserManager : public QObject
 {
@@ -32,9 +33,13 @@ public:
     friend class MainWindow;
 
     UserManager(QObject *parent = 0);
+    ~UserManager();
 
     void broadcastExit() const;
     void broadcastEntry() const;
+    void broadcastAbsence() const;
+    void announcePresence() const;
+    void applyRefreshTimer();
 
     bool contains(QString ip) const;
 
@@ -45,6 +50,15 @@ public:
     QString group(int row) const;
     QString host(int row) const;
     QString loginName(int row) const;
+    QString status(int row) const;
+    int presence(int row) const;
+    int presenceForIp(const QString &ip) const;
+    int userCount() const;
+    int onlineCount() const;
+    QString displayNameForIp(const QString &ip) const;
+    QString peerCaption(const QString &ip) const;
+    QString signature(int row) const;
+    QString signatureForIp(const QString &ip) const;
 
     Owner ourself() const { return m_ourself; }
     void updateOurself();
@@ -54,20 +68,32 @@ public:
 
 signals:
     void userCountUpdated(int userCount);
+    void usersChanged();
 
 private slots:
     void newUserMsg(Msg msg);
     void newExitMsg(Msg msg);
+    void autoRefreshPresence();
+    void savePersistedPeers();
 
 private:
     void createModel();
     void updateUser(const Owner &owner, int row);
     void addUser(const Owner &owner, int row);
+    void touchUser(int row, bool absence);
+    void setRowPresence(int row, int presence);
+    void sweepStaleUsers();
+    quint32 presenceFlags(quint32 command) const;
+    void loadPersistedPeers();
+    void scheduleSavePeers();
+    QString peersFilePath() const;
+    void notifyUsersChanged();
 
     static Owner m_ourself;
 
     QStandardItemModel *m_model;
+    QTimer *m_refreshTimer;
+    QTimer *m_saveTimer;
 };
 
 #endif // !USER_MANAGER_H
-
