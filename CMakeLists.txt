@@ -60,6 +60,8 @@ set(SOURCES
     src/offline_queue.cpp
     src/owner.cpp
     src/pinyin.cpp
+    src/portBind.cpp
+    src/portConflict.cpp
     src/puffInflate.cpp
     src/preferences.cpp
     src/protocolutil.cpp
@@ -156,6 +158,8 @@ set(HEADERS
     src/offline_queue.h
     src/owner.h
     src/pinyin.h
+    src/portBind.h
+    src/portConflict.h
     src/preferences.h
     src/protocolutil.h
     src/qipmsg.h
@@ -277,6 +281,12 @@ add_executable(qipmsgP3Check
 )
 target_include_directories(qipmsgP3Check PRIVATE src)
 
+add_executable(qipmsgPortCheck
+    test/portcheck/main.cpp
+    src/portBind.cpp
+)
+target_include_directories(qipmsgPortCheck PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -294,6 +304,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
     target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
     target_link_libraries(qipmsgP3Check PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
+    target_link_libraries(qipmsgPortCheck PRIVATE Qt6::Core Qt6::Network)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -308,6 +319,7 @@ else()
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
     target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network)
     target_link_libraries(qipmsgP3Check PRIVATE Qt5::Core Qt5::Gui Qt5::Network)
+    target_link_libraries(qipmsgPortCheck PRIVATE Qt5::Core Qt5::Network)
 endif()
 
 if (WIN32)

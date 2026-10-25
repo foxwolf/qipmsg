@@ -20,6 +20,7 @@
 #include "msg.h"
 
 #include <QAbstractSocket>
+#include <QAtomicInt>
 #include <QMap>
 #include <QMutex>
 #include <QThread>
@@ -41,6 +42,8 @@ public:
     void addSendMsgNotLock(Msg msg);
     void removeSendMsg(QString packetNo);
     void removeSendMsgNotLock(QString packetNo);
+    bool udpListening() const;
+    bool waitUntilBound(int timeoutMs);
 
 private slots:
     void handleError(QAbstractSocket::SocketError errorCode, QString s);
@@ -54,6 +57,8 @@ private:
     QMap<QString, Msg> m_sendMsgMap;
 
     MsgServer *m_msgServer;
+    QAtomicInt m_bindDone;
+    QAtomicInt m_udpListening;
 };
 
 #endif // !MSG_THREAD_H

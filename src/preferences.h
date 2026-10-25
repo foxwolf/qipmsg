@@ -95,6 +95,7 @@ public:
     QString onlineSound;
     QString offlineSound;
     bool isStartWithOs;
+    bool startInTray;
 
     bool isResumeTransFile;
     bool isAutoRecvFile;
@@ -108,6 +109,7 @@ public:
     QString themeName;
 
     int udpPort;
+    bool portFallback;
     QString bindAddress;
     QString bindMac;
     QString bindInterfaceName;

@@ -58,6 +58,7 @@ private:
     QCheckBox *autoRefreshCheckBox;
     QCheckBox *trayNotifyCheckBox;
     QCheckBox *startWithOsCheck;
+    QCheckBox *startInTrayCheck;
     QSpinBox *refreshIntervalSpin;
     QSpinBox *staleMissedSpin;
     QComboBox *themeCombo;

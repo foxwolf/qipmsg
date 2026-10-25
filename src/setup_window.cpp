@@ -30,6 +30,7 @@
 #include "themeName.h"
 #include "userSkin.h"
 #include "nicBind.h"
+#include "ipmsg.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -101,6 +102,16 @@ DetailTab::DetailTab(QWidget *parent)
         startWithOsCheck->setCheckState(Qt::Checked);
     }
 
+    startInTrayCheck = new QCheckBox(tr("Start hidden in the notification area"));
+    startInTrayCheck->setToolTip(tr(
+            "Leave this off to open the contact window at launch, including "
+            "when the tray icon is buried in the Windows overflow. Turn it "
+            "on only if you can already find the icon. Closing the contact "
+            "window still leaves QIpMsg in the tray when a tray is available."));
+    if (Global::preferences->startInTray) {
+        startInTrayCheck->setCheckState(Qt::Checked);
+    }
+
     themeCombo = new QComboBox;
     fillThemes(normalizeThemeName(Global::preferences->themeName));
     QPushButton *importSkinButton = new QPushButton(tr("Import skin"));
@@ -130,9 +141,10 @@ DetailTab::DetailTab(QWidget *parent)
     QLabel *startHint = new QLabel(AutoStart::describe());
     startHint->setWordWrap(true);
     layout->addWidget(startHint, 11, 0, 1, 2);
-    layout->addWidget(themeLabel, 12, 0);
-    layout->addWidget(themeCombo, 12, 1);
-    layout->addWidget(importSkinButton, 13, 0, 1, 2);
+    layout->addWidget(startInTrayCheck, 12, 0, 1, 2);
+    layout->addWidget(themeLabel, 13, 0);
+    layout->addWidget(themeCombo, 13, 1);
+    layout->addWidget(importSkinButton, 14, 0, 1, 2);
     QLabel *themeHint = new QLabel(tr(
         "Light keeps the 2.4 messenger theme. Dark uses the same layout. "
         "Follow system uses the OS color scheme on Qt 6.5+, otherwise the "
@@ -141,7 +153,7 @@ DetailTab::DetailTab(QWidget *parent)
         "background image. A broken QSS falls back to the built-in sheet. "
         "Open chats keep the bubbles they already drew."));
     themeHint->setWordWrap(true);
-    layout->addWidget(themeHint, 14, 0, 1, 2);
+    layout->addWidget(themeHint, 15, 0, 1, 2);
 
     setLayout(layout);
 }
@@ -159,6 +171,7 @@ void DetailTab::save()
     Global::preferences->staleMissedRefreshCount = staleMissedSpin->value();
     Global::preferences->isTrayNotify = trayNotifyCheckBox->isChecked();
     Global::preferences->isStartWithOs = startWithOsCheck->isChecked();
+    Global::preferences->startInTray = startInTrayCheck->isChecked();
     Global::preferences->themeName = normalizeThemeName(
                 themeCombo->currentData().toString());
     Global::userManager->applyRefreshTimer();
@@ -537,8 +550,10 @@ NetworkTab::NetworkTab(QWidget *parent)
         "Any IPv4 keeps discovery on every NIC. Choosing a NIC stores its "
         "MAC as the interface id (or the interface name when no MAC is "
         "reported) and listens on that NIC's current IPv4. "
-        "%1 Bind failure is logged and the app continues (soft-fail). "
-        "A chosen NIC that is down does not fall back to the other NICs.")
+        "%1 If the port cannot be opened at startup, QIpMsg explains why "
+        "and can save a free port for this run. Port 2425 is kept whenever "
+        "it is free. A chosen NIC that is down does not fall back to the "
+        "other NICs.")
             .arg(NicBind::platformNote()));
     hint->setWordWrap(true);
 
@@ -613,7 +628,12 @@ void NetworkTab::fillBindCombo()
 
 void NetworkTab::save()
 {
+    const int previousPort = Global::preferences->udpPort;
     Global::preferences->udpPort = portSpin->value();
+    if (previousPort != Global::preferences->udpPort
+            || Global::preferences->udpPort == IPMSG_DEFAULT_PORT) {
+        Global::preferences->portFallback = false;
+    }
 
     const QString typed = bindCombo->currentText().trimmed();
     const int index = bindCombo->currentIndex();

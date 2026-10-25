@@ -35,15 +35,26 @@
 #include "constants.h"
 #include "localMsg.h"
 #include "window_manager.h"
+#include "systray.h"
+#include "portConflict.h"
+
+#include <QSystemTrayIcon>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#include <shlobj.h>
+#endif
 
 static void createHomeDirectory();
 static int runLocalMessage(const LocalCli &cli);
 static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
                             const QString &msg);
-static void checkTcpServerError();
+static void reportListenResult(QWidget *parent, bool userContinued);
+static void setWindowsAppUserModelId();
 
 int main(int argc, char *argv[])
 {
+    setWindowsAppUserModelId();
     QApplication app(argc, argv);
     const LocalCli cli = LocalMsg::parseCli(app.arguments());
     if (!cli.error.isEmpty()) {
@@ -93,11 +104,32 @@ int main(int argc, char *argv[])
     Helper::applyAppTheme(&app);
 
     QIpMsg *qipmsg = new QIpMsg;
+    if (Global::iconSet.contains(QLatin1String("normal"))
+            && Global::iconSet.value(QLatin1String("normal"))) {
+        app.setWindowIcon(*Global::iconSet.value(QLatin1String("normal")));
+    }
+
+    // Decide this before any warning dialog. A parentless QMessageBox used
+    // to be the only window; WM_CLOSE then left a tray-only process.
+    const bool trayAvailable = QSystemTrayIcon::isSystemTrayAvailable();
+    app.setQuitOnLastWindowClosed(!trayAvailable);
+
+    QWidget *startupWindow = 0;
+    if (Global::systray) {
+        startupWindow = Global::systray->presentAtStartup();
+    }
+    const bool userContinued = PortConflict::resolveBeforeListen(startupWindow);
+    if (Global::systray && Global::systray->visibleMainWindow()) {
+        startupWindow = Global::systray->visibleMainWindow();
+    }
+
+    if (Global::fileServer) {
+        Global::fileServer->startListening();
+    }
 
     Global::msgThread->start();
-    // this make sure thead started
-    while (!Global::msgThread->isRunning()) {
-        QThread::msleep(200);
+    if (!Global::msgThread->waitUntilBound(5000)) {
+        qWarning("main: UDP bind did not finish");
     }
 
     LocalMsgServer *localServer = new LocalMsgServer(qipmsg);
@@ -113,11 +145,10 @@ int main(int argc, char *argv[])
                  localError.toUtf8().constData());
     }
 
-    checkTcpServerError();
+    reportListenResult(startupWindow, userContinued);
 
     Global::userManager->announcePresence();
 
-    app.setQuitOnLastWindowClosed(false);
     int rc = app.exec();
 
     if (!Global::preferences->isStealth) {
@@ -195,22 +226,36 @@ static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
     }
 }
 
-static void checkTcpServerError()
+static void setWindowsAppUserModelId()
 {
-    if (Global::fileServer->isListening()) {
+#ifdef Q_OS_WIN
+    // Keep the taskbar button and the notification icon on this program
+    // instead of a temporary host path such as the installer directory.
+    SetCurrentProcessExplicitAppUserModelID(L"QIpMsg.QIpMsg");
+#else
+    return;
+#endif
+}
+
+static void reportListenResult(QWidget *parent, bool userContinued)
+{
+    const bool tcpOk = Global::fileServer && Global::fileServer->isListening();
+    const bool udpOk = Global::msgThread && Global::msgThread->udpListening();
+    const quint16 port = Global::preferences
+            ? Global::preferences->listenPort() : 0;
+    if (Global::systray) {
+        Global::systray->noteListenProblem(!(tcpOk && udpOk), port);
+    }
+    if (tcpOk && udpOk) {
         return;
     }
-
-    const QString errorString = QObject::tr(
-        "TCP file server failed to listen. File receive will not work "
-        "until the port or bind address is free. Change it in "
-        "Preferences → Detail → Network, then restart.");
-
-    QMessageBox::warning(0, QObject::tr("Start QIpMsg"),
-                         errorString + "\n\n"
-                         + Global::fileServer->errorString());
-
-    qWarning() << "main::checkTcpServerError:"
-               << Global::fileServer->errorString();
+    qWarning() << "main::reportListenResult: udp" << udpOk << "tcp" << tcpOk
+               << "port" << port;
+    if (userContinued) {
+        return;
+    }
+    const QString detail = Global::fileServer
+            ? Global::fileServer->listenError() : QString();
+    PortConflict::warnStillDown(parent, port, detail);
 }
 
