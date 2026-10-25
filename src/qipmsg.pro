@@ -14,6 +14,10 @@ HEADERS += \
 	about_dialog.h \
 	autostart.h \
 	avatarStore.h \
+	avatarFetch.h \
+	avatarWire.h \
+	doodleCanvas.h \
+	groupLog.h \
 	fileHashIndex.h \
 	shareBrowser.h \
 	shareFolder.h \
@@ -98,6 +102,10 @@ SOURCES += \
 	about_dialog.cpp \
 	autostart.cpp \
 	avatarStore.cpp \
+	avatarFetch.cpp \
+	avatarWire.cpp \
+	doodleCanvas.cpp \
+	groupLog.cpp \
 	fileHashIndex.cpp \
 	shareBrowser.cpp \
 	shareFolder.cpp \

@@ -22,7 +22,9 @@
 
 #include "discussion_store.h"
 
+class QCheckBox;
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class QPushButton;
 class QTextEdit;
@@ -52,10 +54,13 @@ private slots:
     void chooseShareFolder();
     void clearShareFolder();
     void publishShare();
+    void addLogEntry();
+    void exportLog();
 
 private:
     void createUi();
     void refreshShare();
+    void refreshLog();
     void appendMessage(const QDateTime &when, const QString &name,
                        const QString &text, bool incoming,
                        bool encrypted = false,
@@ -77,6 +82,10 @@ private:
     QPushButton *m_shareSetButton;
     QPushButton *m_shareClearButton;
     QPushButton *m_sharePublishButton;
+    QLabel *m_logStatus;
+    QListWidget *m_logList;
+    QLineEdit *m_logEdit;
+    QCheckBox *m_logTell;
     QTextEdit *m_historyEdit;
     QTextEdit *m_inputEdit;
     QListWidget *m_memberList;

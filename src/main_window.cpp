@@ -48,6 +48,7 @@
 #include "groupPolicyDialog.h"
 #include "recentStore.h"
 #include "avatarStore.h"
+#include "avatarFetch.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -173,9 +174,9 @@ void MainWindow::createPeerWidget()
     avatarLabel->setFixedSize(40, 40);
     avatarLabel->setCursor(Qt::PointingHandCursor);
     avatarLabel->setToolTip(tr(
-            "Click to choose a local photo (PNG or JPEG). "
-            "It is stored only on this computer. FeiQ peers still see a "
-            "color block unless they use qipmsg and set the same picture."));
+            "Click to choose a PNG or JPEG. Other qipmsg peers can fetch a "
+            "small copy. FeiQ has no photo packet, so those peers still see "
+            "a color block."));
     avatarLabel->installEventFilter(this);
 
     nickStatusLabel = new QLabel;
@@ -410,14 +411,14 @@ void MainWindow::createActions()
             this, SLOT(editPeerMemo()));
     setMyPhotoAct = new QAction(tr("Set my photo..."), this);
     setMyPhotoAct->setToolTip(tr(
-            "Local photo for you in the contact list and header. "
-            "Not sent to FeiQ."));
+            "Photo for the contact list and header. A small PNG is offered "
+            "to qipmsg peers. FeiQ is not offered a photo packet."));
     connect(setMyPhotoAct, SIGNAL(triggered()),
             this, SLOT(setMyPhoto()));
     setPeerPhotoAct = new QAction(tr("Set local photo..."), this);
     setPeerPhotoAct->setToolTip(tr(
-            "Show a PNG or JPEG for this IP on this computer only. "
-            "The peer still sees your color block."));
+            "Show a PNG or JPEG for this IP on this computer. It overrides "
+            "a photo fetched from qipmsg. FeiQ still has no photo packet."));
     connect(setPeerPhotoAct, SIGNAL(triggered()),
             this, SLOT(setPeerPhoto()));
     clearPeerPhotoAct = new QAction(tr("Clear local photo"), this);
@@ -754,10 +755,16 @@ void MainWindow::setPeerPhoto()
 void MainWindow::clearPeerPhoto()
 {
     const QStringList ips = selectedPeerIps();
-    if (ips.size() != 1 || !Global::avatarStore) {
+    if (ips.size() != 1) {
         return;
     }
-    Global::avatarStore->clearKey(ips.first());
+    if (Global::avatarFetch) {
+        Global::avatarFetch->clearLocal(ips.first());
+        return;
+    }
+    if (Global::avatarStore) {
+        Global::avatarStore->clearKey(ips.first());
+    }
 }
 
 QTreeWidgetItem *MainWindow::makeGroupItem(const QString &title,
@@ -832,10 +839,17 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
             && Global::preferences->shareEnabled
             && !Global::preferences->sharePath.trimmed().isEmpty();
     item->setData(0, Qt::UserRole + 10, sharing);
-    item->setToolTip(0, sharing
-                     ? tr("This is you\nSharing %1")
-                       .arg(Global::preferences->sharePath)
-                     : tr("This is you"));
+    QString selfTip = sharing
+            ? tr("This is you\nSharing %1").arg(Global::preferences->sharePath)
+            : tr("This is you");
+    if (Global::avatarStore && Global::avatarStore->selfWireId().isEmpty()) {
+        selfTip += QLatin1Char('\n');
+        selfTip += tr("No photo is published to qipmsg peers.");
+    } else {
+        selfTip += QLatin1Char('\n');
+        selfTip += tr("A small photo is published to qipmsg peers. FeiQ cannot fetch it.");
+    }
+    item->setToolTip(0, selfTip);
 }
 
 void MainWindow::addDiscussionItem(QTreeWidgetItem *parent, const QString &id)

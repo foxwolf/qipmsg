@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.39.11 LANGUAGES CXX)
+project(qipmsg VERSION 2.42.12 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,18 +20,22 @@ endif()
 set(SOURCES
     src/about_dialog.cpp
     src/autostart.cpp
+    src/avatarFetch.cpp
     src/avatarStore.cpp
+    src/avatarWire.cpp
     src/chat_window.cpp
     src/contactDelegate.cpp
     src/dataBackup.cpp
     src/dataBackupUi.cpp
     src/dir_dialog.cpp
+    src/doodleCanvas.cpp
     src/discussion_store.cpp
     src/discussion_window.cpp
     src/emoji_pack.cpp
     src/fileHashIndex.cpp
     src/file_server.cpp
     src/global.cpp
+    src/groupLog.cpp
     src/groupPolicy.cpp
     src/groupPolicyDialog.cpp
     src/helper.cpp
@@ -105,18 +109,22 @@ set(SOURCES
 set(HEADERS
     src/about_dialog.h
     src/autostart.h
+    src/avatarFetch.h
     src/avatarStore.h
+    src/avatarWire.h
     src/chat_window.h
     src/contactDelegate.h
     src/constants.h
     src/dataBackup.h
     src/dir_dialog.h
+    src/doodleCanvas.h
     src/discussion_store.h
     src/discussion_window.h
     src/emoji_pack.h
     src/fileHashIndex.h
     src/file_server.h
     src/global.h
+    src/groupLog.h
     src/groupPolicy.h
     src/groupPolicyDialog.h
     src/helper.h
@@ -236,6 +244,9 @@ add_executable(qipmsgP2Check
     src/userSkin.cpp
     src/nicBind.cpp
     src/puffInflate.cpp
+    src/avatarWire.cpp
+    src/groupLog.cpp
+    src/doodleCanvas.cpp
 )
 target_include_directories(qipmsgP2Check PRIVATE src)
 

@@ -21,6 +21,9 @@
 #include "send_msg.h"
 #include "user_manager.h"
 #include "shareFolder.h"
+#include "avatarStore.h"
+#include "avatarFetch.h"
+#include "avatarWire.h"
 #include "preferences.h"
 #include "constants.h"
 #include "msg_thread.h"
@@ -168,6 +171,9 @@ void UserManager::updateUser(const Owner &owner, int row)
             : QString("%1\n%2").arg(owner.name(), owner.signature());
     m_model->setData(m_model->index(row, USER_VIEW_NAME_COLUMN),
                      tip, Qt::ToolTipRole);
+    if (Global::avatarFetch && Global::userManager) {
+        Global::avatarFetch->consider(owner.ip());
+    }
 }
 
 void UserManager::addUser(const Owner &owner, int row)
@@ -398,12 +404,19 @@ void UserManager::broadcastExit() const
 
 QString UserManager::localQipToken() const
 {
-    if (!Global::preferences) {
-        return QStringLiteral("qipmsg");
+    QString token = QStringLiteral("qipmsg");
+    if (Global::preferences) {
+        token = ShareFolder::localToken(Global::preferences->shareEnabled,
+                                       Global::preferences->sharePath,
+                                       Global::preferences->sharePassword);
     }
-    return ShareFolder::localToken(Global::preferences->shareEnabled,
-                                   Global::preferences->sharePath,
-                                   Global::preferences->sharePassword);
+    if (Global::avatarStore) {
+        const QString id = Global::avatarStore->selfWireId();
+        if (AvatarWire::idOk(id)) {
+            token += QLatin1String(",av:") + id;
+        }
+    }
+    return token;
 }
 
 QString UserManager::peerQipToken(const QString &ip) const
@@ -793,6 +806,12 @@ QString UserManager::peerCaption(const QString &ip) const
     const QString sign = signature(row);
     if (!sign.isEmpty()) {
         caption += "\n" + sign;
+    }
+    if (Global::avatarStore) {
+        const QString photo = Global::avatarStore->status(ip);
+        if (!photo.isEmpty()) {
+            caption += "\n" + photo;
+        }
     }
     return caption;
 }
