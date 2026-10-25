@@ -30,6 +30,7 @@ class QEvent;
 class QLabel;
 class QListWidget;
 class QPushButton;
+class QSplitter;
 class QTextBrowser;
 class QTextEdit;
 class QTextCursor;
@@ -43,6 +44,7 @@ class ChatWindow : public QWidget
 
 public:
     ChatWindow(const QString &ip, QWidget *parent = 0);
+    ~ChatWindow();
 
     QString peerIp() const { return m_peerIp; }
 
@@ -72,6 +74,9 @@ signals:
 protected:
     void closeEvent(QCloseEvent *event);
     void showEvent(QShowEvent *event);
+    void hideEvent(QHideEvent *event);
+    void resizeEvent(QResizeEvent *event);
+    void changeEvent(QEvent *event);
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
     bool eventFilter(QObject *watched, QEvent *event);
@@ -104,12 +109,16 @@ private slots:
     void showFavorites();
     void showZone();
     void openNetworkNeighborhood();
+    void toggleProfile(bool visible);
 
 private:
     void createUi();
     QToolButton *makeToolButton(const QString &text, const QString &tip,
                                 const char *slot, bool enabled = true);
-    QToolButton *makeStubButton(const QString &text);
+    void applyProfileVisible(bool visible);
+    void saveChatLayout();
+    void restoreChatLayout();
+    void polishToolbarIcons();
     QString localName() const;
     void logOutgoing(const QString &text);
     bool hasSendFile() const;
@@ -164,10 +173,16 @@ private:
     QPushButton *m_stripMonitor;
     QPushButton *m_stripDir;
     QPushButton *m_stripCancel;
+    QWidget *m_toolbar;
+    QWidget *m_profilePanel;
+    QToolButton *m_profileToggle;
+    QSplitter *m_splitter;
     SendFileModel m_sendFileModel;
     bool m_historyLoaded;
     bool m_peerTyping;
     bool m_localTyping;
+    bool m_layoutReady;
+    bool m_applyingLayout;
     qint64 m_lastTypingSentMs;
     QTimer *m_typingIdle;
 };

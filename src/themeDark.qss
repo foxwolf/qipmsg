@@ -153,7 +153,47 @@ QToolTip {
 #chatToolbar {
     background: #1F2937;
     border-bottom: 1px solid #374151;
-    padding: 4px 8px;
+    padding: 1px 4px;
+}
+
+#chatToolbar QToolButton {
+    padding: 2px 6px;
+    font-size: 12px;
+}
+
+#chatToolGroup {
+    color: #9CA3AF;
+    font-size: 11px;
+    padding: 0 2px 0 6px;
+    background: transparent;
+}
+
+#chatToolSep {
+    background: #4B5563;
+    min-width: 1px;
+    max-width: 1px;
+    border: none;
+    margin: 6px 3px;
+}
+
+#profileToggle {
+    padding: 2px 8px;
+    font-size: 12px;
+    color: #E5E7EB;
+}
+
+#profileToggle:hover,
+#profileToggle:checked {
+    background: #1E3A5F;
+    color: #BFDBFE;
+}
+
+QMenu QLabel#menuCaption {
+    color: #9CA3AF;
+    background: transparent;
+    padding: 8px 14px 2px 14px;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 #emojiMenu QToolButton {
