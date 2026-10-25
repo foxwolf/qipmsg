@@ -93,6 +93,7 @@
 #define TRANSFER_FILE_VIEW_STATS_COLUMN    3
 #define TRANSFER_FILE_VIEW_USER_COLUMN     4
 #define TRANSFER_FILE_VIEW_KEY_COLUMN      5
+#define TRANSFER_FILE_VIEW_ETA_COLUMN      6
 
 // Announced on BR_ENTRY / BR_ABSENCE / BR_EXIT / ANSENTRY.
 // CAPUTF8OPT: we can receive UTF-8 (UTF8OPT on that datagram).

@@ -40,7 +40,8 @@ void TransferFileModel::createModel()
 {
     QStringList labels;
     labels << tr("No.") << tr("file") << tr("size")
-        << tr("Total/Sended/Send") << tr("User") << tr("Packet ID");
+        << tr("Total/Sended/Send") << tr("User") << tr("Packet ID")
+        << tr("Remaining");
 
     m_model = new QStandardItemModel(0, labels.size(), this);
     m_model->setHorizontalHeaderLabels(labels);
@@ -63,6 +64,8 @@ void TransferFileModel::insertTransfer(SendFileMap *sendFileMap)
                      sendFileMap->recvUserInfo());
     m_model->setData(m_model->index(row, TRANSFER_FILE_VIEW_KEY_COLUMN),
                      sendFileMap->packetNoString());
+    m_model->setData(m_model->index(row, TRANSFER_FILE_VIEW_ETA_COLUMN),
+                     sendFileMap->etaText());
 }
 
 // XXX NOTE: caller must hold sendFileManager lock when calling this.
@@ -72,11 +75,9 @@ void TransferFileModel::updateTransfer(QString packetNoString)
 
     SendFileMap *map
         = Global::sendFileManager->transferFileMap.value(packetNoString);
-#if 0
-    if (!map) {
+    if (!map || row < 0) {
         return;
     }
-#endif
 
     // Qt 4.3.5 need this statement, Qt 4.4.0 not need.
     qRegisterMetaType<QModelIndex>("QModelIndex");
@@ -94,6 +95,8 @@ void TransferFileModel::updateTransfer(QString packetNoString)
                      map->recvUserInfo());
     m_model->setData(m_model->index(row, TRANSFER_FILE_VIEW_KEY_COLUMN),
                      map->packetNoString());
+    m_model->setData(m_model->index(row, TRANSFER_FILE_VIEW_ETA_COLUMN),
+                     map->etaText());
 }
 
 int TransferFileModel::keyToRow(QString key) const

@@ -18,14 +18,26 @@
 #include "send_file.h"
 #include "constants.h"
 #include "helper.h"
+#include "protocolutil.h"
 
 #include <QStringList>
 #include <QList>
 #include <QDateTime>
 #include <QtDebug>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#else
+#include <sys/socket.h>
+#endif
+
 SendFileMap::SendFileMap(QObject *parent)
-    : QObject(parent), m_transferedCount(0), m_state(NotTransfer)
+    : QObject(parent), m_transferedCount(0), m_state(NotTransfer),
+      m_cancel(false), m_activeSocket(-1), m_bytesSent(0), m_bytesSkipped(0),
+      m_bytesTotal(0), m_sizeUnknown(false), m_startedAtMs(0)
 {
 }
 
@@ -35,8 +47,78 @@ void SendFileMap::addFile(const QStringList &pathList)
     foreach (QString path, pathList) {
         SendFile sendFile(path);
         m_map.insert(id, SendFileHandle(sendFile));
+        if (sendFile.isDir()) {
+            m_sizeUnknown = true;
+        } else {
+            m_bytesTotal += sendFile.size();
+        }
         ++id;
     }
+}
+
+void SendFileMap::setState(States state)
+{
+    if (state == Transfer && m_startedAtMs == 0) {
+        m_startedAtMs = QDateTime::currentMSecsSinceEpoch();
+    }
+    m_state = state;
+}
+
+void SendFileMap::requestCancel()
+{
+    m_cancel = true;
+    if (m_activeSocket < 0) {
+        return;
+    }
+#ifdef _WIN32
+    shutdown(static_cast<SOCKET>(m_activeSocket), SD_BOTH);
+#else
+    ::shutdown(static_cast<int>(m_activeSocket), SHUT_RDWR);
+#endif
+}
+
+QString SendFileMap::etaText() const
+{
+    if (m_cancel) {
+        return tr("Cancelling…");
+    }
+    if (m_bytesSent <= 0 && m_bytesSkipped <= 0) {
+        return isTransfer() ? tr("Estimating…") : tr("Waiting");
+    }
+    const qint64 elapsed = m_startedAtMs <= 0
+            ? 0 : QDateTime::currentMSecsSinceEpoch() - m_startedAtMs;
+    const qint64 done = m_bytesSent + m_bytesSkipped;
+    QString speed;
+    if (m_bytesSent > 0 && elapsed >= 400) {
+        const double perSec = (double)m_bytesSent * 1000.0 / (double)elapsed;
+        speed = Helper::sizeStringUnit(perSec) + tr("/s");
+    }
+    if (m_sizeUnknown || m_bytesTotal <= 0) {
+        return speed.isEmpty() ? tr("Estimating…")
+                               : tr("%1 · remaining unknown").arg(speed);
+    }
+    const int secs = ProtocolUtil::etaSeconds(m_bytesSent,
+                                              m_bytesTotal - m_bytesSkipped,
+                                              elapsed);
+    if (secs < 0) {
+        if (done >= m_bytesTotal && !isTransfer()) {
+            return tr("Done");
+        }
+        return speed.isEmpty() ? tr("Estimating…")
+                               : tr("%1 · estimating").arg(speed);
+    }
+    QString remain;
+    if (secs < 60) {
+        remain = tr("%1 s left").arg(secs);
+    } else if (secs < 3600) {
+        remain = tr("%1 min %2 s left").arg(secs / 60).arg(secs % 60);
+    } else {
+        remain = tr("%1 h %2 min left").arg(secs / 3600).arg((secs % 3600) / 60);
+    }
+    if (speed.isEmpty()) {
+        return remain;
+    }
+    return QString("%1 · %2").arg(speed, remain);
 }
 
 QString SendFileMap::packetString() const

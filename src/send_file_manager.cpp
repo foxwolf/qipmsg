@@ -64,6 +64,34 @@ void SendFileManager::removeTransfer(QString key)
     emit transferCountChanged(transferFileMap.count());
 }
 
+void SendFileManager::cancelTransfer(const QString &key)
+{
+    QMutexLocker locker(&m_lock);
+    SendFileMap *map = transferFileMap.value(key);
+    if (!map) {
+        return;
+    }
+    map->requestCancel();
+    transferFileModel.updateTransfer(key);
+    if (!map->isTransfer() && map->activeSocket() < 0) {
+        removeTransfer(key);
+    }
+}
+
+bool SendFileManager::finishIfCancelled(const QString &key)
+{
+    QMutexLocker locker(&m_lock);
+    SendFileMap *map = transferFileMap.value(key);
+    if (!map) {
+        return true;
+    }
+    if (!map->cancelRequested()) {
+        return false;
+    }
+    removeTransfer(key);
+    return true;
+}
+
 void SendFileManager::removeTransferLocked(QString key)
 {
     QMutexLocker locker(&m_lock);

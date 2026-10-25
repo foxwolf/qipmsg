@@ -23,6 +23,7 @@
 #include <QString>
 #include <QStringList>
 #include <QSemaphore>
+#include <QtGlobal>
 
 
 class SendFileMap : public QObject
@@ -52,8 +53,17 @@ public:
 
     bool canSendFile(int fileId) const;
 
-    void setState(States state) { m_state = state; }
+    void setState(States state);
     States state() const { return m_state; }
+
+    void requestCancel();
+    bool cancelRequested() const { return m_cancel; }
+    void attachSocket(qintptr socketFd) { m_activeSocket = socketFd; }
+    void detachSocket() { m_activeSocket = -1; }
+    qintptr activeSocket() const { return m_activeSocket; }
+    void addBytesSent(qint64 count) { m_bytesSent += count; }
+    void addBytesSkipped(qint64 count) { m_bytesSkipped += count; }
+    QString etaText() const;
 
     bool isFinished() const;
     bool isTransfer() const;
@@ -70,6 +80,13 @@ private:
     int m_transferedCount;
     States m_state;
     QSemaphore sem;
+    bool m_cancel;
+    qintptr m_activeSocket;
+    qint64 m_bytesSent;
+    qint64 m_bytesSkipped;
+    qint64 m_bytesTotal;
+    bool m_sizeUnknown;
+    qint64 m_startedAtMs;
 };
 
 #endif // !SEND_FILE_MAP_H

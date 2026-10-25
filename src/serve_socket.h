@@ -46,12 +46,15 @@ private:
     bool tcpSendFile(QString filePath, qint64 offset);
     bool tcpSendDir(QString filePath);
     bool tcpWriteBlock(QByteArray &block);
+    void noteProgress(qint64 written, qint64 skipped);
+    bool transferCancelled() const;
     QByteArray constructDirSendBlock(QString filePath, DirBlockModes mode);
     QByteArray constructFileSendBlock(QString filePath) const;
 
     QString m_errorString;
     QString m_packetNoString;
     qintptr m_sockfd;
+    qint64 m_lastProgressMs;
 };
 
 #endif // !SERVE_SOCKET_H

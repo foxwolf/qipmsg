@@ -24,6 +24,8 @@
 #include <QObject>
 #include <QTcpSocket>
 
+#include <atomic>
+
 class RecvFileMap;
 struct TransferFile;
 
@@ -55,6 +57,7 @@ private:
     bool recvFileRegular(RecvFileHandle h);
     bool recvFileDir(RecvFileHandle h);
     bool saveData(QByteArray recvBlock, QFile &file);
+    bool waitForSocket(int totalMs, bool readyRead);
     bool canParseHeader(QByteArray &recvBlock);
     bool parseHeader(QByteArray &recvBlock,
                      struct TransferFile &transferFile);
@@ -73,7 +76,7 @@ private:
     QTcpSocket m_tcpSocket;
 
     bool isStopTransfer;
-    bool isAbortTransfer;
+    std::atomic<bool> isAbortTransfer;
 };
 
 #endif // !RECV_FILE_TRANSFER_H
