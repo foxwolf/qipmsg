@@ -154,7 +154,7 @@ make
 
 ## Runtime notes
 
-- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, local avatars in `avatars/` (self.png and per-IP PNG copies; not an IPMSG photo packet), default receive files in `recv/`, screenshots in `screenshots/`, optional `rsa_private.json` / `peer_pubkeys.json` when message encryption has been turned on. Tray **Backup private data** stores an uncompressed zip of the private files above except `recv/`, `screenshots/`, the lock file, and the internal log.
+- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, local avatars in `avatars/` (`self.png`, per-IP manual PNG copies, and `wire/` PNGs fetched from qipmsg peers), discussion logs in `grouplog/<id>.jsonl`, default receive files in `recv/`, screenshots in `screenshots/`, optional `rsa_private.json` / `peer_pubkeys.json` when message encryption has been turned on. Tray **Backup private data** stores an uncompressed zip of the private files above except `recv/`, `screenshots/`, the lock file, and the internal log.
 - Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8, unless the datagram's command has `IPMSG_UTF8OPT` (`0x00800000`), in which case the whole datagram is decoded as UTF-8.
 - `BR_ENTRY` / `BR_ABSENCE` / `BR_EXIT` / `ANSENTRY` announce `IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT`. `ANSENTRY` previously omitted even the file-attach bit; it now uses the same capability word. Presence text stays on the configured codec and sets `IPMSG_UTF8OPT` only when that codec is UTF-8, so FeiQ 2013 keeps reading GBK nicknames. A directed `SENDMSG` sets `IPMSG_UTF8OPT` and is encoded as UTF-8 when the peer has advertised `CAPUTF8OPT` (or when our codec is already UTF-8). Clipboard images are still ordinary file attachments; the capability bit is an announcement, not a new file type on the wire (`IPMSG_FILE_CLIPBOARD` is defined but not sent, so FeiQ file receive stays unchanged).
 - Cross-subnet discovery: Preferences stores extra targets in `userSpecifiedBroadcastIp` (same `\r`-separated list). A token may be one IPv4, `start-end`, or `addr/prefix`. Each refresh expands it and unicasts `BR_ENTRY` there. One token is limited to 1024 addresses. There is no directory server.
@@ -181,6 +181,24 @@ make
 - Custom stickers are files, not Unicode. Import copies PNG / GIF / WebP / JPEG / BMP into `stickers/` (max 8 MB, 400 files, 40 named groups). A click sends `[Sticker] …` plus `IPMSG_FILEATTACHOPT`, the same image-attach path as paste and screenshot. GIF animation is the file itself; the picker shows the first frame (WebP needs Qt's imageformats plugin for a thumbnail, but the file is still sent). FeiQ receives an ordinary image attachment, not a private face-id. Offline queue still refuses attachments.
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
+
+## Avatars, group log, and doodle (2.42.12)
+
+No Qt Sql. Version stays `1`.
+
+### Peer photo
+
+FeiQ stores custom faces locally (`UserHeadPhoto`, `CustomFace`, `RecvFace`, `SendFace`). Public IPMSG text and the captures used for typing (121/122) do not define a photo opcode. qipmsg does not switch its version string to `1_lbt…` and does not attach the photo as a file, because FeiQ would show a receive dialog.
+
+When `avatars/self.png` exists, presence keeps the fourth NUL field that already says `qipmsg` or `qipmsg,share` and appends `,av:<12 hex>` of a scaled PNG (`avatars/self-wire.png`, at most 96 KB). Another qipmsg reads that tag and asks on the file port with TCP command 126, verb `AVATAR`. The reply is `QIP1` plus the PNG, saved under `avatars/wire/`. A manual per-IP photo still wins. FeiQ and classic IPMSG keep the color block; the profile line says so. Clear of a fetched-only photo hides that id until the peer publishes a different one. A human still needs to confirm FeiQ ignores the extra comma tag.
+
+### Discussion log
+
+`~/.qipmsg/grouplog/<id>.jsonl` is append-only, one JSON object per line (`t`, `who`, `text`). The discussion window lists the latest entries and can export `.txt` or `.jsonl`. The file stops accepting entries at about 2 MB. **Tell online members** sends one plain `SENDMSG` (`MULTICASTOPT` when more than one member is reachable). Offline members are not queued. This is not a FeiQ room log. The private-data zip includes `grouplog/`.
+
+### Doodle
+
+The chat toolbar **Doodle** is a pen, four colors, and clear. Send writes a PNG under `screenshots/` and uses the existing image attachment. An empty canvas is refused. There is no pressure-sensitive tablet path.
 
 ## User skins, NIC choice, and discussion folders (2.39.11)
 
@@ -225,6 +243,8 @@ A discussion object in `discussions.json` may include `sharePath`, an absolute d
 A member opens the 1:1 chat and chooses **Group folder**. That sends TCP command 126 `GLIST` / `GGET` on the file port, only to a reachable qipmsg peer, and only while the owner is online. The owner serves the file when the TCP peer's IPv4 is a member of that discussion. Paths cannot leave `sharePath`. Personal `LIST` / `GET` is unchanged; an older qipmsg that does not know `GLIST` rejects the verb and does not open the personal share. FeiQ shows the text and has no browser for this folder. This is not a FeiQ multicast room.
 
 ## Version
+
+**2.42.12** adds qipmsg photo exchange on command 126, a local discussion log, and a doodle sent as an image attachment, on top of **2.39.11**. FeiQ photo packets were not verified.
 
 **2.39.11** adds the skin pack, NIC interface id, and discussion folder above, on top of **2.36.10**.
 
