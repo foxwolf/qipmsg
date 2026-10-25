@@ -806,7 +806,7 @@ void DetailSetupDialog::apply()
 }
 
 SetupWindow::SetupWindow(QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent), m_dialupCheck(0)
 {
     // setModal(true);
     setAttribute(Qt::WA_DeleteOnClose, true);
@@ -1015,8 +1015,13 @@ void SetupWindow::createBroadcastGroupBox()
     QLabel* label = new QLabel(tr("Add Broadcast Address"));
     line_edit_ = new QLineEdit;
     line_edit_->setPlaceholderText(tr("Broadcast IP, start-end, or CIDR"));
-    QCheckBox* dial_up = new QCheckBox(tr("dial up connection"));
-    dial_up->setEnabled(false);
+    m_dialupCheck = new QCheckBox(tr("I am a dial-up host"));
+    m_dialupCheck->setChecked(Global::preferences->isDialup);
+    m_dialupCheck->setToolTip(tr(
+            "Sets IPMSG_DIALUPOPT on presence packets. Peers that follow the "
+            "IPMSG spec send member recognition to this host one by one, "
+            "because a dial-up link may miss subnet broadcasts. Ordinary LAN "
+            "peers are left unchanged. This is not a FeiQ private extension."));
 
     QPushButton* add_button = new QPushButton(">>");
     QPushButton* del_button = new QPushButton("<<");
@@ -1036,7 +1041,7 @@ void SetupWindow::createBroadcastGroupBox()
     QGridLayout *grid_layout = new QGridLayout();
     grid_layout->addWidget(label, 0, 0, 1, 1);
     grid_layout->addWidget(line_edit_, 1, 0, 1, 1);
-    grid_layout->addWidget(dial_up, 2, 0, 1, 1);
+    grid_layout->addWidget(m_dialupCheck, 2, 0, 1, 1);
     grid_layout->addLayout(button_layout, 0, 1, 3, 1);
     grid_layout->addWidget(broadcast_list_widget_, 0, 2, 3, 1);
 
@@ -1169,6 +1174,9 @@ void SetupWindow::applyPreferences()
     Global::preferences->isAutoReply = autoReplyCheck->isChecked();
     Global::preferences->autoReplyText = autoReplyEdit->text();
     Global::preferences->autoReplyCooldownSecs = autoReplyCooldownSpin->value();
+    const bool dialup = m_dialupCheck && m_dialupCheck->isChecked();
+    const bool dialupChanged = dialup != Global::preferences->isDialup;
+    Global::preferences->isDialup = dialup;
     const bool stealth = stealthCheck->isChecked();
     const bool stealthChanged = (stealth != Global::preferences->isStealth);
 
@@ -1180,6 +1188,9 @@ void SetupWindow::applyPreferences()
     }
 
     Global::preferences->save();
+    if (dialupChanged && Global::userManager) {
+        Global::userManager->refreshLocalView();
+    }
     if (Global::systray) {
         Global::systray->syncActions();
     }

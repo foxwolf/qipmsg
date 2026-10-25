@@ -70,6 +70,10 @@ public:
     // FeiQ typing commands are decimal 121 / 122 with no option bits.
     static bool isFeiqTypingCommand(quint32 command, bool *active);
 
+    // IPMSG_DIALUPOPT: this host may miss subnet broadcasts. Spec says
+    // member-recognition commands are sent to that host one by one.
+    static bool isDialupOption(quint32 flags);
+
     // Seconds left from observed throughput. Negative when unknown.
     static int etaSeconds(qint64 bytesSent, qint64 bytesTotal,
                           qint64 elapsedMs);

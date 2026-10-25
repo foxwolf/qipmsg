@@ -86,6 +86,7 @@ public:
     QString peerQipToken(const QString &ip) const;
     bool peerIsQipmsg(const QString &ip) const;
     bool peerHasShare(const QString &ip) const;
+    bool peerIsDialup(const QString &ip) const;
     void refreshLocalView();
     quint32 commandFlags(quint32 command) const;
     quint32 sendFlagsForIp(const QString &ip, quint32 flags) const;
@@ -118,6 +119,8 @@ private:
     void reconcileGroupVisibility(const QString &ip,
                                   const QString &previousGroup,
                                   const QString &currentGroup) const;
+    void applyDialupFlag(int row, bool dialup);
+    void unicastPresenceToDialup(quint32 command) const;
 
     static Owner m_ourself;
 

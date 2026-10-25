@@ -49,13 +49,14 @@
 #include "recentStore.h"
 #include "avatarStore.h"
 #include "avatarFetch.h"
+#include "scheduleDialog.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
 
 MainWindow::MainWindow(QString text, QString ip,
         QWidget *parent)
-    : QMainWindow(parent), m_groupSendHint(0), sendToGroupAct(0),
+    : QMainWindow(parent), m_groupSendHint(0), m_scheduleButton(0), sendToGroupAct(0),
     setMyPhotoAct(0), setPeerPhotoAct(0), clearPeerPhotoAct(0),
     m_initText(text), m_selectedIp(ip), m_lastSearchDialog(0)
 {
@@ -132,6 +133,8 @@ void MainWindow::createConnections()
     }
     connect(refreshButton, SIGNAL(clicked()),
             this, SLOT(refreshUserList()));
+    connect(m_scheduleButton, SIGNAL(clicked()),
+            this, SLOT(openSchedule()));
 
     connect(sendFileAct, SIGNAL(triggered()),
             this, SLOT(addSendFile()));
@@ -217,12 +220,16 @@ void MainWindow::createPeerWidget()
 
     refreshButton = new QPushButton(tr("&Refresh"));
     refreshButton->setToolTip(tr("Refresh contacts"));
+    m_scheduleButton = new QPushButton(tr("Schedule"));
+    m_scheduleButton->setToolTip(tr(
+            "Local reminders. They fire only while QIpMsg is running."));
 
     QWidget *searchBar = new QWidget;
     searchBar->setObjectName("searchBar");
     QHBoxLayout *searchRow = new QHBoxLayout(searchBar);
     searchRow->setContentsMargins(12, 8, 12, 8);
     searchRow->addWidget(searchEdit, 1);
+    searchRow->addWidget(m_scheduleButton);
     searchRow->addWidget(refreshButton);
 
     contactTree = new QTreeWidget;
@@ -799,11 +806,15 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     const QString display = memo.isEmpty() ? name : memo;
 
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
-    const QString subtitle = memo.isEmpty()
+    QString subtitle = memo.isEmpty()
             ? (host.isEmpty() ? ip : QString("%1 · %2").arg(host, ip))
             : (host.isEmpty()
                ? QString("%1 · %2").arg(name, ip)
                : QString("%1 · %2 · %3").arg(name, host, ip));
+    const bool dialup = um->peerIsDialup(ip);
+    if (dialup) {
+        subtitle = QString("%1 · %2").arg(tr("Dial-up"), subtitle);
+    }
     item->setText(0, QString("%1 %2 %3 %4").arg(display, name, host, ip));
     item->setData(0, Qt::UserRole, ip);
     item->setData(0, Qt::UserRole + 3, um->group(row));
@@ -812,6 +823,7 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     item->setData(0, Qt::UserRole + 9, m_typingIps.contains(ip));
     item->setData(0, Qt::UserRole + 10,
                   Global::userManager && Global::userManager->peerHasShare(ip));
+    item->setData(0, Qt::UserRole + 11, dialup);
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setSizeHint(0, QSize(180, 52));
 
@@ -828,9 +840,14 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
     const QString host = me.host();
     const QString caption = me.name();
+    const bool dialup = Global::preferences && Global::preferences->isDialup;
     item->setText(0, caption);
-    item->setData(0, Qt::UserRole + 4,
-                  host.isEmpty() ? tr("This is you") : host);
+    QString selfSub = host.isEmpty() ? tr("This is you") : host;
+    if (dialup) {
+        selfSub = QString("%1 · %2").arg(selfSub, tr("Dial-up"));
+    }
+    item->setData(0, Qt::UserRole + 4, selfSub);
+    item->setData(0, Qt::UserRole + 11, dialup);
     item->setData(0, Qt::UserRole + 6, caption);
     item->setFlags(Qt::ItemIsEnabled);
     item->setIcon(0, QIcon(peerAvatar(me.name(), PRESENCE_ONLINE, 36,
@@ -848,6 +865,10 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
     } else {
         selfTip += QLatin1Char('\n');
         selfTip += tr("A small photo is published to qipmsg peers. FeiQ cannot fetch it.");
+    }
+    if (dialup) {
+        selfTip += QLatin1Char('\n');
+        selfTip += tr("Dial-up host. Presence packets set IPMSG_DIALUPOPT.");
     }
     item->setToolTip(0, selfTip);
 }
@@ -915,6 +936,12 @@ void MainWindow::addRecentItems(QTreeWidgetItem *parent)
         item->setData(0, Qt::UserRole + 10,
                       Global::userManager
                       && Global::userManager->peerHasShare(row.ip));
+        const bool dialup = Global::userManager->peerIsDialup(row.ip);
+        item->setData(0, Qt::UserRole + 11, dialup);
+        const QString shownSubtitle = dialup
+                ? QString("%1 · %2").arg(tr("Dial-up"), subtitle)
+                : subtitle;
+        item->setData(0, Qt::UserRole + 4, shownSubtitle);
         item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         item->setSizeHint(0, QSize(180, 52));
         if (presence == PRESENCE_STALE) {
@@ -1552,6 +1579,16 @@ void MainWindow::logSendMsg(QString text, const QString &ip)
 void MainWindow::refreshUserList()
 {
     Global::userManager->announcePresence();
+}
+
+void MainWindow::openSchedule()
+{
+    QString ip;
+    if (contactTree && !contactTree->selectedItems().isEmpty()) {
+        ip = contactTree->selectedItems().first()->data(0, Qt::UserRole).toString();
+    }
+    ScheduleDialog dialog(ip, this);
+    dialog.exec();
 }
 
 void MainWindow::onContactDoubleClicked(QTreeWidgetItem *item, int)

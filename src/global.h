@@ -42,6 +42,8 @@ class StickerStore;
 class RecentStore;
 class AvatarStore;
 class AvatarFetch;
+class ScheduleStore;
+class FavoriteStore;
 
 namespace Global
 {
@@ -62,6 +64,8 @@ namespace Global
     extern RecentStore *recentStore;
     extern AvatarStore *avatarStore;
     extern AvatarFetch *avatarFetch;
+    extern ScheduleStore *scheduleStore;
+    extern FavoriteStore *favoriteStore;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;
