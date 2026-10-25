@@ -23,6 +23,7 @@
 #include <QObject>
 #include <QMap>
 #include <QMutex>
+#include <QString>
 
 class SendFileMap;
 
@@ -51,6 +52,7 @@ signals:
 public slots:
     void removeTransfer(QString key);
     void removeTransferLocked(QString key);
+    void markInstant(QString packetField, int fileId, QString sha, QString ip);
 
 private:
     QMutex m_lock;

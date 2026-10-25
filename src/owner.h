@@ -56,6 +56,9 @@ public:
     void setSignature(const QString &signature) { m_signature = signature; }
     QString signature() const { return m_signature; }
 
+    void setQipToken(const QString &token) { m_qipToken = token; }
+    QString qipToken() const { return m_qipToken; }
+
 private:
     // Get group name or absence string
     QString parseAdditionalInfo(QString &packet);
@@ -69,6 +72,7 @@ private:
     quint16 m_port;
     QString m_displayLevel;
     QString m_signature;
+    QString m_qipToken;
 };
 
 #endif // !OWNER_H

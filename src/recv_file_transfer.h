@@ -67,6 +67,8 @@ private:
     void persistResume(RecvFileHandle h);
     void clearResume(RecvFileHandle h);
     QString resumeKey(RecvFileHandle h) const;
+    bool tryInstant(RecvFileHandle h);
+    void noteReceivedFile(RecvFileHandle h, const QString &path);
 
     QMutex m_lock;
     QWaitCondition m_cond;

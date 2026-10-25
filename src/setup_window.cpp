@@ -26,6 +26,7 @@
 #include "groupPolicyDialog.h"
 #include "dataBackup.h"
 #include "sendThrottle.h"
+#include "themeName.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -97,8 +98,17 @@ DetailTab::DetailTab(QWidget *parent)
         startWithOsCheck->setCheckState(Qt::Checked);
     }
 
+    themeCombo = new QComboBox;
+    themeCombo->addItem(tr("Light"), QStringLiteral("light"));
+    themeCombo->addItem(tr("Dark"), QStringLiteral("dark"));
+    themeCombo->addItem(tr("Follow system"), QStringLiteral("system"));
+    const int themeIndex = themeCombo->findData(
+                normalizeThemeName(Global::preferences->themeName));
+    themeCombo->setCurrentIndex(themeIndex < 0 ? 0 : themeIndex);
+
     QLabel *intervalLabel = new QLabel(tr("Refresh interval:"));
     QLabel *staleLabel = new QLabel(tr("Mark stale after missed refreshes:"));
+    QLabel *themeLabel = new QLabel(tr("Appearance"));
 
     QGridLayout *layout = new QGridLayout;
     layout->addWidget(autoMinimizeCheckBox, 0, 0, 1, 2);
@@ -117,6 +127,14 @@ DetailTab::DetailTab(QWidget *parent)
     QLabel *startHint = new QLabel(AutoStart::describe());
     startHint->setWordWrap(true);
     layout->addWidget(startHint, 11, 0, 1, 2);
+    layout->addWidget(themeLabel, 12, 0);
+    layout->addWidget(themeCombo, 12, 1);
+    QLabel *themeHint = new QLabel(tr(
+        "Light keeps the 2.4 messenger theme. Dark uses the same layout. "
+        "Follow system uses the OS color scheme on Qt 6.5+, otherwise the "
+        "window color at startup. Open chats keep the bubbles they already drew."));
+    themeHint->setWordWrap(true);
+    layout->addWidget(themeHint, 13, 0, 1, 2);
 
     setLayout(layout);
 }
@@ -134,7 +152,12 @@ void DetailTab::save()
     Global::preferences->staleMissedRefreshCount = staleMissedSpin->value();
     Global::preferences->isTrayNotify = trayNotifyCheckBox->isChecked();
     Global::preferences->isStartWithOs = startWithOsCheck->isChecked();
+    Global::preferences->themeName = normalizeThemeName(
+                themeCombo->currentData().toString());
     Global::userManager->applyRefreshTimer();
+    if (qApp) {
+        Helper::applyAppTheme(qApp);
+    }
 }
 
 LogTab::LogTab(QWidget *parent)
@@ -291,6 +314,24 @@ FileTab::FileTab(QWidget *parent)
             this, SLOT(updateSpeedHint(int)));
     updateSpeedHint(speedSpin->value());
 
+    shareCheckBox = new QCheckBox(tr("Share a folder with qipmsg peers"));
+    if (Global::preferences->shareEnabled) {
+        shareCheckBox->setCheckState(Qt::Checked);
+    }
+    sharePathButton = new QPushButton(tr("Shared folder"));
+    sharePathLabel = new QLabel(Global::preferences->sharePath);
+    sharePathLabel->setFrameStyle(QFrame::Sunken | QFrame::Panel);
+    connect(sharePathButton, SIGNAL(clicked()), this, SLOT(getSharePath()));
+    sharePasswordEdit = new QLineEdit(Global::preferences->sharePassword);
+    sharePasswordEdit->setEchoMode(QLineEdit::Password);
+    sharePasswordEdit->setPlaceholderText(tr("Optional password"));
+    QLabel *shareHint = new QLabel(tr(
+        "Only other qipmsg clients can list this folder. The path cannot "
+        "escape the folder you pick. FeiQ has no verified share packet, so "
+        "FeiQ peers still cannot browse it. The password is stored in "
+        "qipmsg.ini like the other settings."));
+    shareHint->setWordWrap(true);
+
     QPushButton *backupButton = new QPushButton(tr("Backup..."));
     QPushButton *restoreButton = new QPushButton(tr("Restore..."));
     backupButton->setToolTip(tr("Save preferences, history, stickers, and other private files to a zip."));
@@ -312,6 +353,16 @@ FileTab::FileTab(QWidget *parent)
     speedLayout->addStretch();
     mainLayout->addLayout(speedLayout);
     mainLayout->addWidget(speedHint);
+    mainLayout->addWidget(shareCheckBox);
+    QHBoxLayout *shareLayout = new QHBoxLayout;
+    shareLayout->addWidget(sharePathButton);
+    shareLayout->addWidget(sharePathLabel, 1);
+    mainLayout->addLayout(shareLayout);
+    QHBoxLayout *sharePassLayout = new QHBoxLayout;
+    sharePassLayout->addWidget(new QLabel(tr("Share password")));
+    sharePassLayout->addWidget(sharePasswordEdit, 1);
+    mainLayout->addLayout(sharePassLayout);
+    mainLayout->addWidget(shareHint);
     QHBoxLayout *backupLayout = new QHBoxLayout;
     backupLayout->addWidget(backupButton);
     backupLayout->addWidget(restoreButton);
@@ -337,6 +388,17 @@ void FileTab::restorePrivateData()
     DataBackup::importInteractive(this);
 }
 
+void FileTab::getSharePath()
+{
+    const QString start = sharePathLabel->text().isEmpty()
+            ? QDir::homePath() : sharePathLabel->text();
+    const QString path = QFileDialog::getExistingDirectory(
+                this, tr("Select shared folder"), start);
+    if (!path.isEmpty()) {
+        sharePathLabel->setText(path);
+    }
+}
+
 void FileTab::getRecvPath()
 {
     const QString path = QFileDialog::getExistingDirectory(
@@ -357,6 +419,25 @@ void FileTab::save()
     }
     Global::preferences->sendSpeedLimitKBps = speedSpin->value();
     SendThrottle::setLimitKBps(speedSpin->value());
+
+    bool shareOn = shareCheckBox->isChecked();
+    const QString sharePath = sharePathLabel->text().trimmed();
+    if (shareOn && sharePath.isEmpty()) {
+        QMessageBox::information(this, tr("Shared folder"),
+                tr("Pick a folder before turning sharing on."));
+        shareOn = false;
+        shareCheckBox->setChecked(false);
+    }
+    const bool shareChanged = shareOn != Global::preferences->shareEnabled
+            || sharePath != Global::preferences->sharePath
+            || sharePasswordEdit->text() != Global::preferences->sharePassword;
+    Global::preferences->shareEnabled = shareOn;
+    Global::preferences->sharePath = sharePath;
+    Global::preferences->sharePassword = sharePasswordEdit->text();
+    if (shareChanged && Global::userManager) {
+        Global::userManager->announcePresence();
+        Global::userManager->refreshLocalView();
+    }
 }
 
 NetworkTab::NetworkTab(QWidget *parent)

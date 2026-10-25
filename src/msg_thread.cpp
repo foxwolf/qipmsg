@@ -22,6 +22,7 @@
 #include "recv_msg.h"
 #include "window_manager.h"
 #include "user_manager.h"
+#include "send_file_manager.h"
 
 #include <QTimer>
 #include <QMessageBox>
@@ -56,6 +57,8 @@ void MsgThread::run()
             Global::userManager, SLOT(notePeerCaps(QString,quint32)));
     connect(m_msgServer, SIGNAL(peerTyping(QString,bool)),
             Global::windowManager, SLOT(notePeerTyping(QString,bool)));
+    connect(m_msgServer, SIGNAL(instantReady(QString,int,QString,QString)),
+            Global::sendFileManager, SLOT(markInstant(QString,int,QString,QString)));
 
     connect(m_msgServer, SIGNAL(error(QAbstractSocket::SocketError, QString)),
             this, SLOT(handleError(QAbstractSocket::SocketError, QString)));

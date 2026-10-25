@@ -95,6 +95,7 @@ private slots:
     void typingIdle();
     void setLocalPhoto();
     void clearLocalPhoto();
+    void browsePeerShare();
 
 private:
     void createUi();

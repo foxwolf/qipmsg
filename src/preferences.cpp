@@ -26,6 +26,7 @@
 #include "helper.h"
 #include "ipmsg.h"
 #include "sendThrottle.h"
+#include "themeName.h"
 
 Preferences::Preferences()
 {
@@ -107,6 +108,10 @@ void Preferences::reset()
     isAutoRecvRename = true;
     autoRecvPath = Helper::defaultRecvPath();
     sendSpeedLimitKBps = 0;
+    shareEnabled = false;
+    sharePath = "";
+    sharePassword = "";
+    themeName = "light";
 
     udpPort = IPMSG_DEFAULT_PORT;
     bindAddress.clear();
@@ -236,8 +241,15 @@ void Preferences::load()
     autoRecvPath = set->value("autoRecvPath", autoRecvPath).toString();
     sendSpeedLimitKBps = SendThrottle::clampKBps(
                 set->value("sendSpeedLimitKBps", sendSpeedLimitKBps).toInt());
+    shareEnabled = set->value("shareEnabled", shareEnabled).toBool();
+    sharePath = set->value("sharePath", sharePath).toString();
+    sharePassword = set->value("sharePassword", sharePassword).toString();
     set->endGroup();
     SendThrottle::setLimitKBps(sendSpeedLimitKBps);
+
+    set->beginGroup("Appearance");
+    themeName = normalizeThemeName(set->value("theme", themeName).toString());
+    set->endGroup();
 
     set->beginGroup("Network");
     udpPort = set->value("udpPort", udpPort).toInt();
@@ -355,6 +367,13 @@ void Preferences::save()
     set->setValue("autoRecvPath", autoRecvPath);
     set->setValue("sendSpeedLimitKBps",
                   SendThrottle::clampKBps(sendSpeedLimitKBps));
+    set->setValue("shareEnabled", shareEnabled);
+    set->setValue("sharePath", sharePath);
+    set->setValue("sharePassword", sharePassword);
+    set->endGroup();
+
+    set->beginGroup("Appearance");
+    set->setValue("theme", normalizeThemeName(themeName));
     set->endGroup();
 
     set->beginGroup("Network");

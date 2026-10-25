@@ -55,6 +55,7 @@ private:
     QCheckBox *startWithOsCheck;
     QSpinBox *refreshIntervalSpin;
     QSpinBox *staleMissedSpin;
+    QComboBox *themeCombo;
 };
 
 class LogTab : public QWidget
@@ -128,6 +129,7 @@ public:
 
 private slots:
     void getRecvPath();
+    void getSharePath();
     void updateSpeedHint(int kbps);
     void backupPrivateData();
     void restorePrivateData();
@@ -140,6 +142,10 @@ private:
     QLabel *recvPathLabel;
     QSpinBox *speedSpin;
     QLabel *speedHint;
+    QCheckBox *shareCheckBox;
+    QPushButton *sharePathButton;
+    QLabel *sharePathLabel;
+    QLineEdit *sharePasswordEdit;
 };
 
 class NetworkTab : public QWidget

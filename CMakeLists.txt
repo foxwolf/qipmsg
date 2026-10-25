@@ -29,6 +29,7 @@ set(SOURCES
     src/discussion_store.cpp
     src/discussion_window.cpp
     src/emoji_pack.cpp
+    src/fileHashIndex.cpp
     src/file_server.cpp
     src/global.cpp
     src/groupPolicy.cpp
@@ -68,6 +69,8 @@ set(SOURCES
     src/screen_capture.cpp
     src/search_user_dialog.cpp
     src/sendThrottle.cpp
+    src/shareBrowser.cpp
+    src/shareFolder.cpp
     src/send_file.cpp
     src/send_file_handle.cpp
     src/send_file_manager.cpp
@@ -104,6 +107,7 @@ set(HEADERS
     src/discussion_store.h
     src/discussion_window.h
     src/emoji_pack.h
+    src/fileHashIndex.h
     src/file_server.h
     src/global.h
     src/groupPolicy.h
@@ -143,6 +147,9 @@ set(HEADERS
     src/retry_recv_file_dialog.h
     src/search_user_dialog.h
     src/sendThrottle.h
+    src/shareBrowser.h
+    src/shareFolder.h
+    src/themeName.h
     src/send_file.h
     src/send_file_handle.h
     src/send_file_manager.h
@@ -189,6 +196,13 @@ add_executable(qipmsgBackupCheck
 )
 target_include_directories(qipmsgBackupCheck PRIVATE src)
 
+add_executable(qipmsgShareCheck
+    test/sharecheck/main.cpp
+    src/fileHashIndex.cpp
+    src/shareFolder.cpp
+)
+target_include_directories(qipmsgShareCheck PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -201,6 +215,7 @@ if (Qt6_FOUND)
     )
     target_link_libraries(qipmsgP1Check PRIVATE Qt6::Core Qt6::Network)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt6::Core)
+    target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -210,6 +225,7 @@ else()
     )
     target_link_libraries(qipmsgP1Check PRIVATE Qt5::Core Qt5::Network)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt5::Core)
+    target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
 endif()
 
 if (WIN32)

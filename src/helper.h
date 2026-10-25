@@ -84,6 +84,12 @@ public:
     static void shakeWidget(QWidget *widget);
 
     static void applyAppTheme(QApplication *app);
+    static bool darkTheme();
+    static QColor bubbleIncomingBg();
+    static QColor bubbleIncomingFg();
+    static QColor bubbleOutgoingBg();
+    static QColor bubbleOutgoingFg();
+    static QColor bubbleMetaFg();
     static QColor avatarColor(const QString &name);
     static QColor presenceColor(int presence);
     static QPixmap avatarPixmap(const QString &letter, int size,
@@ -97,6 +103,7 @@ private:
 
     static QString m_appPath;
     static QString m_iniPath;
+    static bool m_darkTheme;
     static qint64 m_packetNo;
     static QFile m_internalLogFile;
     static QString m_internalLogFileName;

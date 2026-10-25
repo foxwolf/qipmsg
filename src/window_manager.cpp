@@ -301,6 +301,24 @@ void WindowManager::applyIncomingShake(const QString &ip)
     }
 }
 
+void WindowManager::noteInstantSkip(QString ip, QString fileName, bool incoming)
+{
+    if (ip.isEmpty() || fileName.isEmpty() || !Global::userManager) {
+        return;
+    }
+    const QString peerName = Global::userManager->displayNameForIp(ip);
+    if (incoming) {
+        recordIncomingText(ip, peerName,
+                           tr("[Instant] %1 already present, skipped transfer")
+                           .arg(fileName),
+                           false);
+        return;
+    }
+    recordOutgoing(ip, peerName,
+                   tr("[Instant] %1 already on the peer, skipped transfer")
+                   .arg(fileName));
+}
+
 void WindowManager::recordIncomingText(const QString &ip,
                                        const QString &peerName,
                                        const QString &text,

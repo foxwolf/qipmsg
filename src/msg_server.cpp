@@ -219,6 +219,10 @@ void MsgServer::processRecvMsg(Msg msg)
         processRecvReleaseFilesMsg(msg);
         break;
 
+    case IPMSG_QIPMSG_EXT:
+        processQipExtension(msg);
+        return;
+
     default:
         break;
     }
@@ -288,6 +292,25 @@ void MsgServer::processGetAbsenceInfo(Msg msg)
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
                     info, ""/* extendedInfo */, IPMSG_SENDABSENCEINFO);
     Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
+void MsgServer::processQipExtension(Msg msg)
+{
+    const QString body = msg->additionalInfo();
+    const QStringList parts = body.split(QLatin1Char(':'));
+    if (parts.size() < 4 || parts.at(0) != QLatin1String("INSTANT")) {
+        return;
+    }
+    bool ok = false;
+    const int fileId = parts.at(2).toInt(&ok, 16);
+    if (!ok) {
+        return;
+    }
+    const QString sha = parts.at(3).trimmed().toLower();
+    if (sha.size() != 64) {
+        return;
+    }
+    emit instantReady(parts.at(1), fileId, sha, msg->ip());
 }
 
 void MsgServer::processRecvReleaseFilesMsg(Msg msg)
@@ -373,6 +396,7 @@ void MsgServer::handleMsg(Msg &msg)
         case IPMSG_SENDABSENCEINFO:
         case IPMSG_FEIQ_TYPING:
         case IPMSG_FEIQ_TYPINGSTOP:
+        case IPMSG_QIPMSG_EXT:
             broadcastMsg(msg);
             Global::msgThread->removeSendMsgNotLock(msg->packetNoString());
             break;
@@ -562,6 +586,7 @@ bool MsgServer::isSupportedCommand(QByteArray &datagram) const
     case IPMSG_ANSPUBKEY:
     case IPMSG_FEIQ_TYPING:
     case IPMSG_FEIQ_TYPINGSTOP:
+    case IPMSG_QIPMSG_EXT:
         isSupport = true;
         break;
 

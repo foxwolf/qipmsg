@@ -24,6 +24,12 @@
 #include "transfer_codec.h"
 #include "preferences.h"
 #include "resume_store.h"
+#include "fileHashIndex.h"
+#include "ipmsg.h"
+#include "msg_thread.h"
+#include "send_msg.h"
+#include "msg.h"
+#include "window_manager.h"
 
 #include <QFile>
 #include <QFileInfo>
@@ -64,6 +70,10 @@ void RecvFileTransfer::startTransfer()
 
         m_recvFileMap->setCurrentId(h->fileId());
         m_recvFileMap->startTimer();
+
+        if (tryInstant(h)) {
+            continue;
+        }
 
         m_tcpSocket.disconnectFromHost();
         quint16 port = h->peerPort();
@@ -202,6 +212,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     file.close();
     // set modify time
     setLastModified(h);
+    noteReceivedFile(h, m_recvFileMap->saveFilePath() + "/" + h->saveName());
     h->setState(RecvFile::RecvOk);
     clearResume(h);
     m_recvFileMap->addBytesReaded(bytesReaded);
@@ -567,6 +578,98 @@ void RecvFileTransfer::persistResume(RecvFileHandle h)
     record.offset = h->offset();
     record.saveDir = m_recvFileMap->saveFilePath();
     Global::resumeStore->save(record);
+}
+
+bool RecvFileTransfer::tryInstant(RecvFileHandle h)
+{
+    if (h->type() != IPMSG_FILE_REGULAR) {
+        return false;
+    }
+    const QString sha = h->attrMap().value(IPMSG_FILE_QIPHASH).trimmed().toLower();
+    if (sha.size() != 64 || h->size() < 0) {
+        return false;
+    }
+    const QString dir = m_recvFileMap->saveFilePath();
+    QString src = FileHashIndex::findExisting(sha, h->size());
+    if (src.isEmpty()) {
+        src = FileHashIndex::findInDirectory(dir, h->name(), sha, h->size());
+    }
+    if (src.isEmpty()) {
+        return false;
+    }
+
+    QDir().mkpath(dir);
+    QString destName = h->name();
+    QString destPath = QDir(dir).filePath(destName);
+    const QString srcCanon = QFileInfo(src).canonicalFilePath();
+    if (QFileInfo(destPath).exists()) {
+        const QString destCanon = QFileInfo(destPath).canonicalFilePath();
+        if (srcCanon.isEmpty() || destCanon != srcCanon) {
+            if (Global::preferences && Global::preferences->isAutoRecvRename) {
+                destName = Helper::uniqueFileName(dir, h->name());
+                destPath = QDir(dir).filePath(destName);
+            } else if (!QFile::remove(destPath)) {
+                return false;
+            }
+        }
+    }
+    if (srcCanon.isEmpty()
+            || QFileInfo(destPath).canonicalFilePath() != srcCanon) {
+        if (QFileInfo(destPath).exists() && !QFile::remove(destPath)) {
+            return false;
+        }
+        if (!QFile::copy(src, destPath)) {
+            return false;
+        }
+    }
+    h->setSaveName(destName);
+    h->setOffset(h->size());
+    h->setBytesReaded(h->size());
+    h->setState(RecvFile::RecvOk);
+    h->incrRegularFileCount();
+    m_recvFileMap->incrRegularFileCount();
+    m_recvFileMap->incrTotalRegularFileCount();
+    m_recvFileMap->addBytesReaded(h->size());
+    noteReceivedFile(h, destPath);
+
+    quint16 port = h->peerPort();
+    if (port == 0 && Global::userManager) {
+        port = Global::userManager->peerPort(h->ip());
+    }
+    if (port == 0) {
+        port = IPMSG_DEFAULT_PORT;
+    }
+    if (Global::msgThread && Global::userManager) {
+        const QString body = QString("INSTANT:%1:%2:%3")
+                .arg(h->packetNo(), 0, 16)
+                .arg(h->fileId(), 0, 16)
+                .arg(sha);
+        SendMsg sendMsg(h->ipAddress(), port, body, QString(), IPMSG_QIPMSG_EXT);
+        Global::msgThread->addSendMsg(Msg(sendMsg));
+    }
+    if (Global::windowManager) {
+        QMetaObject::invokeMethod(Global::windowManager, "noteInstantSkip",
+                                  Qt::QueuedConnection,
+                                  Q_ARG(QString, h->ip()),
+                                  Q_ARG(QString, h->name()),
+                                  Q_ARG(bool, true));
+    }
+    return true;
+}
+
+void RecvFileTransfer::noteReceivedFile(RecvFileHandle h, const QString &path)
+{
+    qint64 size = -1;
+    const QString sha = FileHashIndex::hashFile(path, &size);
+    if (sha.size() != 64) {
+        return;
+    }
+    const QString advertised = h->attrMap().value(IPMSG_FILE_QIPHASH)
+            .trimmed().toLower();
+    if (!advertised.isEmpty() && advertised != sha) {
+        qWarning("RecvFileTransfer: content hash does not match the offer");
+    }
+    FileHashIndex::note(path, sha, size, QStringLiteral("recv"), h->ip());
 }
 
 void RecvFileTransfer::clearResume(RecvFileHandle h)

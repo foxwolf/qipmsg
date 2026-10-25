@@ -38,7 +38,9 @@ public:
     SendFileMap(QObject *parent = 0);
 
     void addFile(const QStringList&);
-    QString packetString() const;
+    QString packetString(bool withContentHash = false);
+    bool markFileInstant(int fileId, QString *nameOut, QString *pathOut,
+                         qint64 *sizeOut, QString *hashOut);
 
     void setRecvUser(QString user) { m_recvUser = user; }
     void setRecvHostname(QString hostname) { m_recvHostname = hostname; }

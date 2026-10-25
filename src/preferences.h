@@ -100,6 +100,11 @@ public:
     QString autoRecvPath;
     int sendSpeedLimitKBps;
 
+    bool shareEnabled;
+    QString sharePath;
+    QString sharePassword;
+    QString themeName;
+
     int udpPort;
     QString bindAddress;
 

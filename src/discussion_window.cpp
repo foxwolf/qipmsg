@@ -234,7 +234,7 @@ void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
     cursor.insertBlock(metaBlock);
 
     QTextCharFormat metaFmt;
-    metaFmt.setForeground(QColor("#8A8F98"));
+    metaFmt.setForeground(Helper::bubbleMetaFg());
     metaFmt.setFontPointSize(9);
     cursor.insertText(QString("%1  %2").arg(name, timeText), metaFmt);
 
@@ -251,17 +251,18 @@ void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
     QTextTableCell cell = table->cellAt(0, 0);
     QTextCharFormat cellFmt = cell.format();
     if (incoming) {
-        cellFmt.setBackground(QColor("#FFFFFF"));
-        cellFmt.setForeground(QColor("#1F2937"));
+        cellFmt.setBackground(Helper::bubbleIncomingBg());
+        cellFmt.setForeground(Helper::bubbleIncomingFg());
     } else {
-        cellFmt.setBackground(QColor("#2563EB"));
-        cellFmt.setForeground(QColor("#FFFFFF"));
+        cellFmt.setBackground(Helper::bubbleOutgoingBg());
+        cellFmt.setForeground(Helper::bubbleOutgoingFg());
     }
     cell.setFormat(cellFmt);
 
     QTextCursor cellCursor = cell.firstCursorPosition();
     QTextCharFormat textFmt;
-    textFmt.setForeground(incoming ? QColor("#1F2937") : QColor("#FFFFFF"));
+    textFmt.setForeground(incoming ? Helper::bubbleIncomingFg()
+                                   : Helper::bubbleOutgoingFg());
     textFmt.setFontPointSize(10);
     MentionHighlighter::insertHighlighted(cellCursor, text, textFmt,
                                           mentionNames(),

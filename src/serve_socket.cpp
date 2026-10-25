@@ -29,9 +29,13 @@
 #include "global.h"
 #include "helper.h"
 #include "sendThrottle.h"
+#include "fileHashIndex.h"
+#include "preferences.h"
+#include "shareFolder.h"
 
 #include <QDir>
 #include <QDateTime>
+#include <QFile>
 #include <QMutexLocker>
 #include <QTextCodec>
 
@@ -101,6 +105,9 @@ bool ServeSocket::startSendFile()
 #endif
       buff[readlen] = '\0';
       recvBlock.append( buff );
+      if (recvBlock.size() > 256 * 1024) {
+        return false;
+      }
       if ( canParsePacket(recvBlock) ) {
         break;
       }
@@ -131,6 +138,9 @@ bool ServeSocket::canParsePacket(const QByteArray &requestPacket) const
 
     bool ok = false;
     const quint32 command = Helper::parseIpmsgCommand(bl.at(MSG_FLAGS_POS), &ok);
+    if (ok && GET_MODE(command) == IPMSG_QIPMSG_EXT) {
+        return requestPacket.contains('\n');
+    }
     if (ok && GET_MODE(command) == IPMSG_GETFILEDATA && bl.count() < 9) {
         return false;
     }
@@ -138,11 +148,97 @@ bool ServeSocket::canParsePacket(const QByteArray &requestPacket) const
     return true;
 }
 
+bool ServeSocket::writeRaw(const QByteArray &block, bool pace)
+{
+    const char *buff = block.constData();
+    qint64 nbytes = block.size();
+    qint64 sent = 0;
+    while (sent < nbytes) {
+        qint64 wrote = 0;
+#ifdef _WIN32
+        const int chunk = static_cast<int>(qMin(nbytes - sent, (qint64)1024 * 1024));
+        int n = send(static_cast<SOCKET>(m_sockfd), buff + sent, chunk, 0);
+        if (n == SOCKET_ERROR || n <= 0) {
+            return false;
+        }
+        wrote = n;
+#else
+        ssize_t n = send(m_sockfd, buff + sent,
+                         static_cast<size_t>(nbytes - sent), 0);
+        if (n > 0) {
+            wrote = n;
+        } else if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return false;
+        } else {
+            return false;
+        }
+#endif
+        sent += wrote;
+        if (pace && !SendThrottle::pace(wrote, []() { return false; })) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServeSocket::handleShare(const QByteArray &requestPacket)
+{
+    const bool enabled = Global::preferences && Global::preferences->shareEnabled;
+    const QString root = Global::preferences
+            ? Global::preferences->sharePath : QString();
+    const QString password = Global::preferences
+            ? Global::preferences->sharePassword : QString();
+    const ShareAnswer answer = ShareFolder::answer(requestPacket, enabled, root,
+                                                    password);
+    if (!writeRaw(answer.payload, false)) {
+        return false;
+    }
+    if (!answer.sendFile) {
+        return true;
+    }
+    QFile file(answer.filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+    if (answer.offset > 0 && !file.seek(answer.offset)) {
+        return false;
+    }
+    while (!file.atEnd()) {
+        QByteArray block = file.read(BLOCK_SIZE);
+        if (block.isEmpty()) {
+            return false;
+        }
+        if (!writeRaw(block, true)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool ServeSocket::handleRequest(const QByteArray &requestPacket)
 {
     qDebug() << "ServeSocket::handleRequest";
 
+    {
+        const QList<QByteArray> head = requestPacket.split(':');
+        if (head.size() > MSG_FLAGS_POS) {
+            bool commandOk = false;
+            const quint32 command = Helper::parseIpmsgCommand(
+                        head.at(MSG_FLAGS_POS), &commandOk);
+            if (commandOk && GET_MODE(command) == IPMSG_QIPMSG_EXT) {
+                return handleShare(requestPacket);
+            }
+        }
+    }
+
     struct RequsetFile requestFile;
+    bool regular = false;
+    QString donePath;
+    qint64 doneSize = 0;
+    QString doneHash;
     parseRequestPacket(requestPacket, requestFile);
 
     SendFileMap *map = 0;
@@ -197,6 +293,10 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
     }
     map->detachSocket();
     map->m_map[requestFile.fileId]->setState(SendFile::SendOk);
+    regular = requestFile.fileType == IPMSG_FILE_REGULAR;
+    donePath = requestFile.filePath;
+    doneSize = regular ? map->m_map[requestFile.fileId]->size() : 0;
+    doneHash = regular ? map->m_map[requestFile.fileId]->contentHash() : QString();
     map->incrTransferCount();
     map->setState(SendFileMap::NotTransfer);
     Global::sendFileManager
@@ -206,6 +306,16 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
         Global::sendFileManager->removeTransfer(m_packetNoString);
     }
     Global::sendFileManager->m_lock.unlock();
+
+    if (regular && !donePath.isEmpty()) {
+        if (doneHash.size() != 64) {
+            doneHash = FileHashIndex::hashFile(donePath, 0);
+        }
+        if (doneHash.size() == 64) {
+            FileHashIndex::note(donePath, doneHash, doneSize,
+                                QStringLiteral("send"), QString());
+        }
+    }
 
     return true;
 

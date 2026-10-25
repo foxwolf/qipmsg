@@ -35,11 +35,15 @@ public:
 
     int type() const;
 
+    QString contentHash() const { return m_contentHash; }
+    void setContentHash(const QString &hash) { m_contentHash = hash; }
+
 private:
     enum States m_state;
 
     int m_fileId;
     time_t m_mtime;      // save this to trace if a file changed
+    QString m_contentHash;
 };
 
 #endif // !SEND_FILE_H

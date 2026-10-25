@@ -86,6 +86,7 @@ signals:
 
 public slots:
     void clearUnread(QString ip);
+    void noteInstantSkip(QString ip, QString fileName, bool incoming);
 
 private slots:
     void newMsg(Msg msg);

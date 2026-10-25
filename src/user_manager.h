@@ -82,6 +82,11 @@ public:
 
     QString entryMessage() const;
     QString exitMessage() const;
+    QString localQipToken() const;
+    QString peerQipToken(const QString &ip) const;
+    bool peerIsQipmsg(const QString &ip) const;
+    bool peerHasShare(const QString &ip) const;
+    void refreshLocalView();
     quint32 commandFlags(quint32 command) const;
     quint32 sendFlagsForIp(const QString &ip, quint32 flags) const;
 

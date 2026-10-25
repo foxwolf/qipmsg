@@ -14,6 +14,10 @@ HEADERS += \
 	about_dialog.h \
 	autostart.h \
 	avatarStore.h \
+	fileHashIndex.h \
+	shareBrowser.h \
+	shareFolder.h \
+	themeName.h \
 	dataBackup.h \
 	msg_server.h \
 	constants.h \
@@ -89,6 +93,9 @@ SOURCES += \
 	about_dialog.cpp \
 	autostart.cpp \
 	avatarStore.cpp \
+	fileHashIndex.cpp \
+	shareBrowser.cpp \
+	shareFolder.cpp \
 	dataBackup.cpp \
 	dataBackupUi.cpp \
 	msg_server.cpp \

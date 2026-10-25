@@ -793,6 +793,8 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     item->setData(0, Qt::UserRole + 4, subtitle);
     item->setData(0, Qt::UserRole + 6, display);
     item->setData(0, Qt::UserRole + 9, m_typingIps.contains(ip));
+    item->setData(0, Qt::UserRole + 10,
+                  Global::userManager && Global::userManager->peerHasShare(ip));
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setSizeHint(0, QSize(180, 52));
 
@@ -816,7 +818,14 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
     item->setFlags(Qt::ItemIsEnabled);
     item->setIcon(0, QIcon(peerAvatar(me.name(), PRESENCE_ONLINE, 36,
                                       AvatarStore::selfKey())));
-    item->setToolTip(0, tr("This is you"));
+    const bool sharing = Global::preferences
+            && Global::preferences->shareEnabled
+            && !Global::preferences->sharePath.trimmed().isEmpty();
+    item->setData(0, Qt::UserRole + 10, sharing);
+    item->setToolTip(0, sharing
+                     ? tr("This is you\nSharing %1")
+                       .arg(Global::preferences->sharePath)
+                     : tr("This is you"));
 }
 
 void MainWindow::addDiscussionItem(QTreeWidgetItem *parent, const QString &id)
@@ -879,6 +888,9 @@ void MainWindow::addRecentItems(QTreeWidgetItem *parent)
         item->setData(0, Qt::UserRole + 6, name);
         item->setData(0, Qt::UserRole + 8, QStringLiteral("recent"));
         item->setData(0, Qt::UserRole + 9, m_typingIps.contains(row.ip));
+        item->setData(0, Qt::UserRole + 10,
+                      Global::userManager
+                      && Global::userManager->peerHasShare(row.ip));
         item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         item->setSizeHint(0, QSize(180, 52));
         if (presence == PRESENCE_STALE) {
@@ -1321,7 +1333,9 @@ void MainWindow::sendMessage()
             flags |= IPMSG_FILEATTACHOPT;
             QStringList pathList = m_sendFileModel.pathList();
             m_sendFileMap->addFile(pathList);
-            additionalInfo.append(m_sendFileMap->packetString());
+            const bool withHash = Global::userManager
+                    && Global::userManager->peerIsQipmsg(ip);
+            additionalInfo.append(m_sendFileMap->packetString(withHash));
             additionalInfo.append(QChar('\0'));
         }
 
