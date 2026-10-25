@@ -27,6 +27,7 @@ class QMenu;
 class QActionGroup;
 class QIcon;
 
+class QWidget;
 class MainWindow;
 
 class Systray : public QObject
@@ -39,9 +40,15 @@ public:
 
     void show();
     void syncActions();
+    QWidget *presentAtStartup();
+    QWidget *visibleMainWindow() const;
+    void noteListenProblem(bool down, quint16 port);
 
     QList<MainWindow *> mainWindowList;
     void notifyNewMessage(const QString &fromName, const QString &preview);
+
+public slots:
+    QWidget *openMainWindow();
 
 protected:
     void timerEvent(QTimerEvent *event);
@@ -85,6 +92,7 @@ private:
     void destroyMainWindowList();
     void visibleAllMainWindow();
 
+    QAction *openMainWindowAction;
     QAction *showTransferFileAction;
     QAction *delAckWindowAction;
     QAction *topWindowAction;
@@ -109,6 +117,7 @@ private:
     QMenu *trayIconMenu;
 
     QString m_iconKey;
+    QString m_listenProblem;
     int m_userCount;
 };
 

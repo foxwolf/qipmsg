@@ -22,6 +22,7 @@
 #endif
 
 #include "msg_server.h"
+#include "portBind.h"
 #include "richText.h"
 #include "msgCrypto.h"
 #include "protocolutil.h"
@@ -97,10 +98,13 @@ void MsgServer::start()
         QAbstractSocket::ShareAddress | QAbstractSocket::ReuseAddressHint;
     const QHostAddress listenAddress = Global::preferences->listenAddress();
     const quint16 listenPort = Global::preferences->listenPort();
-    if (!m_udpSocket.bind(listenAddress, listenPort, bindMode)) {
+    const portSideResult tried = PortBind::tryUdp(
+            &m_udpSocket, listenAddress, listenPort, bindMode, true);
+    if (!tried.ok) {
         qWarning() << "MsgServer::start: bind"
                    << listenAddress.toString() << listenPort
-                   << "failed:" << m_udpSocket.errorString()
+                   << "failed:" << tried.error
+                   << "kind" << static_cast<int>(tried.kind)
                    << "(continuing without UDP listen)";
         return;
     }
@@ -128,6 +132,12 @@ void MsgServer::start()
     qInfo() << "MsgServer::start: UDP listen"
             << m_udpSocket.localAddress().toString()
             << m_udpSocket.localPort();
+}
+
+bool MsgServer::isBound() const
+{
+    return m_udpSocket.state() == QAbstractSocket::BoundState
+            && m_udpSocket.localPort() != 0;
 }
 
 void MsgServer::readPacket()
