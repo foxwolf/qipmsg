@@ -14,6 +14,7 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "msgCrypto.h"
 #include "owner.h"
 #include "global.h"
 #include "helper.h"
@@ -125,6 +126,9 @@ void UserManager::newUserMsg(Msg msg)
         notifyUsersChanged();
     }
     notePeerCaps(msg->ip(), msg->flags());
+    if (Global::preferences && Global::preferences->isEncryptMsg) {
+        MsgCrypto::requestPeerKey(msg->ip(), sendPortForIp(msg->ip()));
+    }
 }
 
 void UserManager::newExitMsg(Msg msg)
@@ -312,6 +316,9 @@ quint32 UserManager::presenceFlags(quint32 command) const
     quint32 flags = command | QIPMSG_CAPACITY;
     if (Global::preferences->isAway) {
         flags |= IPMSG_ABSENCEOPT;
+    }
+    if (Global::preferences->isEncryptMsg) {
+        flags |= IPMSG_ENCRYPTOPT;
     }
     return flags;
 }
@@ -743,6 +750,15 @@ QString UserManager::realNameForIp(const QString &ip) const
         }
     }
     return ip;
+}
+
+QString Global::peerLabelForIp(const QString &ip)
+{
+    if (!userManager || ip.isEmpty()) {
+        return ip;
+    }
+    const QString name = userManager->displayNameForIp(ip);
+    return name.isEmpty() ? ip : name;
 }
 
 QString UserManager::displayNameForIp(const QString &ip) const

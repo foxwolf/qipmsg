@@ -64,6 +64,15 @@
 - [x] Local hash index of sent/received regular files (`filehash.json`, size + SHA-256, cap 2000, no Qt Sql). qipmsg peers skip TCP when the content is already local; FeiQ still full transfer
 - [x] qipmsg shared folder (path + optional password) and **Browse peer share** on the file port. Paths stay under the share root. FeiQ share protocol is not implemented
 - [x] Light / dark / follow-system appearance in QSettings, with a dark QSS next to the 2.4 light theme
+- [x] Optional RSA text encryption (default off). `GETPUBKEY` / `ANSPUBKEY`, zero IV, PKCS#1 plus AES-256 or Blowfish-128. Attachments and peers without a parsed key stay classic plaintext. FeiQ and official IPMsg packing were not verified
+- [x] Offline queue persists across restart, retries on startup and when a peer is reachable, shows a count, and can hold a shake token. Files stay out
+- [x] Windows NSIS user-level installer from the `windeployqt` folder (`packaging/qipmsg.nsi`)
+
+## How to try 2.33.9
+
+1. Preferences → Send/Receive → **Encrypt messages when the peer has a public key** (off by default). The first apply writes `~/.qipmsg/rsa_private.json` and can pause on the UI thread while a 1024-bit key is generated. Presence then sets `ENCRYPTOPT`. Two qipmsg peers with the option on exchange keys and show **Encrypted** on text bubbles. A message with a file attachment is not sealed. A FeiQ peer that ignores `GETPUBKEY` still receives plaintext. Do not treat FeiQ or official IPMsg decrypt as done; a failed open shows a clear bubble and still ACKs.
+2. Send text and a window shake to a grey peer, quit, and start again. The main-window header, the queue dialog, and the tray item still show the count (`offline_queue.json`). When that login and host are online on exactly one new IP, the items move to it. Two matches are left on the old IP. A file-only send says nothing was queued.
+3. After `windeployqt`, `makensis -DVERSION=2.33.9 -DDEPLOYDIR=<win-deploy> packaging/qipmsg.nsi` writes a per-user installer. The Windows GitHub Actions job uploads it as `qipmsg-windows-setup`.
 
 ## Later / out of scope for 2.30.6
 
@@ -71,12 +80,10 @@
 2. **FeiQ share-protocol interop** (qipmsg↔qipmsg browse is done; FeiQ's packet format was not verified)
 3. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
 4. **Voice**
-5. **Message encryption / signatures**
-   - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
-6. **Extra skins**
+5. **Extra skins**
    - Light and dark ship with 2.30.6. User-supplied skins remain later
-7. **Modern packaging**
-   - NSIS installer for Windows
+6. **More installers**
+   - Windows NSIS from the windeployqt folder ships with 2.33.9
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
 

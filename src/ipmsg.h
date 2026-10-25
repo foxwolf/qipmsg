@@ -125,6 +125,10 @@
 #define IPMSG_RC2_256			0x00008000UL
 #define IPMSG_BLOWFISH_128		0x00020000UL
 #define IPMSG_BLOWFISH_256		0x00040000UL
+/* Capability word inside GETPUBKEY / ANSPUBKEY / encrypted body.
+   Not a command-option bit. 0x00800000 in that word is packet-number IV
+   (ipmsg.h Ver4.50); the same numeric value on the command word is UTF8OPT. */
+#define IPMSG_AES_256			0x00100000UL
 #define IPMSG_SIGN_MD5			0x10000000UL
 
 /* compatibilty for Win beta version */

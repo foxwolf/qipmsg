@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.30.7 LANGUAGES CXX)
+project(qipmsg VERSION 2.33.9 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -41,6 +41,8 @@ set(SOURCES
     src/main_window.cpp
     src/mention_highlighter.cpp
     src/message_store.cpp
+    src/msgCrypto.cpp
+    src/msgCryptoSend.cpp
     src/msg.cpp
     src/msg_base.cpp
     src/msg_readed_window.cpp
@@ -119,6 +121,7 @@ set(HEADERS
     src/main_window.h
     src/mention_highlighter.h
     src/message_store.h
+    src/msgCrypto.h
     src/msg.h
     src/msg_base.h
     src/msg_readed_window.h
@@ -203,6 +206,19 @@ add_executable(qipmsgShareCheck
 )
 target_include_directories(qipmsgShareCheck PRIVATE src)
 
+add_executable(qipmsgCryptoCheck
+    test/cryptocheck/main.cpp
+    src/msgCrypto.cpp
+)
+target_include_directories(qipmsgCryptoCheck PRIVATE src)
+
+add_executable(qipmsgQueueCheck
+    test/queuecheck/main.cpp
+    test/queuecheck/stubs.cpp
+    src/offline_queue.cpp
+)
+target_include_directories(qipmsgQueueCheck PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -216,6 +232,8 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgP1Check PRIVATE Qt6::Core Qt6::Network)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
+    target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -226,6 +244,8 @@ else()
     target_link_libraries(qipmsgP1Check PRIVATE Qt5::Core Qt5::Network)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
+    target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
 endif()
 
 if (WIN32)

@@ -90,6 +90,14 @@ Deploy dependencies with `windeployqt` after building:
 C:\Qt\6.x.x\msvc2019_64\bin\windeployqt.exe Release\qipmsg.exe
 ```
 
+User-level NSIS installer (no admin). Copy the `windeployqt` output into one directory, then:
+
+```cmd
+makensis -DVERSION=2.33.9 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.33.9-setup.exe packaging\qipmsg.nsi
+```
+
+`VERSION` must match `src/version.h`. The script does not embed a version of its own. `OUTFILE` is optional; when omitted, the installer is written next to `packaging/qipmsg.nsi`. Installs to `%LOCALAPPDATA%\QIpMsg` and adds a Start Menu shortcut. GitHub Actions `windows-latest` installs NSIS with Chocolatey when `makensis` is missing, uploads `qipmsg-<version>-setup.exe` as artifact `qipmsg-windows-setup`, and still uploads the `win-deploy` folder. Every OS job checks that `src/version.h`, `CMakeLists.txt`, and `docs/README.md` carry the same version and that `packaging/qipmsg.nsi` exists.
+
 ---
 
 ## macOS
@@ -124,7 +132,7 @@ GitHub Actions (`.github/workflows/build.yml`) runs a CMake **Release** build on
 | `windows-latest` | `jurplel/install-qt-action@v4` Qt 6.8.3 MSVC 2022 (`qt5compat` + `qtmultimedia`) |
 | `macos-latest` | Homebrew `cmake` + `qt@6`, `CMAKE_PREFIX_PATH=$(brew --prefix qt@6)` |
 
-CMake ≥ 3.16, C++17, Qt 6 + Core5Compat. No Qt Sql. Each job uploads a `qipmsg-<os>` artifact.
+CMake ≥ 3.16, C++17, Qt 6 + Core5Compat. No Qt Sql. Each job uploads a `qipmsg-<os>` artifact. The Windows job also uploads `qipmsg-windows-setup` when `makensis` finishes.
 
 [![Build](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml/badge.svg)](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml)
 
@@ -144,7 +152,7 @@ make
 
 ## Runtime notes
 
-- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, local avatars in `avatars/` (self.png and per-IP PNG copies; not an IPMSG photo packet), default receive files in `recv/`, and screenshots in `screenshots/`. Tray **Backup private data** stores an uncompressed zip of the private files above except `recv/`, `screenshots/`, the lock file, and the internal log.
+- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, local avatars in `avatars/` (self.png and per-IP PNG copies; not an IPMSG photo packet), default receive files in `recv/`, screenshots in `screenshots/`, optional `rsa_private.json` / `peer_pubkeys.json` when message encryption has been turned on. Tray **Backup private data** stores an uncompressed zip of the private files above except `recv/`, `screenshots/`, the lock file, and the internal log.
 - Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8, unless the datagram's command has `IPMSG_UTF8OPT` (`0x00800000`), in which case the whole datagram is decoded as UTF-8.
 - `BR_ENTRY` / `BR_ABSENCE` / `BR_EXIT` / `ANSENTRY` announce `IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT`. `ANSENTRY` previously omitted even the file-attach bit; it now uses the same capability word. Presence text stays on the configured codec and sets `IPMSG_UTF8OPT` only when that codec is UTF-8, so FeiQ 2013 keeps reading GBK nicknames. A directed `SENDMSG` sets `IPMSG_UTF8OPT` and is encoded as UTF-8 when the peer has advertised `CAPUTF8OPT` (or when our codec is already UTF-8). Clipboard images are still ordinary file attachments; the capability bit is an announcement, not a new file type on the wire (`IPMSG_FILE_CLIPBOARD` is defined but not sent, so FeiQ file receive stays unchanged).
 - Cross-subnet discovery: Preferences stores extra targets in `userSpecifiedBroadcastIp` (same `\r`-separated list). A token may be one IPv4, `start-end`, or `addr/prefix`. Each refresh expands it and unicasts `BR_ENTRY` there. One token is limited to 1024 addresses. There is no directory server.
@@ -152,7 +160,8 @@ make
 - Presence refresh interval and auto-reply live in Preferences (Detail tab + Send/Receive). Tray **Leave → Away / Auto-reply** toggles absence (`BR_ABSENCE`). Tray **Leave → Stealth / Hide mode** (also Preferences → Send/Receive) skips `ANSENTRY` and own `BR_ENTRY`/`BR_ABSENCE`; turning it on sends `BR_EXIT` first.
 - Local memo nicknames are stored in `peers.json` as `"memo"` (same sidecar file, no Qt Sql). The contact tree and chat title show the memo; peer-profile **Nickname** keeps the real name.
 - Contact search matches nickname / host / login / memo / IP / group. Pinyin initials use public-domain GB2312 first-letter ranges via `QTextCodec` GBK/GB2312 (no third-party library). Full pinyin is a compact built-in table of surnames and common words in `src/pinyin.cpp` (public readings, GPL-3.0-or-later with the rest of QIpMsg).
-- Offline text queue (FeiQ-like 在线自动发送, best-effort): sending to a stale/offline/unknown peer enqueues the body under `offline_queue.json`. Default is auto-queue (Preferences → Send/Receive; uncheck to confirm each time). Flush happens when `UserManager` marks the IP `PRESENCE_ONLINE` or `PRESENCE_AWAY` (typically `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`). History is written only on flush. Files and window-shake are not queued — IPMSG has no store-and-forward server.
+- Offline queue (FeiQ-like 在线自动发送, best-effort): sending text or a window shake to a stale/offline/unknown peer enqueues it under `offline_queue.json` (atomic replace, no Qt Sql). The file survives restart. Default is auto-queue (Preferences → Send/Receive; uncheck to confirm each time). Flush runs at startup, every few seconds, and when `UserManager` marks the IP `PRESENCE_ONLINE` or `PRESENCE_AWAY` (typically `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`). If the old IP is gone but exactly one reachable peer has the same non-empty login and host, the item is retargeted. History is written only on flush. A failed handoff to the send thread puts the item back. Files are not queued — the UI says so. The main-window header, queue dialog, and tray show the count.
+- Optional message encryption is off by default (Preferences → Send/Receive). Turning it on creates `rsa_private.json` (owner read/write) and adds `ENCRYPTOPT` to presence only while the preference stays on. `GETPUBKEY` / `ANSPUBKEY` follow the IPMSG draft (`caps:exponent-modulus`, then `caps:rsa-pkcs1(session):pkcs7-cbc` with a zero IV). qipmsg seals text with RSA-1024 and AES-256 or Blowfish-128. Peers with no parsed key, and any packet that carries a file, stay classic plaintext so unknown commands do not replace a message FeiQ can read. Official IPMsg CryptoAPI blobs and FeiQ encryption were not verified.
 - File receive options live in Preferences → Detail → File: resume (`GETFILEDATA` hex offset), auto-accept, auto-rename, default folder. Directory transfers restart from the tree root (IPMSG dir stream); only regular files persist an offset.
 - UDP listen port and NIC/bind address live in Preferences → Detail → Network (`qipmsg.ini` `[Network]` `udpPort` / `bindAddress`). Default **2425** / any IPv4 (`0.0.0.0`). UDP and TCP file listen share that port. Changes need a restart. Bind failure is logged and the app continues (soft-fail); file receive needs a successful TCP listen.
 - FeiQ 2013 / IPMSG file-transfer assumptions (no new protocol):
@@ -237,7 +246,7 @@ All four are off until you turn them on (do-not-disturb and presence sound defau
 5. Send a message from another IPMSG/FeiQ client: expect a tray balloon, unread tooltip, and the same chat window to append history.
 6. Enable **Away / Auto-reply** from the tray Leave menu and send another message from a peer; you should see one automatic reply per cooldown. Shake packets are not auto-replied.
 7. Enable **Stealth / Hide mode**. A second IPMSG/FeiQ client that refreshes after you hide should no longer see you (no `ANSENTRY`). A client that already had your IP can still send a directed message.
-8. Send text to a grey/offline peer: it sits in the chat **Offline queue** and tray **Offline message queue**. When the peer comes back (`BR_ENTRY` / `ANSENTRY`), items flush in order. Attachments and shake are not queued.
+8. Send text or a window shake to a grey/offline peer: it sits in the chat **Offline queue** and tray **Offline message queue**, and is still there after a restart. When the peer comes back (`BR_ENTRY` / `ANSENTRY`), items flush in order. A file attachment is not queued; the dialog says so.
 9. Preferences → Detail → Network: change UDP/TCP listen port or bind NIC, restart, then send/receive a file with FeiQ or another IPMSG client. Files larger than 4GB keep 64-bit size/offset on the wire and in `resume.json`.
 
 ## FeiQ stealth interop (best-effort)

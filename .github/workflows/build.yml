@@ -83,6 +83,8 @@ jobs:
           run_one qipmsgP1Check
           run_one qipmsgBackupCheck
           run_one qipmsgShareCheck
+          run_one qipmsgCryptoCheck
+          run_one qipmsgQueueCheck
 
       - name: Locate binary
         shell: bash
@@ -127,6 +129,50 @@ jobs:
           test -f build/win-deploy/qipmsg.exe
           test -f build/win-deploy/Qt6Core.dll
           test -d build/win-deploy/platforms
+
+      - name: Version and installer script check
+        shell: bash
+        run: |
+          set -euo pipefail
+          ver_h=$(sed -n 's/^#define VERSION[[:space:]]*"\([^"]*\)".*/\1/p' src/version.h)
+          ver_cmake=$(sed -n 's/^project(qipmsg VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          ver_doc=$(sed -n 's/^当前版本：\*\*\([0-9.]*\)\*\*.*/\1/p' docs/README.md)
+          echo "version.h=$ver_h cmake=$ver_cmake readme=$ver_doc"
+          test -n "$ver_h"
+          test "$ver_h" = "$ver_cmake"
+          test "$ver_h" = "$ver_doc"
+          test -f packaging/qipmsg.nsi
+          grep -q '!ifndef VERSION' packaging/qipmsg.nsi
+          grep -q '!ifndef DEPLOYDIR' packaging/qipmsg.nsi
+          if grep -E 'OutFile "qipmsg-[0-9]' packaging/qipmsg.nsi; then
+            echo "packaging/qipmsg.nsi hardcodes a version"
+            exit 1
+          fi
+
+      - name: NSIS installer (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v makensis >/dev/null 2>&1; then
+            choco install nsis -y --no-progress
+            export PATH="/c/Program Files (x86)/NSIS:$PATH"
+          fi
+          command -v makensis
+          ver=$(sed -n 's/^#define VERSION[[:space:]]*"\([^"]*\)".*/\1/p' src/version.h)
+          deploy=$(cygpath -w "$PWD/build/win-deploy")
+          mkdir -p build/win-setup
+          out=$(cygpath -w "$PWD/build/win-setup/qipmsg-${ver}-setup.exe")
+          makensis -DVERSION="$ver" -DDEPLOYDIR="$deploy" -DOUTFILE="$out" packaging/qipmsg.nsi
+          test -f "build/win-setup/qipmsg-${ver}-setup.exe"
+
+      - name: Upload installer (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qipmsg-windows-setup
+          if-no-files-found: error
+          path: build/win-setup/*.exe
 
       - name: Upload artifact (Windows)
         if: runner.os == 'Windows'

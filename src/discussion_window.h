@@ -52,7 +52,8 @@ private slots:
 private:
     void createUi();
     void appendMessage(const QDateTime &when, const QString &name,
-                       const QString &text, bool incoming);
+                       const QString &text, bool incoming,
+                       bool encrypted = false);
     void refreshMembers();
     QStringList mentionNames() const;
     QString localName() const;

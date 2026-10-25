@@ -31,6 +31,7 @@ class QWidget;
 
 #include "owner.h"
 #include "msg.h"
+#include "offline_queue.h"
 
 class ChatWindow;
 class DiscussionWindow;
@@ -57,15 +58,19 @@ public:
                         const QString &text,
                         const QStringList &imagePaths = QStringList(),
                         const QString &packetNo = QString(),
-                        bool expectRead = false);
-    void deliverText(const QString &ip, const QString &text);
+                        bool expectRead = false,
+                        bool encrypted = false);
+    bool deliverText(const QString &ip, const QString &text);
+    bool deliverShake(const QString &ip);
     int broadcastTextToOnline(const QString &text);
     bool openSealedLetter(const QString &ip, const QString &packetNo);
     bool queueOrDeliverText(const QString &ip, const QString &text,
                             QWidget *askParent = 0);
+    bool queueOrDeliverShake(const QString &ip, QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
                             const QString &text, bool notifyUser,
-                            const QStringList &imagePaths = QStringList());
+                            const QStringList &imagePaths = QStringList(),
+                            bool encrypted = false);
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);
@@ -115,6 +120,8 @@ private:
     void destroyChatWindows();
     void destroyDiscussionWindows();
     QString sealedStorageKey(const QString &ip, const QString &packetNo) const;
+    void peerIdentity(const QString &ip, QString *login, QString *host) const;
+    QList<OfflinePeerHint> reachableHints() const;
 
     struct SealedLetter {
         QString packetNo;
@@ -135,6 +142,8 @@ private:
     QHash<QString, SealedLetter> m_sealedLetters;
     QHash<QString, QDateTime> m_typingUntil;
     QTimer *m_typingSweep;
+    QTimer *m_queueRetry;
+    bool m_flushing;
 };
 
 #endif // !WINDOW_MANAGER_H

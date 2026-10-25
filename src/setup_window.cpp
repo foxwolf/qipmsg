@@ -17,6 +17,7 @@
 #include "global.h"
 #include "preferences.h"
 #include "setup_window.h"
+#include "msgCrypto.h"
 #include "user_manager.h"
 #include "transfer_codec.h"
 #include "helper.h"
@@ -824,6 +825,17 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isOfflineQueue) {
         offlineQueueCheck->setCheckState(Qt::Checked);
     }
+    encryptMsgCheck = new QCheckBox(tr("Encrypt messages when the peer has a public key"));
+    encryptMsgCheck->setToolTip(tr(
+            "Off by default. Uses RSA with Blowfish-128 or AES-256 (IPMSG "
+            "GETPUBKEY / ANSPUBKEY, zero IV, PKCS#1 and PKCS#7). The private "
+            "key stays in rsa_private.json. Attachments stay plaintext. "
+            "Presence advertises ENCRYPTOPT only while this is on. FeiQ and "
+            "official IPMsg may not read this packing; plaintext is used when "
+            "there is no parsed key."));
+    if (Global::preferences->isEncryptMsg) {
+        encryptMsgCheck->setCheckState(Qt::Checked);
+    }
 
     awayCheck = new QCheckBox(tr("Away"));
     if (Global::preferences->isAway) {
@@ -867,6 +879,7 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(sealedSend);
     vbox->addWidget(quoteMsg);
     vbox->addWidget(offlineQueueCheck);
+    vbox->addWidget(encryptMsgCheck);
     vbox->addWidget(awayCheck);
     vbox->addWidget(stealthCheck);
     vbox->addWidget(groupPolicyButton);
@@ -1029,6 +1042,18 @@ void SetupWindow::applyPreferences()
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
     Global::preferences->isOfflineQueue = offlineQueueCheck->isChecked();
+    const bool encryptWanted = encryptMsgCheck->isChecked();
+    if (encryptWanted && !Global::preferences->isEncryptMsg) {
+        if (!MsgCrypto::ensureLocalKey()) {
+            QMessageBox::warning(this, tr("Encrypt"),
+                    tr("Could not create an RSA key under the qipmsg data folder. "
+                       "Messages stay plaintext."));
+            encryptMsgCheck->setChecked(false);
+        } else {
+            MsgCrypto::requestReachablePeers();
+        }
+    }
+    Global::preferences->isEncryptMsg = encryptMsgCheck->isChecked();
     Global::preferences->isNoAutoPopupMsg = noAutoPopupMsg->isChecked();
     Global::preferences->isAway = awayCheck->isChecked();
     Global::preferences->isAutoReply = autoReplyCheck->isChecked();

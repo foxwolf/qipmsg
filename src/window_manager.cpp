@@ -33,6 +33,7 @@
 #include "offline_queue.h"
 #include "protocolutil.h"
 #include "groupPolicy.h"
+#include "msgCrypto.h"
 
 #include <QHostAddress>
 #include <QMessageBox>
@@ -42,7 +43,7 @@
 #include <QTimer>
 
 WindowManager::WindowManager(QObject *parent)
-    : QObject(parent), m_typingSweep(0)
+    : QObject(parent), m_typingSweep(0), m_queueRetry(0), m_flushing(false)
 {
     connect(Global::userManager, SIGNAL(usersChanged()),
             this, SLOT(flushOfflineQueue()));
@@ -52,6 +53,11 @@ WindowManager::WindowManager(QObject *parent)
     m_typingSweep->setInterval(1000);
     connect(m_typingSweep, SIGNAL(timeout()), this, SLOT(sweepTyping()));
     m_typingSweep->start();
+    m_queueRetry = new QTimer(this);
+    m_queueRetry->setInterval(5000);
+    connect(m_queueRetry, SIGNAL(timeout()), this, SLOT(flushOfflineQueue()));
+    m_queueRetry->start();
+    QTimer::singleShot(0, this, SLOT(flushOfflineQueue()));
 }
 
 WindowManager::~WindowManager()
@@ -207,12 +213,14 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
     const QString text = msg->additionalInfo();
     const QString name = peerDisplayName(msg);
     const bool autoReply = msg->flags() & IPMSG_AUTORETOPT;
+    const bool encrypted = msg->transportEncrypted();
     const bool isShake = !sealed && !attach && Helper::isShakeText(text);
     const bool muted = isPeerGroupMuted(msg->ip());
     const bool notify = !autoReply && !muted;
 
     if (isShake) {
-        recordIncomingText(msg->ip(), name, tr("[Window shake]"), notify);
+        recordIncomingText(msg->ip(), name, tr("[Window shake]"), notify,
+                           QStringList(), encrypted);
         if (notify) {
             applyIncomingShake(msg->ip());
             playNoticeSound();
@@ -226,10 +234,12 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
             shown = tr("[Broadcast] %1").arg(shown);
         }
         if (!shown.isEmpty()) {
-            recordIncomingText(msg->ip(), name, shown, notify);
+            recordIncomingText(msg->ip(), name, shown, notify, QStringList(),
+                               encrypted);
         } else if (attach) {
             recordIncomingText(msg->ip(), name,
-                               tr("[File attachment]"), notify);
+                               tr("[File attachment]"), notify, QStringList(),
+                               encrypted);
         }
     } else {
         SealedLetter letter;
@@ -323,7 +333,8 @@ void WindowManager::recordIncomingText(const QString &ip,
                                        const QString &peerName,
                                        const QString &text,
                                        bool notifyUser,
-                                       const QStringList &imagePaths)
+                                       const QStringList &imagePaths,
+                                       bool encrypted)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -332,12 +343,14 @@ void WindowManager::recordIncomingText(const QString &ip,
     record.direction = "in";
     record.text = text;
     record.imagePaths = imagePaths;
+    record.encrypted = encrypted;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, peerName, text, true,
-                         record.imagePaths);
+                         record.imagePaths, QString(), false, false,
+                         encrypted);
         if (!w->isVisible()) {
             addUnread(ip);
         }
@@ -375,45 +388,111 @@ int WindowManager::broadcastTextToOnline(const QString &text)
         if (!Global::userManager->isReachable(ip)) {
             continue;
         }
-        const quint32 flags = Global::userManager->sendFlagsForIp(
+        quint32 flags = Global::userManager->sendFlagsForIp(
                     ip, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT | IPMSG_BROADCASTOPT);
         QString additionalInfo = text;
         additionalInfo.append(QChar('\0'));
+        const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
         SendMsg sendMsg(QHostAddress(ip),
                         Global::userManager->sendPortForIp(ip),
                         additionalInfo, ""/* extendedInfo */, flags);
         Global::msgThread->addSendMsg(Msg(sendMsg));
         recordOutgoing(ip, Global::userManager->displayNameForIp(ip),
                        tr("[Broadcast] %1").arg(text), QStringList(),
-                       sendMsg.packetNoString(), false);
+                       sendMsg.packetNoString(), false, encrypted);
         ++sent;
     }
     return sent;
 }
 
-void WindowManager::deliverText(const QString &ip, const QString &text)
+bool WindowManager::deliverText(const QString &ip, const QString &text)
 {
+    if (!Global::msgThread || !Global::userManager) {
+        return false;
+    }
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
-    const quint32 flags = Global::userManager->sendFlagsForIp(
+    quint32 flags = Global::userManager->sendFlagsForIp(
                 ip, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT);
+    const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
     SendMsg sendMsg(QHostAddress(ip),
                     Global::userManager->sendPortForIp(ip),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
     recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text,
-                   QStringList(), sendMsg.packetNoString(), false);
+                   QStringList(), sendMsg.packetNoString(), false, encrypted);
+    return true;
+}
+
+bool WindowManager::deliverShake(const QString &ip)
+{
+    if (!Global::msgThread || !Global::userManager) {
+        return false;
+    }
+    quint32 flags = Global::userManager->sendFlagsForIp(
+                ip, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT);
+    QString additionalInfo = Helper::shakeToken();
+    additionalInfo.append(QChar('\0'));
+    const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
+    SendMsg sendMsg(QHostAddress(ip),
+                    Global::userManager->sendPortForIp(ip),
+                    additionalInfo, ""/* extendedInfo */, flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+    recordOutgoing(ip, Global::userManager->displayNameForIp(ip),
+                   tr("[Window shake]"), QStringList(),
+                   sendMsg.packetNoString(), false, encrypted);
+    return true;
+}
+
+void WindowManager::peerIdentity(const QString &ip, QString *login, QString *host) const
+{
+    if (login) {
+        login->clear();
+    }
+    if (host) {
+        host->clear();
+    }
+    if (!Global::userManager) {
+        return;
+    }
+    const int row = Global::userManager->ipToRow(ip);
+    if (row < 0) {
+        return;
+    }
+    if (login) {
+        *login = Global::userManager->loginName(row);
+    }
+    if (host) {
+        *host = Global::userManager->host(row);
+    }
+}
+
+QList<OfflinePeerHint> WindowManager::reachableHints() const
+{
+    QList<OfflinePeerHint> hints;
+    if (!Global::userManager) {
+        return hints;
+    }
+    const int rows = Global::userManager->userCount();
+    for (int row = 0; row < rows; ++row) {
+        OfflinePeerHint hint;
+        hint.ip = Global::userManager->ip(row);
+        hint.login = Global::userManager->loginName(row);
+        hint.host = Global::userManager->host(row);
+        hint.reachable = Global::userManager->isReachable(hint.ip);
+        hints.append(hint);
+    }
+    return hints;
 }
 
 bool WindowManager::queueOrDeliverText(const QString &ip, const QString &text,
                                        QWidget *askParent)
 {
-    if (text.isEmpty()) {
+    if (text.isEmpty() || !Global::offlineQueue || !Global::userManager) {
         return false;
     }
     if (Global::userManager->isReachable(ip)) {
-        deliverText(ip, text);
-        return true;
+        return deliverText(ip, text);
     }
     if (!Global::preferences->isOfflineQueue) {
         const int ret = QMessageBox::question(
@@ -427,14 +506,57 @@ bool WindowManager::queueOrDeliverText(const QString &ip, const QString &text,
             return false;
         }
     }
-    Global::offlineQueue->enqueue(ip, text);
+    QString login;
+    QString host;
+    peerIdentity(ip, &login, &host);
+    Global::offlineQueue->enqueue(ip, text, QStringLiteral("text"), login, host);
     return true;
+}
+
+bool WindowManager::queueOrDeliverShake(const QString &ip, QWidget *askParent)
+{
+    if (ip.isEmpty() || !Global::offlineQueue || !Global::userManager) {
+        return false;
+    }
+    if (Global::userManager->isReachable(ip)) {
+        return deliverShake(ip);
+    }
+    if (!Global::preferences || !Global::preferences->isOfflineQueue) {
+        const int ret = QMessageBox::question(
+                    askParent,
+                    tr("Peer offline"),
+                    tr("%1 is offline. Queue this window shake and send when they come online?")
+                    .arg(Global::userManager->displayNameForIp(ip)),
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::Yes);
+        if (ret != QMessageBox::Yes) {
+            return false;
+        }
+    }
+    QString login;
+    QString host;
+    peerIdentity(ip, &login, &host);
+    const QString id = Global::offlineQueue->enqueue(
+                ip, Helper::shakeToken(), QStringLiteral("shake"), login, host);
+    return !id.isEmpty();
 }
 
 void WindowManager::flushOfflineQueue()
 {
-    if (!Global::offlineQueue || !Global::userManager) {
+    if (m_flushing || !Global::offlineQueue || !Global::userManager) {
         return;
+    }
+    m_flushing = true;
+
+    const QList<OfflinePeerHint> hints = reachableHints();
+    foreach (const OfflineItem &item, Global::offlineQueue->items()) {
+        if (Global::userManager->isReachable(item.ip)) {
+            continue;
+        }
+        const QString neu = OfflineQueue::matchReachableIp(item.login, item.host, hints);
+        if (!neu.isEmpty() && neu != item.ip) {
+            Global::offlineQueue->assignIp(item.id, neu);
+        }
     }
 
     QSet<QString> ips;
@@ -447,17 +569,28 @@ void WindowManager::flushOfflineQueue()
             continue;
         }
         const QList<OfflineItem> pending = Global::offlineQueue->takeForIp(ip);
+        QList<OfflineItem> failed;
         foreach (const OfflineItem &item, pending) {
-            deliverText(ip, item.text);
+            const bool ok = (item.kind == QLatin1String("shake"))
+                    ? deliverShake(ip)
+                    : deliverText(ip, item.text);
+            if (!ok) {
+                failed.append(item);
+            }
+        }
+        if (!failed.isEmpty()) {
+            Global::offlineQueue->restore(failed);
         }
     }
+    m_flushing = false;
 }
 
 void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
                                    const QString &text,
                                    const QStringList &imagePaths,
                                    const QString &packetNo,
-                                   bool expectRead)
+                                   bool expectRead,
+                                   bool encrypted)
 {
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
@@ -469,13 +602,14 @@ void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
     record.packetNo = packetNo;
     record.expectRead = expectRead;
     record.readReceipt = false;
+    record.encrypted = encrypted;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
                          text, false, record.imagePaths, packetNo, expectRead,
-                         false);
+                         false, encrypted);
     }
 }
 
@@ -529,15 +663,16 @@ void WindowManager::maybeAutoReply(const Msg &msg)
     QString additionalInfo = text;
     additionalInfo.append(QChar('\0'));
 
-    const quint32 flags = Global::userManager->sendFlagsForIp(
+    quint32 flags = Global::userManager->sendFlagsForIp(
                 ip, IPMSG_SENDMSG | IPMSG_AUTORETOPT | IPMSG_SENDCHECKOPT);
+    const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
     SendMsg sendMsg(msg->ipAddress(), msg->port(),
                     additionalInfo, ""/* extendedInfo */, flags);
     Global::msgThread->addSendMsg(Msg(sendMsg));
 
     m_lastAutoReply.insert(ip, now);
     recordOutgoing(ip, peerDisplayName(msg), text, QStringList(),
-                   sendMsg.packetNoString(), false);
+                   sendMsg.packetNoString(), false, encrypted);
 }
 
 ChatWindow *WindowManager::ensureChat(const QString &ip)

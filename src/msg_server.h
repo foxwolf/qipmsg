@@ -68,6 +68,8 @@ private:
     void processEntryMsg(Msg msg);
     void processAbsenceMsg(Msg msg);
     void processGetAbsenceInfo(Msg msg);
+    void processGetPubKey(Msg msg);
+    void processAnsPubKey(Msg msg);
     void processQipExtension(Msg msg);
 
     QList<QHostAddress> m_broadcastAddresses;

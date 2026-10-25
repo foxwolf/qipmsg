@@ -87,6 +87,7 @@ public:
 
     bool isTrayNotify;
     bool isOfflineQueue;
+    bool isEncryptMsg;
     bool isDoNotDisturb;
     bool isShareTyping;
     bool isPresenceSound;

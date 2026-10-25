@@ -29,7 +29,7 @@ class ChatRecord
 {
 public:
     ChatRecord()
-        : expectRead(false), readReceipt(false) {}
+        : expectRead(false), readReceipt(false), encrypted(false) {}
 
     QDateTime timestamp;
     QString peerIp;
@@ -40,6 +40,7 @@ public:
     QString packetNo;
     bool expectRead;
     bool readReceipt;
+    bool encrypted;
 };
 
 class MessageStore

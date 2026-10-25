@@ -25,6 +25,7 @@
 #include <QSet>
 
 #include "main_window.h"
+#include "msgCrypto.h"
 #include "helper.h"
 #include "user_manager.h"
 #include "msg_thread.h"
@@ -123,6 +124,10 @@ void MainWindow::createConnections()
     if (Global::windowManager) {
         connect(Global::windowManager, SIGNAL(peerTypingChanged(QString,bool)),
                 this, SLOT(onPeerTyping(QString,bool)));
+    }
+    if (Global::offlineQueue) {
+        connect(Global::offlineQueue, SIGNAL(queueChanged()),
+                this, SLOT(updateHeader()));
     }
     connect(refreshButton, SIGNAL(clicked()),
             this, SLOT(refreshUserList()));
@@ -693,8 +698,13 @@ void MainWindow::updateHeader()
         status = tr("%1, hidden from some groups").arg(status);
     }
     nickStatusLabel->setText(me.name());
-    onlineCountLabel->setText(tr("%1 · %n online", "",
-                                 Global::userManager->onlineCount()).arg(status));
+    QString presenceLine = tr("%1 · %n online", "",
+                              Global::userManager->onlineCount()).arg(status);
+    if (Global::offlineQueue && Global::offlineQueue->count() > 0) {
+        presenceLine += tr(" · %n offline queued", "",
+                           Global::offlineQueue->count());
+    }
+    onlineCountLabel->setText(presenceLine);
     avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40,
                                       AvatarStore::selfKey()));
 }
@@ -1306,9 +1316,13 @@ void MainWindow::sendMessage()
     foreach (const QString &ip, ips) {
         if (!Global::userManager->isReachable(ip)) {
             if (hasSendFile() && !warnedFiles) {
+                const bool hasText = !inputEdit->toPlainText().trimmed().isEmpty();
                 QMessageBox::information(this, tr("Offline queue"),
-                        tr("File attachments cannot be queued (no transfer server). "
-                           "Text will be queued for offline peers."));
+                        hasText
+                        ? tr("Files stay out of the offline queue because there is no "
+                             "transfer server to resume them. Only the text can be queued.")
+                        : tr("Files stay out of the offline queue because there is no "
+                             "transfer server to resume them. Nothing was queued."));
                 warnedFiles = true;
             }
             const QString body = inputEdit->toPlainText();
@@ -1339,6 +1353,8 @@ void MainWindow::sendMessage()
             additionalInfo.append(QChar('\0'));
         }
 
+        const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
+
         if (Global::preferences->isLogMsg) {
             logSendMsg(inputEdit->toPlainText(), ip);
         }
@@ -1351,7 +1367,7 @@ void MainWindow::sendMessage()
         Global::windowManager->recordOutgoing(
                     ip, recvUser, inputEdit->toPlainText(), QStringList(),
                     sendMsg.packetNoString(),
-                    (baseFlags & IPMSG_READCHECKOPT) != 0);
+                    (baseFlags & IPMSG_READCHECKOPT) != 0, encrypted);
 
         if (hasSendFile()) {
             m_sendFileMap->setRecvUser(recvUser);

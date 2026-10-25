@@ -51,7 +51,8 @@ public:
                        const QStringList &imagePaths = QStringList(),
                        const QString &packetNo = QString(),
                        bool expectRead = false,
-                       bool readReceipt = false);
+                       bool readReceipt = false,
+                       bool encrypted = false);
     bool markPacketRead(const QString &packetNo);
     void appendSealedLetter(const QString &packetNo, const QString &name);
     void markSealedOpened(const QString &packetNo);
