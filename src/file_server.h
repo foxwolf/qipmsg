@@ -27,13 +27,16 @@ public:
     FileServer(QObject *parent = 0);
     ~FileServer();
 
+    void startListening();
+    QString listenError() const;
+
 private slots:
 
 protected:
     void incomingConnection(qintptr socketDescriptor) override;
 
 private:
-    void startListening();
+    QString m_listenError;
 };
 
 #endif // !FILE_SERVER_H

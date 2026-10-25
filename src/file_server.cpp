@@ -20,18 +20,15 @@
 #include "global.h"
 #include "preferences.h"
 #include "nicBind.h"
+#include "portBind.h"
 #include "send_file_model.h"
 #include "send_file_manager.h"
 
 #include <QtDebug>
 
-#include <QMessageBox>
-#include <QApplication>
-
 FileServer::FileServer(QObject *parent)
     : QTcpServer(parent)
 {
-    startListening();
 }
 
 FileServer::~FileServer()
@@ -53,13 +50,18 @@ void FileServer::startListening()
 {
     const QHostAddress listenAddress = Global::preferences->listenAddress();
     const quint16 listenPort = Global::preferences->listenPort();
-    if (!listen(listenAddress, listenPort)) {
+    const portSideResult tried = PortBind::tryTcp(this, listenAddress, listenPort,
+                                                   true);
+    if (!tried.ok) {
+        m_listenError = tried.error;
         qWarning() << "FileServer::startListening: listen"
                    << listenAddress.toString() << listenPort
-                   << "failed:" << errorString()
+                   << "failed:" << tried.error
+                   << "kind" << static_cast<int>(tried.kind)
                    << "(continuing without TCP file listen)";
         return;
     }
+    m_listenError.clear();
     const NicChoice choice = NicBind::resolve(
                 Global::preferences->bindMac,
                 Global::preferences->bindInterfaceName,
@@ -73,5 +75,13 @@ void FileServer::startListening()
                        << choice.interfaceId << stickError;
         }
     }
+}
+
+QString FileServer::listenError() const
+{
+    if (!m_listenError.isEmpty()) {
+        return m_listenError;
+    }
+    return errorString();
 }
 

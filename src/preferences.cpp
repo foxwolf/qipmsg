@@ -105,6 +105,7 @@ void Preferences::reset()
     onlineSound = Helper::soundPath() + "/info.wav";
     offlineSound = Helper::soundPath() + "/warning.wav";
     isStartWithOs = false;
+    startInTray = false;
 
     isResumeTransFile = true;
     isAutoRecvFile = false;
@@ -117,6 +118,7 @@ void Preferences::reset()
     themeName = "light";
 
     udpPort = IPMSG_DEFAULT_PORT;
+    portFallback = false;
     bindAddress.clear();
     bindMac.clear();
     bindInterfaceName.clear();
@@ -223,6 +225,7 @@ void Preferences::load()
 
     set->beginGroup("System");
     isStartWithOs = set->value("isStartWithOs", isStartWithOs).toBool();
+    startInTray = set->value("startInTray", startInTray).toBool();
     set->endGroup();
     if (!AutoStart::apply(isStartWithOs)) {
         qWarning("Preferences::load: autostart apply failed (enabled=%d)",
@@ -263,6 +266,10 @@ void Preferences::load()
     udpPort = set->value("udpPort", udpPort).toInt();
     if (udpPort < 1 || udpPort > 65535) {
         udpPort = IPMSG_DEFAULT_PORT;
+    }
+    portFallback = set->value("portFallback", portFallback).toBool();
+    if (udpPort == IPMSG_DEFAULT_PORT) {
+        portFallback = false;
     }
     bindAddress = set->value("bindAddress", bindAddress).toString();
     bindMac = NicBind::normalizeMac(set->value("bindMac", bindMac).toString());
@@ -365,6 +372,7 @@ void Preferences::save()
 
     set->beginGroup("System");
     set->setValue("isStartWithOs", isStartWithOs);
+    set->setValue("startInTray", startInTray);
     set->endGroup();
     if (!AutoStart::apply(isStartWithOs)) {
         qWarning("Preferences::save: autostart apply failed (enabled=%d)",
@@ -398,6 +406,7 @@ void Preferences::save()
 
     set->beginGroup("Network");
     set->setValue("udpPort", udpPort);
+    set->setValue("portFallback", portFallback && udpPort != IPMSG_DEFAULT_PORT);
     set->setValue("bindAddress", bindAddress);
     bindMac = NicBind::normalizeMac(bindMac);
     bindInterfaceName = bindInterfaceName.trimmed();

@@ -34,6 +34,7 @@ public:
     MsgServer(QObject *parent = 0);
 
     void start();
+    bool isBound() const;
 
 signals:
     void newUserMsg(Msg msg);

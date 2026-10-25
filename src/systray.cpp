@@ -112,6 +112,9 @@ void Systray::refreshTooltip()
     if (Global::preferences && Global::preferences->isDoNotDisturb) {
         tip += QString(" · ") + tr("Do not disturb");
     }
+    if (!m_listenProblem.isEmpty()) {
+        tip += QString(" · ") + m_listenProblem;
+    }
     trayIcon->setToolTip(tip);
 }
 
@@ -189,6 +192,10 @@ void Systray::refreshLeaveActions()
 
 void Systray::createActions()
 {
+    openMainWindowAction = new QAction(tr("Open main window"), 0);
+    openMainWindowAction->setToolTip(tr(
+            "Show the contact window. Use this if the tray icon is hidden "
+            "in the notification overflow."));
     showTransferFileAction
         = new QAction(tr("Show file transfer monitor (%1)").arg(0), 0);
     delAckWindowAction = new QAction(tr("Delete all acknowledge windows"), 0);
@@ -224,6 +231,8 @@ void Systray::createMenus()
 {
     trayIconMenu = new QMenu;
 
+    trayIconMenu->addAction(openMainWindowAction);
+    trayIconMenu->addSeparator();
     trayIconMenu->addAction(showTransferFileAction);
 
     trayIconMenu->addSeparator();
@@ -280,8 +289,79 @@ void Systray::show()
     trayIcon->show();
 }
 
+QWidget *Systray::presentAtStartup()
+{
+    const bool trayAvailable = QSystemTrayIcon::isSystemTrayAvailable();
+    if (trayIcon) {
+        trayIcon->show();
+    }
+    const bool trayVisible = trayAvailable && trayIcon && trayIcon->isVisible();
+    const bool hideWindow = Global::preferences
+            && Global::preferences->startInTray
+            && trayVisible;
+    QWidget *window = 0;
+    if (!hideWindow) {
+        window = openMainWindow();
+    } else if (trayIcon && trayIcon->supportsMessages()
+               && !(Global::preferences && Global::preferences->isDoNotDisturb)) {
+        trayIcon->showMessage(
+                tr("QIpMsg is running"),
+                tr("The contact window is hidden. Choose Open main window "
+                   "on this icon if you do not see it."),
+                QSystemTrayIcon::Information,
+                TRAY_NOTIFY_MS);
+    }
+    if (!trayVisible) {
+        qWarning("Systray::presentAtStartup: tray icon is not visible; "
+                 "showing the main window");
+    }
+    return window;
+}
+
+QWidget *Systray::visibleMainWindow() const
+{
+    if (mainWindowList.isEmpty()) {
+        return 0;
+    }
+    return mainWindowList.first();
+}
+
+QWidget *Systray::openMainWindow()
+{
+    if (!mainWindowList.isEmpty() && mainWindowList.first()) {
+        MainWindow *window = mainWindowList.first();
+        window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
+        window->show();
+        window->raise();
+        window->activateWindow();
+        return window;
+    }
+    createMainWindow();
+    if (mainWindowList.isEmpty()) {
+        return 0;
+    }
+    MainWindow *window = mainWindowList.first();
+    if (window) {
+        window->raise();
+        window->activateWindow();
+    }
+    return window;
+}
+
+void Systray::noteListenProblem(bool down, quint16 port)
+{
+    if (!down) {
+        m_listenProblem.clear();
+    } else {
+        m_listenProblem = tr("port %1 is not listening").arg(port);
+    }
+    refreshTooltip();
+}
+
 void Systray::createConnections()
 {
+    connect(openMainWindowAction, SIGNAL(triggered()),
+            this, SLOT(openMainWindow()));
     connect(showTransferFileAction, SIGNAL(triggered()),
             this, SLOT(showTransferFile()));
 

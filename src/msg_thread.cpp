@@ -24,6 +24,7 @@
 #include "user_manager.h"
 #include "send_file_manager.h"
 
+#include <QElapsedTimer>
 #include <QTimer>
 #include <QMessageBox>
 #include <QtDebug>
@@ -66,8 +67,28 @@ void MsgThread::run()
             this, SLOT(handleError(QAbstractSocket::SocketError, QString)));
 
     m_msgServer->start();
+    m_udpListening.storeRelease(m_msgServer->isBound() ? 1 : 0);
+    m_bindDone.storeRelease(1);
 
     QThread::exec();
+}
+
+bool MsgThread::udpListening() const
+{
+    return m_udpListening.loadAcquire() != 0;
+}
+
+bool MsgThread::waitUntilBound(int timeoutMs)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (m_bindDone.loadAcquire() == 0) {
+        if (timer.elapsed() >= timeoutMs) {
+            return false;
+        }
+        QThread::msleep(20);
+    }
+    return true;
 }
 
 void MsgThread::addSendMsg(Msg msg)
