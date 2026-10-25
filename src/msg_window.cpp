@@ -605,6 +605,12 @@ void MsgWindow::cancelTransfer()
     switch (m_cancelTransferMessageBox->exec()) {
         case QMessageBox::Ok:
             emit abortTransfer();
+            if (Global::msgThread && !m_msg->packetNoString().isEmpty()) {
+                SendMsg releaseMsg(m_msg->ipAddress(), m_msg->port(),
+                                   m_msg->packetNoString(), QString(),
+                                   IPMSG_RELEASEFILES);
+                Global::msgThread->addSendMsg(Msg(releaseMsg));
+            }
             m_recvFileThread->resumeTransfer();
             m_recvFileMap.stopTimer();
             resetConnections();

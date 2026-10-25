@@ -43,6 +43,7 @@ signals:
     void releaseFile(QString additionalInfo);
     void msgReaded(QString name);
     void peerFlagsSeen(QString ip, quint32 flags);
+    void peerTyping(QString ip, bool typing);
 
 public slots:
     void processSendMsg();

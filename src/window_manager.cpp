@@ -39,14 +39,19 @@
 #include <QPoint>
 #include <QSet>
 #include <QSize>
+#include <QTimer>
 
 WindowManager::WindowManager(QObject *parent)
-    : QObject(parent)
+    : QObject(parent), m_typingSweep(0)
 {
     connect(Global::userManager, SIGNAL(usersChanged()),
             this, SLOT(flushOfflineQueue()));
     connect(Global::userManager, SIGNAL(usersChanged()),
             this, SLOT(refreshChatCaptions()));
+    m_typingSweep = new QTimer(this);
+    m_typingSweep->setInterval(1000);
+    connect(m_typingSweep, SIGNAL(timeout()), this, SLOT(sweepTyping()));
+    m_typingSweep->start();
 }
 
 WindowManager::~WindowManager()
@@ -55,6 +60,42 @@ WindowManager::~WindowManager()
     destroyMsgReadedWindowList();
     destroyChatWindows();
     destroyDiscussionWindows();
+}
+
+void WindowManager::notePeerTyping(QString ip, bool typing)
+{
+    if (ip.isEmpty()) {
+        return;
+    }
+    if (typing) {
+        m_typingUntil.insert(ip, QDateTime::currentDateTime().addMSecs(5000));
+    } else {
+        m_typingUntil.remove(ip);
+    }
+    ChatWindow *chat = m_chatWindows.value(ip, 0);
+    if (chat) {
+        chat->setPeerTyping(typing);
+    }
+    emit peerTypingChanged(ip, typing);
+}
+
+void WindowManager::sweepTyping()
+{
+    if (m_typingUntil.isEmpty()) {
+        return;
+    }
+    const QDateTime now = QDateTime::currentDateTime();
+    const QList<QString> keys = m_typingUntil.keys();
+    foreach (const QString &ip, keys) {
+        if (m_typingUntil.value(ip) <= now) {
+            m_typingUntil.remove(ip);
+            ChatWindow *chat = m_chatWindows.value(ip, 0);
+            if (chat) {
+                chat->setPeerTyping(false);
+            }
+            emit peerTypingChanged(ip, false);
+        }
+    }
 }
 
 void WindowManager::newMsg(Msg msg)
@@ -530,6 +571,9 @@ ChatWindow *WindowManager::openChat(const QString &ip, bool raiseWindow,
                                     const QString &draft)
 {
     ChatWindow *w = ensureChat(ip);
+    if (m_typingUntil.value(ip) > QDateTime::currentDateTime()) {
+        w->setPeerTyping(true);
+    }
     if (!draft.isEmpty()) {
         w->setDraft(draft);
     }

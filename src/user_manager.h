@@ -61,6 +61,8 @@ public:
     int presence(int row) const;
     int presenceForIp(const QString &ip) const;
     bool isReachable(const QString &ip) const;
+    QStringList departmentNames() const;
+    QStringList reachableIpsInGroup(const QString &groupName) const;
     int userCount() const;
     int onlineCount() const;
     QString displayNameForIp(const QString &ip) const;

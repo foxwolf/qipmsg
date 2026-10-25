@@ -31,8 +31,13 @@
 #include <QTextCodec>
 
 #ifdef Q_OS_WIN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
 #include <sys/utime.h>
 #else
+#include <sys/socket.h>
 #include <utime.h>
 #endif
 
@@ -69,9 +74,26 @@ void RecvFileTransfer::startTransfer()
             port = IPMSG_DEFAULT_PORT;
         }
         m_tcpSocket.connectToHost(h->ipAddress(), port);
-        if (!m_tcpSocket.waitForConnected(TCP_CONNECT_TIMEOUT_MS)) {
-            m_errorString = m_tcpSocket.errorString();
-            goto transfer_fail;
+        {
+            int waited = 0;
+            bool connected = false;
+            while (waited < TCP_CONNECT_TIMEOUT_MS) {
+                if (isAbortTransfer.load()) {
+                    goto transfer_fail;
+                }
+                if (m_tcpSocket.waitForConnected(200)) {
+                    connected = true;
+                    break;
+                }
+                if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState) {
+                    break;
+                }
+                waited += 200;
+            }
+            if (!connected) {
+                m_errorString = m_tcpSocket.errorString();
+                goto transfer_fail;
+            }
         }
 
         if (h->type() == IPMSG_FILE_REGULAR) {
@@ -98,7 +120,7 @@ transfer_fail:
     m_recvFileMap->setEndTime();
     m_recvFileMap->stopTimer();
     // if 'isAbortTransfer' is true, it's a manually stop, not emit error
-    if (!isAbortTransfer) {
+    if (!isAbortTransfer.load()) {
         emit recvFileError(m_errorString);
     }
     return;
@@ -110,8 +132,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
-    if (!m_tcpSocket.waitForBytesWritten(3000)) {
-        m_errorString = m_tcpSocket.errorString();
+    if (!waitForSocket(3000, false)) {
         return false;
     }
 
@@ -138,8 +159,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     }
     qint64 lastPersist = 0;
     while (bytesReaded < bytesToRead) {
-        if (!m_tcpSocket.waitForReadyRead(3000)) {
-            m_errorString = m_tcpSocket.errorString();
+        if (!waitForSocket(3000, true)) {
             goto recv_file_error;
         }
 
@@ -174,7 +194,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
             m_lock.unlock();
         }
 
-        if (isAbortTransfer) {
+        if (isAbortTransfer.load()) {
             goto recv_file_error;
         }
     }
@@ -239,8 +259,7 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
-    if (!m_tcpSocket.waitForBytesWritten(3000)) {
-        m_errorString = m_tcpSocket.errorString();
+    if (!waitForSocket(3000, false)) {
         return false;
     }
 
@@ -256,13 +275,12 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
             m_cond.wait(&m_lock);
             m_lock.unlock();
         }
-        if (isAbortTransfer) {
+        if (isAbortTransfer.load()) {
             h->setState(RecvFile::RecvFail);
             return false;
         }
 
-        if (!m_tcpSocket.waitForReadyRead(3000)) {
-            m_errorString = m_tcpSocket.errorString();
+        if (!waitForSocket(3000, true)) {
             return false;
         }
 
@@ -565,11 +583,50 @@ void RecvFileTransfer::stopTransfer()
     isStopTransfer = true;
 }
 
+bool RecvFileTransfer::waitForSocket(int totalMs, bool readyRead)
+{
+    int waited = 0;
+    while (waited < totalMs) {
+        if (isAbortTransfer.load()) {
+            m_errorString = tr("Transfer cancelled");
+            return false;
+        }
+        const int step = qMin(200, totalMs - waited);
+        const bool ready = readyRead
+                ? m_tcpSocket.waitForReadyRead(step)
+                : m_tcpSocket.waitForBytesWritten(step);
+        if (isAbortTransfer.load()) {
+            m_errorString = tr("Transfer cancelled");
+            return false;
+        }
+        if (ready) {
+            return true;
+        }
+        if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState
+                || (m_tcpSocket.error() != QAbstractSocket::SocketTimeoutError
+                    && m_tcpSocket.error() != QAbstractSocket::UnknownSocketError)) {
+            m_errorString = m_tcpSocket.errorString();
+            return false;
+        }
+        waited += step;
+    }
+    m_errorString = m_tcpSocket.errorString();
+    return false;
+}
+
 void RecvFileTransfer::abortTransfer()
 {
     qDebug() << "RecvFileTransfer::abortTransfer";
 
-    isAbortTransfer = true;
+    isAbortTransfer.store(true);
+    const qintptr fd = m_tcpSocket.socketDescriptor();
+    if (fd >= 0) {
+#ifdef _WIN32
+        shutdown(static_cast<SOCKET>(fd), SD_BOTH);
+#else
+        ::shutdown(static_cast<int>(fd), SHUT_RDWR);
+#endif
+    }
 }
 
 void RecvFileTransfer::resumeTransfer()

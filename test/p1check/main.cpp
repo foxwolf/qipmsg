@@ -102,6 +102,27 @@ int main(int argc, char **argv)
     CHECK(ProtocolUtil::readReceiptPacketNo(QString(), "77") == QLatin1String("77"));
     CHECK(ProtocolUtil::readReceiptPacketNo("opened", "77").isEmpty());
 
+    bool typing = false;
+    CHECK(ProtocolUtil::isFeiqTypingCommand(IPMSG_FEIQ_TYPING, &typing));
+    CHECK(typing);
+    CHECK(IPMSG_FEIQ_TYPING == 121u);
+    CHECK(ProtocolUtil::isFeiqTypingCommand(IPMSG_FEIQ_TYPINGSTOP, &typing));
+    CHECK(!typing);
+    CHECK(IPMSG_FEIQ_TYPINGSTOP == 122u);
+    CHECK(!ProtocolUtil::isFeiqTypingCommand(IPMSG_SENDMSG, &typing));
+    CHECK(!ProtocolUtil::isFeiqTypingCommand(IPMSG_FEIQ_TYPING | IPMSG_UTF8OPT, &typing));
+    command = 0;
+    CHECK(ProtocolUtil::commandFromDatagram(
+            QByteArray("1_lbt6_0#128#AABBCCDDEEFF#0#0#0#4001#9:9:user:host:121:"),
+            &command));
+    CHECK(command == IPMSG_FEIQ_TYPING);
+    CHECK(ProtocolUtil::commandFromDatagram(
+            QByteArray("1:9:user:host:122:"), &command));
+    CHECK(command == IPMSG_FEIQ_TYPINGSTOP);
+    CHECK(ProtocolUtil::etaSeconds(1000, 5000, 1000) == 4);
+    CHECK(ProtocolUtil::etaSeconds(0, 5000, 1000) < 0);
+    CHECK(ProtocolUtil::etaSeconds(5000, 5000, 1000) < 0);
+
     const QString desktop = AutoStart::xdgDesktopText("/tmp/my app/qipmsg");
     CHECK(desktop.contains("X-QIpMsg-Autostart=true"));
     CHECK(desktop.contains("X-GNOME-Autostart-enabled=true"));

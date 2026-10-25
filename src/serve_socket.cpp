@@ -31,6 +31,7 @@
 
 #include <QDir>
 #include <QDateTime>
+#include <QMutexLocker>
 #include <QTextCodec>
 
 #ifndef _WIN32
@@ -56,9 +57,8 @@ struct RequsetFile
 };
 
 ServeSocket::ServeSocket(qintptr socketDescriptor, QObject *parent)
-    : QObject(parent)
+    : QObject(parent), m_sockfd(socketDescriptor), m_lastProgressMs(0)
 {
-  m_sockfd = socketDescriptor;
 #if 0
     connect(&m_tcpSocket, SIGNAL(bytesWritten(qint64)),
             this, SLOT(updateBytesWrited(qint64)));
@@ -148,6 +148,12 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
     Global::sendFileManager->m_lock.lock();
     map = Global::sendFileManager->transferFileMap.value(m_packetNoString);
     if (map) {
+        if (map->cancelRequested()) {
+            Global::sendFileManager->removeTransfer(m_packetNoString);
+            Global::sendFileManager->m_lock.unlock();
+            return false;
+        }
+        map->attachSocket(m_sockfd);
         map->setState(SendFileMap::Transfer);
         Global::sendFileManager
             ->transferFileModel.updateTransfer(m_packetNoString);
@@ -165,10 +171,16 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
 
     if (requestFile.fileType == IPMSG_FILE_REGULAR) {
         if (!tcpSendFile(requestFile.filePath, requestFile.offset)) {
+            if (Global::sendFileManager->finishIfCancelled(m_packetNoString)) {
+                return false;
+            }
             goto handle_request_fail;
         }
     } else if (requestFile.fileType == IPMSG_FILE_DIR) {
         if (!tcpSendDir(requestFile.filePath)) {
+            if (Global::sendFileManager->finishIfCancelled(m_packetNoString)) {
+                return false;
+            }
             goto handle_request_fail;
         }
     } else {
@@ -177,6 +189,12 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
     }
 
     Global::sendFileManager->m_lock.lock();
+    map = Global::sendFileManager->transferFileMap.value(m_packetNoString);
+    if (!map) {
+        Global::sendFileManager->m_lock.unlock();
+        return false;
+    }
+    map->detachSocket();
     map->m_map[requestFile.fileId]->setState(SendFile::SendOk);
     map->incrTransferCount();
     map->setState(SendFileMap::NotTransfer);
@@ -261,14 +279,24 @@ void ServeSocket::parseRequestPacket(const QByteArray &requestPacket,
 
 bool ServeSocket::tcpSendFile(QString filePath, qint64 offset)
 {
+    if (transferCancelled()) {
+        return false;
+    }
+
     QFile file(filePath);
 
     if (!file.open(QIODevice::ReadOnly)) {
         return false;
     }
 
+    if (offset > 0) {
+        noteProgress(0, offset);
+    }
     file.seek(offset);
     while (!file.atEnd()) {
+        if (transferCancelled()) {
+            return false;
+        }
         QByteArray block = file.read(BLOCK_SIZE);
         if (!tcpWriteBlock(block)) {
             return false;
@@ -278,8 +306,39 @@ bool ServeSocket::tcpSendFile(QString filePath, qint64 offset)
     return true;
 }
 
+void ServeSocket::noteProgress(qint64 written, qint64 skipped)
+{
+    QMutexLocker locker(&Global::sendFileManager->m_lock);
+    SendFileMap *map = Global::sendFileManager->transferFileMap.value(m_packetNoString);
+    if (!map) {
+        return;
+    }
+    if (skipped > 0) {
+        map->addBytesSkipped(skipped);
+    }
+    if (written > 0) {
+        map->addBytesSent(written);
+    }
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (m_lastProgressMs != 0 && now - m_lastProgressMs < 250) {
+        return;
+    }
+    m_lastProgressMs = now;
+    Global::sendFileManager->transferFileModel.updateTransfer(m_packetNoString);
+}
+
+bool ServeSocket::transferCancelled() const
+{
+    QMutexLocker locker(&Global::sendFileManager->m_lock);
+    SendFileMap *map = Global::sendFileManager->transferFileMap.value(m_packetNoString);
+    return !map || map->cancelRequested();
+}
+
 bool ServeSocket::tcpWriteBlock(QByteArray &block)
 {
+  if (transferCancelled()) {
+    return false;
+  }
   size_t  nbytes = block.size();
   char*   buff   = block.data();
 
@@ -306,7 +365,8 @@ bool ServeSocket::tcpWriteBlock(QByteArray &block)
     }
 #endif
   }
-  return true;
+  noteProgress(static_cast<qint64>(nbytes), 0);
+  return !transferCancelled();
 //    qint32 bytesToWrite = block.size();
 //    forever {
 //        qint32 n = m_tcpSocket.write(block);

@@ -33,6 +33,7 @@ HEADERS += \
         mention_highlighter.h \
         message_store.h \
         history_search_window.h \
+        recentStore.h \
         resume_store.h \
         screen_capture.h \
         search_user_dialog.h \
@@ -101,6 +102,7 @@ SOURCES += \
         mention_highlighter.cpp \
         message_store.cpp \
         history_search_window.cpp \
+        recentStore.cpp \
         resume_store.cpp \
         screen_capture.cpp \
         search_user_dialog.cpp \

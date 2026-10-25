@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.19.3 LANGUAGES CXX)
+project(qipmsg VERSION 2.23.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,6 +49,7 @@ set(SOURCES
     src/preferences.cpp
     src/protocolutil.cpp
     src/qipmsg.cpp
+    src/recentStore.cpp
     src/recv_file.cpp
     src/recv_file_finish_dialog.cpp
     src/recv_file_handle.cpp
@@ -119,6 +120,7 @@ set(HEADERS
     src/preferences.h
     src/protocolutil.h
     src/qipmsg.h
+    src/recentStore.h
     src/recv_file.h
     src/recv_file_finish_dialog.h
     src/recv_file_handle.h

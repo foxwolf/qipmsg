@@ -49,7 +49,7 @@ TransferFileWindow::TransferFileWindow(QWidget *parent)
 
 QSize TransferFileWindow::sizeHint() const
 {
-    return QSize(640, 240);
+    return QSize(780, 260);
 }
 
 void TransferFileWindow::createTransferFileView()
@@ -88,13 +88,18 @@ void TransferFileWindow::createTransferFileView()
                     Qt::Horizontal).toString() + "  "));
     header->resizeSection(TRANSFER_FILE_VIEW_USER_COLUMN,
             Helper::fontTextWidth(fm, tr("default-user-name")));
+    header->resizeSection(TRANSFER_FILE_VIEW_ETA_COLUMN,
+            Helper::fontTextWidth(fm, tr("12.4MB/s · 00 min 00 s left")));
 }
 
 void TransferFileWindow::createButtonLayout()
 {
     buttonLayout = new QHBoxLayout;
 
-    delButton = new QPushButton(tr("Delete"));
+    delButton = new QPushButton(tr("Cancel transfer"));
+    delButton->setToolTip(tr(
+            "Stop the selected transfer. An active TCP send is closed so the "
+            "peer stops reading. A transfer that has not started is removed."));
     closeButton = new QPushButton(tr("Close"));
     QCheckBox *checkBox = new QCheckBox(tr("Stop transfer if file changed"));
     checkBox->setEnabled(false);
@@ -117,25 +122,22 @@ void TransferFileWindow::createConnections()
 
 void TransferFileWindow::deleteTransfer()
 {
-    QMutexLocker locker(&Global::sendFileManager->m_lock);
-
     QItemSelectionModel *selectionModel = transferFileView->selectionModel();
     QModelIndexList indexList = selectionModel->selectedRows();
 
-    QList<int> rowList;
+    QStringList keys;
     foreach (QModelIndex index, indexList) {
-        if (!rowList.contains(index.row())) {
-            rowList.append(index.row());
+        const QString packetNo = proxyModel->data(proxyModel->index(index.row(),
+                    TRANSFER_FILE_VIEW_KEY_COLUMN)).toString();
+        if (!packetNo.isEmpty() && !keys.contains(packetNo)) {
+            keys << packetNo;
         }
     }
-
-    foreach (int row, rowList) {
-        QString packetNo = proxyModel->data(proxyModel->index(row,
-                    TRANSFER_FILE_VIEW_KEY_COLUMN)).toString();
-        if (!Global::sendFileManager
-            ->transferFileMap.value(packetNo)->isTransfer()) {
-            Global::sendFileManager->removeTransfer(packetNo);
-        }
+    if (keys.isEmpty()) {
+        return;
+    }
+    foreach (const QString &packetNo, keys) {
+        Global::sendFileManager->cancelTransfer(packetNo);
     }
 }
 

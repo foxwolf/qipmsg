@@ -195,6 +195,15 @@ void MsgServer::processRecvMsg(Msg msg)
         processRecvSendMsg(msg);
         break;
 
+    case IPMSG_FEIQ_TYPING:
+    case IPMSG_FEIQ_TYPINGSTOP: {
+        bool active = false;
+        if (ProtocolUtil::isFeiqTypingCommand(msg->flags(), &active)) {
+            emit peerTyping(msg->ip(), active);
+        }
+        return;
+    }
+
     case IPMSG_READMSG:
         processRecvReadMsg(msg);
         break;
@@ -362,6 +371,8 @@ void MsgServer::handleMsg(Msg &msg)
         case IPMSG_ANSREADMSG:
         case IPMSG_RELEASEFILES:
         case IPMSG_SENDABSENCEINFO:
+        case IPMSG_FEIQ_TYPING:
+        case IPMSG_FEIQ_TYPINGSTOP:
             broadcastMsg(msg);
             Global::msgThread->removeSendMsgNotLock(msg->packetNoString());
             break;
@@ -549,6 +560,8 @@ bool MsgServer::isSupportedCommand(QByteArray &datagram) const
     case IPMSG_GETDIRFILES:
     case IPMSG_GETPUBKEY:
     case IPMSG_ANSPUBKEY:
+    case IPMSG_FEIQ_TYPING:
+    case IPMSG_FEIQ_TYPINGSTOP:
         isSupport = true;
         break;
 

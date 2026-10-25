@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.19.3 adds department-group hide, per-group message mute, and user sticker packs (PNG/GIF/WebP plus named groups) on top of 2.15.2. 2.15.2 tray/settings items, 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension.
+2.23.4 adds department-group multicast (online and away only), a recent-contacts panel (`recent.json`), FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA. 2.19.3 group hide / mute / stickers, 2.15.2 tray/settings items, 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode.
 
 ## In this line of work (done)
 
@@ -52,8 +52,13 @@
 - [x] Outgoing bubble shows Read when `READMSG` arrives; opening a seal still sends `READMSG` as before
 - [x] Hide from selected department groups (no `ANSENTRY`, unicast `BR_EXIT`; subnet broadcast pauses while any group is hidden)
 - [x] Mute a department group (history and unread stay; no raise, sound, or tray balloon)
+- [x] Send to a department group: online and away only, existing `IPMSG_MULTICASTOPT` path, offline not queued
+- [x] Recent contacts panel from history timestamps (`recent.json`, no Qt Sql); click opens chat
+- [x] Typing status via FeiQ commands 121 / 122 (no option bits, version stays `1`); preference defaults on
+- [x] Cancel an in-progress TCP file send; receiver cancel also sends `IPMSG_RELEASEFILES`
+- [x] Transfer window ETA from observed throughput (folders: speed only)
 
-## Later / out of scope for 2.19.3
+## Later / out of scope for 2.23.4
 
 1. **FeiQ plugin system**
 2. **File-share / public folder server**
@@ -67,6 +72,13 @@
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
+
+## How to try 2.23.4
+
+1. Right-click a department group → **Send to this group**. Online and away members are selected; blacklist and grey offline rows are not. Confirm only when the composer already has text or files. The send is the existing per-peer message with `IPMSG_MULTICASTOPT` when more than one address is selected. **Select group** is the same set and does not send by itself.
+2. **Recent contacts** lists up to 20 peers from `~/.qipmsg/recent.json` (seeded from `history/*.jsonl` when that file is empty). Click a row to open chat. Discussion transcripts (`disc-*`) are not contacts.
+3. With **Show my typing status** on, typing emits UDP command 121 at most every 2 seconds; idle, clear, or send emits 122. The peer caption shows **Typing…** for 5 seconds after each 121. FeiQ may ignore packets whose version is not `1_lbt…`. Confirm that against a real FeiQ build before treating the hint as interoperable.
+4. While a file is moving, open the transfer window and **Cancel transfer**. The sender shuts down the TCP socket. The receiver abort also sends `RELEASEFILES`. ETA uses bytes written this session; directory trees show speed without a finish time. Sender-side cancel has no extra opcode.
 
 ## How to try 2.19.3
 

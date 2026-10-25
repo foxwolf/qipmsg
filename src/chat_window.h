@@ -34,6 +34,7 @@ class QTextBrowser;
 class QTextEdit;
 class QTextCursor;
 class QPixmap;
+class QTimer;
 class QToolButton;
 
 class ChatWindow : public QWidget
@@ -57,6 +58,7 @@ public:
     void loadHistory();
     void setDraft(const QString &text);
     void refreshPeerCaption();
+    void setPeerTyping(bool typing);
     void shakeWindow();
 
     virtual QSize sizeHint() const;
@@ -89,6 +91,8 @@ private slots:
     void refreshQueuePanel();
     void cancelSelectedQueued();
     void clearQueued();
+    void composerChanged();
+    void typingIdle();
 
 private:
     void createUi();
@@ -108,6 +112,8 @@ private:
     QStringList existingImagePaths(const QStringList &paths) const;
     void insertBubbleImages(QTextCursor &cursor, const QStringList &paths);
     void insertEmoji(const QString &glyph);
+    void publishTyping(bool active);
+    void stopLocalTyping();
     bool pasteClipboardImage();
     QStringList imagePathsFromFiles(const QStringList &pathList) const;
     QString sealedHref(const QString &packetNo) const;
@@ -141,6 +147,10 @@ private:
     QPushButton *m_stripCancel;
     SendFileModel m_sendFileModel;
     bool m_historyLoaded;
+    bool m_peerTyping;
+    bool m_localTyping;
+    qint64 m_lastTypingSentMs;
+    QTimer *m_typingIdle;
 };
 
 #endif // !CHAT_WINDOW_H

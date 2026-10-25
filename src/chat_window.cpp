@@ -77,7 +77,9 @@
 #include <QTextEdit>
 #include <QTextImageFormat>
 #include <QTextTable>
+#include <QDateTime>
 #include <QTextTableCell>
+#include <QTimer>
 #include <QTextTableFormat>
 #include <QToolButton>
 #include <QUrl>
@@ -86,7 +88,9 @@
 #include <QWidgetAction>
 
 ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
-    : QWidget(parent), m_peerIp(ip), m_historyLoaded(false)
+    : QWidget(parent), m_peerIp(ip), m_historyLoaded(false),
+      m_peerTyping(false), m_localTyping(false), m_lastTypingSentMs(0),
+      m_typingIdle(0)
 {
     setAcceptDrops(true);
     createUi();
@@ -207,6 +211,11 @@ void ChatWindow::createUi()
     m_inputEdit->setMaximumHeight(120);
     m_inputEdit->setAcceptDrops(false);
     m_inputEdit->setPlaceholderText(tr("Type a message..."));
+    connect(m_inputEdit, SIGNAL(textChanged()),
+            this, SLOT(composerChanged()));
+    m_typingIdle = new QTimer(this);
+    m_typingIdle->setSingleShot(true);
+    connect(m_typingIdle, SIGNAL(timeout()), this, SLOT(typingIdle()));
 
     m_sendButton = new QPushButton(tr("&Send"));
     m_sendButton->setObjectName("primaryButton");
@@ -382,6 +391,9 @@ void ChatWindow::refreshPeerCaption()
     if (!sign.isEmpty()) {
         meta += QString(" · %1").arg(sign);
     }
+    if (m_peerTyping) {
+        meta += QString(" · %1").arg(tr("Typing…"));
+    }
     m_peerMeta->setText(meta);
     m_headerAvatar->setPixmap(peerAvatar(name, 36));
     setWindowTitle(header);
@@ -399,6 +411,9 @@ void ChatWindow::refreshProfile()
         status = tr("Online");
     } else if (presence == PRESENCE_AWAY) {
         status = tr("Away");
+    }
+    if (m_peerTyping) {
+        status = tr("Typing…");
     }
     m_profileName->setText(name);
     m_profileNick->setText(real.isEmpty() ? QString("-") : real);
@@ -678,8 +693,72 @@ bool ChatWindow::hasSendFile() const
     return m_sendFileModel.rowCount() > 0;
 }
 
+void ChatWindow::setPeerTyping(bool typing)
+{
+    if (m_peerTyping == typing) {
+        return;
+    }
+    m_peerTyping = typing;
+    refreshPeerCaption();
+}
+
+void ChatWindow::composerChanged()
+{
+    if (!m_inputEdit || !m_typingIdle) {
+        return;
+    }
+    const bool hasText = !m_inputEdit->toPlainText().isEmpty();
+    if (!hasText) {
+        m_typingIdle->stop();
+        stopLocalTyping();
+        return;
+    }
+    if (!Global::preferences || !Global::preferences->isShareTyping) {
+        m_typingIdle->stop();
+        stopLocalTyping();
+        return;
+    }
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (!m_localTyping || now - m_lastTypingSentMs >= 2000) {
+        m_localTyping = true;
+        m_lastTypingSentMs = now;
+        publishTyping(true);
+    }
+    m_typingIdle->start(2000);
+}
+
+void ChatWindow::typingIdle()
+{
+    stopLocalTyping();
+}
+
+void ChatWindow::stopLocalTyping()
+{
+    if (!m_localTyping) {
+        return;
+    }
+    m_localTyping = false;
+    publishTyping(false);
+}
+
+void ChatWindow::publishTyping(bool active)
+{
+    if (!Global::msgThread || !Global::userManager || m_peerIp.isEmpty()) {
+        return;
+    }
+    if (active && (!Global::preferences || !Global::preferences->isShareTyping)) {
+        return;
+    }
+    const quint32 flags = active ? IPMSG_FEIQ_TYPING : IPMSG_FEIQ_TYPINGSTOP;
+    SendMsg sendMsg(QHostAddress(m_peerIp),
+                    Global::userManager->sendPortForIp(m_peerIp),
+                    QString(), QString(), flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
 void ChatWindow::sendMessage()
 {
+    stopLocalTyping();
     const QString text = m_inputEdit->toPlainText();
     if (text.trimmed().isEmpty() && !hasSendFile()) {
         return;

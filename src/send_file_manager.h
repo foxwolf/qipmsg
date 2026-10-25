@@ -39,6 +39,8 @@ public:
 
     void addTransfer(QString, SendFileMap *);
     void addTransferLocked(QString, SendFileMap *);
+    void cancelTransfer(const QString &key);
+    bool finishIfCancelled(const QString &key);
 
     TransferFileModel transferFileModel;
     QMap<QString, SendFileMap *> transferFileMap;

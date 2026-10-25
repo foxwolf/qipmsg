@@ -105,6 +105,12 @@ void ContactDelegate::paint(QPainter *painter,
                       painter->fontMetrics().elidedText(title, Qt::ElideRight,
                                                         textRect.width()));
 
+    if (index.data(Qt::UserRole + 9).toBool()) {
+        const QString typing = tr("Typing…");
+        subtitle = subtitle.isEmpty() ? typing
+                : QString("%1 · %2").arg(typing, subtitle);
+    }
+
     if (!subtitle.isEmpty()) {
         QFont subFont = opt.font;
         subFont.setBold(false);

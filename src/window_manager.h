@@ -25,6 +25,8 @@
 #include <QObject>
 #include <QStringList>
 
+class QTimer;
+
 class QWidget;
 
 #include "owner.h"
@@ -80,6 +82,7 @@ public:
 signals:
     void unreadCountChanged(int count);
     void newTextMessage(QString fromName, QString preview);
+    void peerTypingChanged(QString ip, bool typing);
 
 public slots:
     void clearUnread(QString ip);
@@ -89,6 +92,8 @@ private slots:
     void destroyMsgReadedWindowList();
     void flushOfflineQueue();
     void refreshChatCaptions();
+    void sweepTyping();
+    void notePeerTyping(QString ip, bool typing);
 
 private:
     void createMsgWindow(Msg msg);
@@ -127,6 +132,8 @@ private:
     QMap<QString, int> m_unreadByIp;
     QMap<QString, QDateTime> m_lastAutoReply;
     QHash<QString, SealedLetter> m_sealedLetters;
+    QHash<QString, QDateTime> m_typingUntil;
+    QTimer *m_typingSweep;
 };
 
 #endif // !WINDOW_MANAGER_H

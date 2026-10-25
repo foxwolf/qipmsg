@@ -616,6 +616,41 @@ bool UserManager::isReachable(const QString &ip) const
     return p == PRESENCE_ONLINE || p == PRESENCE_AWAY;
 }
 
+QStringList UserManager::departmentNames() const
+{
+    QStringList names;
+    for (int row = 0; row < userCount(); ++row) {
+        const QString name = GroupPolicy::normalizeName(group(row));
+        if (!name.isEmpty() && !names.contains(name)) {
+            names << name;
+        }
+    }
+    names.sort(Qt::CaseInsensitive);
+    return names;
+}
+
+QStringList UserManager::reachableIpsInGroup(const QString &groupName) const
+{
+    QStringList ips;
+    const QString key = GroupPolicy::normalizeName(groupName);
+    if (key.isEmpty()) {
+        return ips;
+    }
+    for (int row = 0; row < userCount(); ++row) {
+        if (GroupPolicy::normalizeName(group(row)) != key) {
+            continue;
+        }
+        const QString peerIp = ip(row);
+        if (peerIp.isEmpty() || !isReachable(peerIp)) {
+            continue;
+        }
+        if (!ips.contains(peerIp)) {
+            ips << peerIp;
+        }
+    }
+    return ips;
+}
+
 int UserManager::onlineCount() const
 {
     int count = 0;

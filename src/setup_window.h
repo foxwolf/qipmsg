@@ -233,6 +233,7 @@ private:
     QCheckBox *noSoundAlarm;
     QCheckBox *presenceSoundCheck;
     QCheckBox *doNotDisturbCheck;
+    QCheckBox *shareTypingCheck;
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
     QCheckBox *offlineQueueCheck;

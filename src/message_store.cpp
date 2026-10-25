@@ -15,7 +15,9 @@
 //
 
 #include "message_store.h"
+#include "global.h"
 #include "helper.h"
+#include "recentStore.h"
 
 #include <QDir>
 #include <QFile>
@@ -127,6 +129,12 @@ bool MessageStore::append(const ChatRecord &record)
     QTextStream ts(&file);
     ts << QJsonDocument(obj).toJson(QJsonDocument::Compact) << '\n';
     ts.flush();
+    locker.unlock();
+
+    if (Global::recentStore) {
+        Global::recentStore->note(record.peerIp, record.peerName, record.text,
+                                  record.timestamp);
+    }
     return true;
 }
 

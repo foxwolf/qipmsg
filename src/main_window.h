@@ -23,6 +23,7 @@
 
 #include <QMainWindow>
 #include <QIcon>
+#include <QSet>
 #include <QSystemTrayIcon>
 #include <QMap>
 #include <QFileInfoList>
@@ -93,6 +94,9 @@ private slots:
     void toggleHideFromGroup();
     void toggleMuteGroup();
     void openGroupPolicyDialog();
+    void sendToDepartment();
+    void onPeerTyping(QString ip, bool typing);
+    void onRecentClicked(QTreeWidgetItem *item, int column);
 
 signals:
     void messageReplyed();
@@ -114,6 +118,10 @@ private:
     void addDiscussionItem(QTreeWidgetItem *parent, const QString &id);
     QStringList selectedPeerIps() const;
     QString groupAtCursor() const;
+    int reachableSendCount(const QString &groupName) const;
+    int selectReachableInGroup(const QString &groupName);
+    void showGroupSendHint(const QString &groupName, int count);
+    void addRecentItems(QTreeWidgetItem *parent);
     QStringList selectedDiscussionIds() const;
     bool isDiscussionItem(const QTreeWidgetItem *item) const;
     QList<QTreeWidgetItem *> allPeerItems() const;
@@ -139,6 +147,7 @@ private:
     QLabel *nickStatusLabel;
     QLabel *onlineCountLabel;
     QLabel *avatarLabel;
+    QLabel *m_groupSendHint;
     QPushButton *refreshButton;
     QPushButton *sendButton;
     QPushButton *broadcastButton;
@@ -160,6 +169,7 @@ private:
     QAction *hideFromGroupAct;
     QAction *muteGroupAct;
     QAction *groupPolicyAct;
+    QAction *sendToGroupAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;
@@ -177,6 +187,7 @@ private:
 
     QString m_lastSearch;
     QObject *m_lastSearchDialog;
+    QSet<QString> m_typingIps;
 };
 
 #endif // !MAIN_WINDOW_H
