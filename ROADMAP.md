@@ -42,6 +42,8 @@
 - [x] FeiQ/IPMSG TCP file command accepted as decimal or hex; packet-id dual lookup; 8s connect; cap regular-file reads
 - [x] 64-bit file size/offset on the wire, resume.json strings, and progress display (GB/TB)
 - [x] Configurable UDP/TCP listen port and bind address in Settings → Network (default 2425 / any IPv4, soft-fail)
+- [x] Startup shows the contact window unless "Start hidden in the notification area" is on. The tray menu opens that window. No tray, or an icon that did not become visible, still shows the window
+- [x] If UDP or TCP cannot bind, explain in-use vs access denied (Windows excluded ranges via netsh when readable) and offer a free port saved to `udpPort`. 2425 stays preferred. Closing the dialog keeps the contact window open
 - [x] Cross-subnet IPv4 range / CIDR bulk-add into the broadcast discovery list (unicast probe, no server, 1024-host cap)
 - [x] Broadcast to all online peers with `IPMSG_BROADCASTOPT` (main window + tray)
 - [x] Sealed envelope on the chat bubble (`SECRETOPT` / existing `READCHECKOPT`), opened with `READMSG`
