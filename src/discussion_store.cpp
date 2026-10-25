@@ -20,6 +20,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -129,6 +130,10 @@ void DiscussionStore::load()
         group.id = obj.value("id").toString();
         group.name = obj.value("name").toString();
         group.notice = obj.value("notice").toString();
+        group.sharePath = obj.value("sharePath").toString();
+        if (group.sharePath.size() > 1024 || group.sharePath.contains(QChar(0))) {
+            group.sharePath.clear();
+        }
         const QJsonArray mems = obj.value("members").toArray();
         for (int m = 0; m < mems.size(); ++m) {
             const QJsonObject mo = mems.at(m).toObject();
@@ -163,6 +168,9 @@ void DiscussionStore::persist() const
         if (!group.notice.isEmpty()) {
             obj.insert("notice", group.notice);
         }
+        if (!group.sharePath.isEmpty()) {
+            obj.insert("sharePath", group.sharePath);
+        }
         QJsonArray mems;
         foreach (const DiscussionMember &member, group.members) {
             QJsonObject mo;
@@ -176,7 +184,7 @@ void DiscussionStore::persist() const
         obj.insert("members", mems);
         array.append(obj);
     }
-    QDir().mkpath(Helper::appHomePath());
+    QDir().mkpath(QFileInfo(filePath()).absolutePath());
     QFile file(filePath());
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
         return;
@@ -323,6 +331,35 @@ bool DiscussionStore::setNotice(const QString &id, const QString &notice)
             return false;
         }
         m_groups[i].notice = trimmed;
+        persist();
+    }
+    emit groupsChanged();
+    return true;
+}
+
+bool DiscussionStore::setSharePath(const QString &id, const QString &path)
+{
+    QString cleaned = path;
+    cleaned.replace(QChar(0), QString());
+    cleaned = QDir::cleanPath(cleaned.trimmed());
+    if (cleaned == QLatin1String(".") || cleaned.isEmpty()) {
+        cleaned.clear();
+    } else {
+        if (cleaned.size() > 1024 || !QFileInfo(cleaned).isAbsolute()
+                || !QFileInfo(cleaned).isDir()) {
+            return false;
+        }
+    }
+    {
+        QMutexLocker locker(&m_lock);
+        const int i = indexOfId(id);
+        if (i < 0) {
+            return false;
+        }
+        if (m_groups[i].sharePath == cleaned) {
+            return false;
+        }
+        m_groups[i].sharePath = cleaned;
         persist();
     }
     emit groupsChanged();

@@ -24,6 +24,7 @@ class ShareBrowser : public QDialog
 
 public:
     explicit ShareBrowser(const QString &ip, QWidget *parent = 0);
+    ShareBrowser(const QString &ip, const QString &groupId, QWidget *parent = 0);
 
 private slots:
     void refreshList();
@@ -32,7 +33,9 @@ private slots:
     void downloadSelected();
 
 private:
+    void init();
     bool peerReady() const;
+    QByteArray makeRequest(const QString &verb, const QString &relative) const;
     bool fetchList();
     bool downloadEntry(const ShareEntry &entry);
     QByteArray exchange(const QByteArray &request, QString *error,
@@ -40,6 +43,7 @@ private:
     QString currentRelative() const;
 
     QString m_ip;
+    QString m_groupId;
     QString m_relative;
     QString m_password;
     bool m_busy;

@@ -41,6 +41,7 @@ public:
     QString id;
     QString name;
     QString notice;
+    QString sharePath;
     QList<DiscussionMember> members;
 
     QStringList memberIps() const;
@@ -62,6 +63,7 @@ public:
     bool removeGroup(const QString &id);
     bool addMembers(const QString &id, const QList<DiscussionMember> &members);
     bool setNotice(const QString &id, const QString &notice);
+    bool setSharePath(const QString &id, const QString &path);
     int count() const;
 
     static void setStorageDirForTest(const QString &dir);

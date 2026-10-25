@@ -49,15 +49,20 @@ private slots:
     void sendMessage();
     void insertMention();
     void editNotice();
+    void chooseShareFolder();
+    void clearShareFolder();
+    void publishShare();
 
 private:
     void createUi();
+    void refreshShare();
     void appendMessage(const QDateTime &when, const QString &name,
                        const QString &text, bool incoming,
                        bool encrypted = false,
                        const QString &richHtml = QString());
     void refreshMembers();
     void publishNotice(const QString &notice);
+    void deliverPlain(const QString &body);
     QStringList mentionNames() const;
     QString localName() const;
 
@@ -67,6 +72,11 @@ private:
     QLabel *m_metaLabel;
     QLabel *m_noticeBanner;
     QPushButton *m_noticeButton;
+    QLabel *m_shareLabel;
+    QListWidget *m_shareList;
+    QPushButton *m_shareSetButton;
+    QPushButton *m_shareClearButton;
+    QPushButton *m_sharePublishButton;
     QTextEdit *m_historyEdit;
     QTextEdit *m_inputEdit;
     QListWidget *m_memberList;

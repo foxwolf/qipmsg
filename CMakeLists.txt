@@ -43,6 +43,7 @@ set(SOURCES
     src/message_store.cpp
     src/msgCrypto.cpp
     src/msgCryptoSend.cpp
+    src/nicBind.cpp
     src/msg.cpp
     src/msg_base.cpp
     src/msg_readed_window.cpp
@@ -52,6 +53,7 @@ set(SOURCES
     src/offline_queue.cpp
     src/owner.cpp
     src/pinyin.cpp
+    src/puffInflate.cpp
     src/preferences.cpp
     src/protocolutil.cpp
     src/qipmsg.cpp
@@ -94,6 +96,7 @@ set(SOURCES
     src/transfer_file_model.cpp
     src/transfer_file_window.cpp
     src/translator.cpp
+    src/userSkin.cpp
     src/user_manager.cpp
     src/window_manager.cpp
     src/windowSnap.cpp
@@ -124,6 +127,7 @@ set(HEADERS
     src/mention_highlighter.h
     src/message_store.h
     src/msgCrypto.h
+    src/nicBind.h
     src/msg.h
     src/msg_base.h
     src/msg_readed_window.h
@@ -176,6 +180,7 @@ set(HEADERS
     src/transfer_file_model.h
     src/transfer_file_window.h
     src/translator.h
+    src/userSkin.h
     src/user_manager.h
     src/version.h
     src/window_manager.h
@@ -228,6 +233,9 @@ add_executable(qipmsgP2Check
     src/richText.cpp
     src/windowSnap.cpp
     src/discussion_store.cpp
+    src/userSkin.cpp
+    src/nicBind.cpp
+    src/puffInflate.cpp
 )
 target_include_directories(qipmsgP2Check PRIVATE src)
 
@@ -246,7 +254,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
-    target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+    target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -259,7 +267,7 @@ else()
     target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
-    target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets)
+    target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network)
 endif()
 
 if (WIN32)

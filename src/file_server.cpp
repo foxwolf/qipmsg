@@ -19,6 +19,7 @@
 #include "constants.h"
 #include "global.h"
 #include "preferences.h"
+#include "nicBind.h"
 #include "send_file_model.h"
 #include "send_file_manager.h"
 
@@ -57,6 +58,20 @@ void FileServer::startListening()
                    << listenAddress.toString() << listenPort
                    << "failed:" << errorString()
                    << "(continuing without TCP file listen)";
+        return;
+    }
+    const NicChoice choice = NicBind::resolve(
+                Global::preferences->bindMac,
+                Global::preferences->bindInterfaceName,
+                Global::preferences->bindAddress,
+                NicBind::localInterfaces());
+    if (!choice.any) {
+        QString stickError;
+        if (!NicBind::stickSocket(socketDescriptor(), choice.name, choice.index,
+                                  &stickError)) {
+            qWarning() << "FileServer::startListening: interface stick failed"
+                       << choice.interfaceId << stickError;
+        }
     }
 }
 

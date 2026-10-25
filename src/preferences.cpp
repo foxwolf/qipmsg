@@ -20,6 +20,7 @@
 #include <QDir>
 
 #include "preferences.h"
+#include "nicBind.h"
 #include "autostart.h"
 #include "constants.h"
 #include "global.h"
@@ -116,6 +117,9 @@ void Preferences::reset()
 
     udpPort = IPMSG_DEFAULT_PORT;
     bindAddress.clear();
+    bindMac.clear();
+    bindInterfaceName.clear();
+    bindInterfaceId.clear();
 
     personSign = "";
     blacklistIps.clear();
@@ -259,6 +263,16 @@ void Preferences::load()
         udpPort = IPMSG_DEFAULT_PORT;
     }
     bindAddress = set->value("bindAddress", bindAddress).toString();
+    bindMac = NicBind::normalizeMac(set->value("bindMac", bindMac).toString());
+    bindInterfaceName = set->value("bindInterfaceName", bindInterfaceName).toString().trimmed();
+    bindInterfaceId = set->value("bindInterfaceId", bindInterfaceId).toString().trimmed();
+    if (bindMac.isEmpty()) {
+        bindMac = NicBind::normalizeMac(bindInterfaceId);
+    }
+    if (bindInterfaceName.isEmpty() && bindMac.isEmpty()) {
+        bindInterfaceName = bindInterfaceId;
+    }
+    bindInterfaceId = NicBind::interfaceId(bindMac, bindInterfaceName);
     set->endGroup();
 
     set->beginGroup("Profile");
@@ -382,6 +396,12 @@ void Preferences::save()
     set->beginGroup("Network");
     set->setValue("udpPort", udpPort);
     set->setValue("bindAddress", bindAddress);
+    bindMac = NicBind::normalizeMac(bindMac);
+    bindInterfaceName = bindInterfaceName.trimmed();
+    bindInterfaceId = NicBind::interfaceId(bindMac, bindInterfaceName);
+    set->setValue("bindMac", bindMac);
+    set->setValue("bindInterfaceName", bindInterfaceName);
+    set->setValue("bindInterfaceId", bindInterfaceId);
     set->endGroup();
 
     set->beginGroup("Profile");
@@ -403,7 +423,12 @@ quint16 Preferences::listenPort() const
 
 QHostAddress Preferences::listenAddress() const
 {
-    const QString text = bindAddress.trimmed();
+    const NicChoice choice = NicBind::resolve(
+                bindMac, bindInterfaceName, bindAddress, NicBind::localInterfaces());
+    if (choice.any) {
+        return QHostAddress(QHostAddress::AnyIPv4);
+    }
+    const QString text = choice.ipv4.trimmed();
     if (text.isEmpty()
             || text == QLatin1String("0.0.0.0")
             || text.compare(QLatin1String("any"), Qt::CaseInsensitive) == 0) {
@@ -411,7 +436,8 @@ QHostAddress Preferences::listenAddress() const
     }
 
     const QHostAddress address(text);
-    if (address.isNull()) {
+    if (address.isNull()
+            || address.protocol() != QAbstractSocket::IPv4Protocol) {
         return QHostAddress(QHostAddress::AnyIPv4);
     }
     return address;

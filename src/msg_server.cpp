@@ -34,12 +34,12 @@
 #include "window_manager.h"
 #include "msg_thread.h"
 #include "preferences.h"
+#include "nicBind.h"
 #include "send_file_manager.h"
 #include "groupPolicy.h"
 
 #include <QMutexLocker>
 #include <QTextCodec>
-#include <QNetworkInterface>
 #include <QAbstractSocket>
 #include <QSet>
 #include <QtDebug>
@@ -49,37 +49,6 @@
 #endif
 
 namespace {
-
-bool isUsableIpv4Interface(const QNetworkInterface &networkInterface)
-{
-    const QNetworkInterface::InterfaceFlags flags = networkInterface.flags();
-    if (!(flags & QNetworkInterface::IsUp)) {
-        return false;
-    }
-    if (flags & QNetworkInterface::IsLoopBack) {
-        return false;
-    }
-    return true;
-}
-
-bool isUsableIpv4Broadcast(const QNetworkAddressEntry &entry)
-{
-    const QHostAddress ip = entry.ip();
-    if (ip.protocol() != QAbstractSocket::IPv4Protocol
-        || ip.isLoopback()
-        || ip.isNull()) {
-        return false;
-    }
-
-    const QHostAddress broadcastAddress = entry.broadcast();
-    if (broadcastAddress.isNull()
-        || broadcastAddress == QHostAddress::AnyIPv4
-        || broadcastAddress == QHostAddress::LocalHost) {
-        return false;
-    }
-
-    return true;
-}
 
 void enableUdpBroadcast(QUdpSocket &udpSocket)
 {
@@ -137,6 +106,24 @@ void MsgServer::start()
     }
 
     enableUdpBroadcast(m_udpSocket);
+
+    const NicChoice choice = NicBind::resolve(
+                Global::preferences->bindMac,
+                Global::preferences->bindInterfaceName,
+                Global::preferences->bindAddress,
+                NicBind::localInterfaces());
+    if (!choice.any) {
+        QString stickError;
+        if (!NicBind::stickSocket(m_udpSocket.socketDescriptor(),
+                                  choice.name, choice.index, &stickError)) {
+            qWarning() << "MsgServer::start: interface stick failed"
+                       << choice.interfaceId << stickError
+                       << NicBind::platformNote();
+        } else {
+            qInfo() << "MsgServer::start: stuck to interface"
+                    << choice.interfaceId << NicBind::platformNote();
+        }
+    }
 
     qInfo() << "MsgServer::start: UDP listen"
             << m_udpSocket.localAddress().toString()
@@ -514,18 +501,30 @@ void MsgServer::updateAddresses()
     m_broadcastAddresses.clear();
     m_ipAddresses.clear();
 
-    foreach (QNetworkInterface networkInterface, QNetworkInterface::allInterfaces()) {
-        if (!isUsableIpv4Interface(networkInterface)) {
+    const QList<NicRecord> nics = NicBind::localInterfaces();
+    const NicChoice choice = NicBind::resolve(
+                Global::preferences->bindMac,
+                Global::preferences->bindInterfaceName,
+                Global::preferences->bindAddress,
+                nics);
+    bool includeLimited = true;
+    const QStringList selected = NicBind::discoveryBroadcasts(
+                choice, nics, &includeLimited);
+    for (int i = 0; i < selected.size(); ++i) {
+        const QHostAddress broadcast(selected.at(i));
+        if (!broadcast.isNull()) {
+            m_broadcastAddresses << broadcast;
+        }
+    }
+    for (int i = 0; i < nics.size(); ++i) {
+        if (!choice.any && !NicBind::sameInterface(nics.at(i), choice)) {
             continue;
         }
-
-        foreach (QNetworkAddressEntry entry, networkInterface.addressEntries()) {
-            if (!isUsableIpv4Broadcast(entry)) {
-                continue;
+        if (choice.any || choice.found) {
+            const QHostAddress local(nics.at(i).ipv4);
+            if (!local.isNull()) {
+                m_ipAddresses << local;
             }
-
-            m_broadcastAddresses << entry.broadcast();
-            m_ipAddresses << entry.ip();
         }
     }
 
@@ -553,7 +552,7 @@ void MsgServer::updateAddresses()
     }
 
     const QHostAddress limitedBroadcast(QHostAddress::Broadcast);
-    if (!m_broadcastAddresses.contains(limitedBroadcast)) {
+    if (includeLimited && !m_broadcastAddresses.contains(limitedBroadcast)) {
         m_broadcastAddresses << limitedBroadcast;
     }
 

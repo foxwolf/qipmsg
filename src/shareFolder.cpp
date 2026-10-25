@@ -312,6 +312,61 @@ bool ShareFolder::decodeList(const QByteArray &payload, QList<ShareEntry> *entri
     return false;
 }
 
+bool ShareFolder::groupIdOk(const QString &groupId)
+{
+    if (groupId.isEmpty() || groupId.size() > 64) {
+        return false;
+    }
+    const QChar first = groupId.at(0);
+    if (!first.isLetterOrNumber()) {
+        return false;
+    }
+    for (int i = 0; i < groupId.size(); ++i) {
+        const QChar c = groupId.at(i);
+        if (c.isLetterOrNumber() || c == QLatin1Char('-') || c == QLatin1Char('.')) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
+QString ShareFolder::groupShareLine(const QString &groupId)
+{
+    if (!groupIdOk(groupId)) {
+        return QString();
+    }
+    return QStringLiteral("QIPSHARE:") + groupId;
+}
+
+QString ShareFolder::groupIdFromText(const QString &text)
+{
+    const QString marker = QStringLiteral("QIPSHARE:");
+    QString found;
+    int from = 0;
+    while (from < text.size()) {
+        const int at = text.indexOf(marker, from);
+        if (at < 0) {
+            break;
+        }
+        int end = at + marker.size();
+        while (end < text.size()) {
+            const QChar c = text.at(end);
+            if (!(c.isLetterOrNumber() || c == QLatin1Char('-')
+                  || c == QLatin1Char('.'))) {
+                break;
+            }
+            ++end;
+        }
+        const QString id = text.mid(at + marker.size(), end - (at + marker.size()));
+        if (groupIdOk(id)) {
+            found = id;
+        }
+        from = end;
+    }
+    return found;
+}
+
 QByteArray ShareFolder::buildRequest(const QString &verb, const QString &relative,
                                      const QString &password, qint64 offset)
 {
@@ -333,10 +388,43 @@ QByteArray ShareFolder::buildRequest(const QString &verb, const QString &relativ
     return packet;
 }
 
+QByteArray ShareFolder::buildGroupRequest(const QString &verb,
+                                          const QString &relative,
+                                          const QString &groupId, qint64 offset)
+{
+    if (!groupIdOk(groupId)) {
+        return QByteArray();
+    }
+    const bool get = verb == QLatin1String("GET");
+    if (!get && verb != QLatin1String("LIST")) {
+        return QByteArray();
+    }
+    QByteArray packet;
+    packet.append("1:1:qip:qipmsg:");
+    packet.append(QByteArray::number(126, 16));
+    packet.append(':');
+    packet.append(get ? "GGET" : "GLIST");
+    packet.append(':');
+    packet.append(relative.toUtf8().toHex());
+    packet.append(':');
+    packet.append(':');
+    if (get) {
+        packet.append(QByteArray::number(offset < 0 ? 0 : offset, 16));
+        packet.append(':');
+    }
+    packet.append(groupId.toUtf8().toHex());
+    packet.append(':');
+    packet.append('\n');
+    return packet;
+}
+
 bool ShareFolder::parseRequest(const QByteArray &packet, QString *verb,
                                QString *relative, QString *password,
-                               qint64 *offset)
+                               qint64 *offset, QString *groupId)
 {
+    if (groupId) {
+        groupId->clear();
+    }
     QByteArray body = packet;
     const int nl = body.indexOf('\n');
     if (nl >= 0) {
@@ -360,11 +448,15 @@ bool ShareFolder::parseRequest(const QByteArray &packet, QString *verb,
         }
     }
     const QString action = QString::fromLatin1(parts.at(5));
-    if (action != QLatin1String("LIST") && action != QLatin1String("GET")) {
+    const bool groupList = action == QLatin1String("GLIST");
+    const bool groupGet = action == QLatin1String("GGET");
+    if (action != QLatin1String("LIST") && action != QLatin1String("GET")
+            && !groupList && !groupGet) {
         return false;
     }
     if (verb) {
-        *verb = action;
+        *verb = (groupGet || action == QLatin1String("GET"))
+                ? QStringLiteral("GET") : QStringLiteral("LIST");
     }
     if (relative) {
         *relative = QString::fromUtf8(hexToBytes(parts.at(6)));
@@ -373,7 +465,7 @@ bool ShareFolder::parseRequest(const QByteArray &packet, QString *verb,
         *password = QString::fromUtf8(hexToBytes(parts.at(7)));
     }
     qint64 off = 0;
-    if (action == QLatin1String("GET") && parts.size() > 8) {
+    if ((groupGet || action == QLatin1String("GET")) && parts.size() > 8) {
         off = parts.at(8).toLongLong(&ok, 16);
         if (!ok) {
             off = parts.at(8).toLongLong(&ok, 10);
@@ -385,38 +477,45 @@ bool ShareFolder::parseRequest(const QByteArray &packet, QString *verb,
     if (offset) {
         *offset = off;
     }
+    if (groupList || groupGet) {
+        const int idPos = groupGet ? 9 : 8;
+        if (parts.size() <= idPos) {
+            return false;
+        }
+        const QString id = QString::fromUtf8(hexToBytes(parts.at(idPos)));
+        if (!groupIdOk(id)) {
+            return false;
+        }
+        if (groupId) {
+            *groupId = id;
+        }
+    }
     return true;
 }
 
-ShareAnswer ShareFolder::answer(const QByteArray &request, bool enabled,
-                                const QString &root,
-                                const QString &expectedPassword)
+namespace {
+
+ShareAnswer serveShare(const QString &verb, const QString &relative,
+                       const QString &password, qint64 offset, bool enabled,
+                       const QString &root, const QString &expectedPassword)
 {
     ShareAnswer result;
     result.offset = 0;
     result.fileSize = 0;
     result.sendFile = false;
 
-    QString verb;
-    QString relative;
-    QString password;
-    qint64 offset = 0;
-    if (!parseRequest(request, &verb, &relative, &password, &offset)) {
-        result.payload = "QIP1\nERR badpath\n";
-        return result;
-    }
     if (!enabled || root.trimmed().isEmpty()) {
         result.payload = "QIP1\nERR off\n";
         return result;
     }
-    if (!passwordMatches(expectedPassword, password)) {
+    if (!ShareFolder::passwordMatches(expectedPassword, password)) {
         result.payload = "QIP1\nERR auth\n";
         return result;
     }
 
     QString abs;
     QString error;
-    if (!resolveInside(root, relative, &abs, &error)) {
+    if (!ShareFolder::resolveInside(root, relative, &abs, &error)) {
         result.payload = "QIP1\nERR " + error.toUtf8() + "\n";
         return result;
     }
@@ -428,11 +527,11 @@ ShareAnswer ShareFolder::answer(const QByteArray &request, bool enabled,
         }
         QList<ShareEntry> entries;
         bool truncated = false;
-        if (!listDirectory(root, relative, &entries, &truncated, &error)) {
+        if (!ShareFolder::listDirectory(root, relative, &entries, &truncated, &error)) {
             result.payload = "QIP1\nERR " + error.toUtf8() + "\n";
             return result;
         }
-        result.payload = encodeList(entries, truncated);
+        result.payload = ShareFolder::encodeList(entries, truncated);
         return result;
     }
 
@@ -453,4 +552,57 @@ ShareAnswer ShareFolder::answer(const QByteArray &request, bool enabled,
     const qint64 remain = info.size() - offset;
     result.payload = "QIP1\nOK " + QByteArray::number(remain) + "\n";
     return result;
+}
+
+} // namespace
+
+ShareAnswer ShareFolder::answer(const QByteArray &request, bool enabled,
+                                const QString &root,
+                                const QString &expectedPassword)
+{
+    ShareAnswer result;
+    result.offset = 0;
+    result.fileSize = 0;
+    result.sendFile = false;
+
+    QString verb;
+    QString relative;
+    QString password;
+    QString groupId;
+    qint64 offset = 0;
+    if (!parseRequest(request, &verb, &relative, &password, &offset, &groupId)) {
+        result.payload = "QIP1\nERR badpath\n";
+        return result;
+    }
+    if (!groupId.isEmpty()) {
+        result.payload = "QIP1\nERR off\n";
+        return result;
+    }
+    return serveShare(verb, relative, password, offset, enabled, root,
+                      expectedPassword);
+}
+
+ShareAnswer ShareFolder::answerGroup(const QByteArray &request, const QString &root,
+                                     bool memberAllowed)
+{
+    ShareAnswer result;
+    result.offset = 0;
+    result.fileSize = 0;
+    result.sendFile = false;
+
+    QString verb;
+    QString relative;
+    QString password;
+    QString groupId;
+    qint64 offset = 0;
+    if (!parseRequest(request, &verb, &relative, &password, &offset, &groupId)
+            || groupId.isEmpty()) {
+        result.payload = "QIP1\nERR badpath\n";
+        return result;
+    }
+    if (!memberAllowed) {
+        result.payload = "QIP1\nERR auth\n";
+        return result;
+    }
+    return serveShare(verb, relative, QString(), offset, true, root, QString());
 }

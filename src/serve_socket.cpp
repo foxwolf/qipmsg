@@ -32,6 +32,7 @@
 #include "fileHashIndex.h"
 #include "preferences.h"
 #include "shareFolder.h"
+#include "discussion_store.h"
 
 #include <QDir>
 #include <QDateTime>
@@ -39,10 +40,14 @@
 #include <QMutexLocker>
 #include <QTextCodec>
 
+#include <QHostAddress>
+
 #ifndef _WIN32
 #include <unistd.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 
 #define REQUST_FILE_PACKET_ID_POSITION      5
@@ -184,15 +189,91 @@ bool ServeSocket::writeRaw(const QByteArray &block, bool pace)
     return true;
 }
 
+namespace {
+
+QString peerIpv4(qintptr descriptor)
+{
+    sockaddr_storage storage;
+#ifdef _WIN32
+    int length = static_cast<int>(sizeof(storage));
+    if (::getpeername(static_cast<SOCKET>(descriptor),
+                      reinterpret_cast<sockaddr *>(&storage), &length) != 0) {
+        return QString();
+    }
+#else
+    socklen_t length = sizeof(storage);
+    if (::getpeername(static_cast<int>(descriptor),
+                      reinterpret_cast<sockaddr *>(&storage), &length) != 0) {
+        return QString();
+    }
+#endif
+    if (storage.ss_family != AF_INET) {
+        return QString();
+    }
+    const sockaddr_in *ipv4 = reinterpret_cast<const sockaddr_in *>(&storage);
+    return QHostAddress(ntohl(ipv4->sin_addr.s_addr)).toString();
+}
+
+bool sameIpv4(const QString &left, const QString &right)
+{
+    const QHostAddress a(left);
+    const QHostAddress b(right);
+    if (a.isNull() || b.isNull()) {
+        return false;
+    }
+    if (a.protocol() == QAbstractSocket::IPv4Protocol
+            && b.protocol() == QAbstractSocket::IPv4Protocol) {
+        return a.toIPv4Address() == b.toIPv4Address();
+    }
+    return a == b;
+}
+
+} // namespace
+
 bool ServeSocket::handleShare(const QByteArray &requestPacket)
 {
-    const bool enabled = Global::preferences && Global::preferences->shareEnabled;
-    const QString root = Global::preferences
-            ? Global::preferences->sharePath : QString();
-    const QString password = Global::preferences
-            ? Global::preferences->sharePassword : QString();
-    const ShareAnswer answer = ShareFolder::answer(requestPacket, enabled, root,
-                                                    password);
+    QString groupId;
+    QString verb;
+    QString relative;
+    QString password;
+    qint64 offset = 0;
+    const bool parsed = ShareFolder::parseRequest(
+                requestPacket, &verb, &relative, &password, &offset, &groupId);
+    ShareAnswer answer;
+    answer.offset = 0;
+    answer.fileSize = 0;
+    answer.sendFile = false;
+    if (!parsed) {
+        answer.payload = "QIP1\nERR badpath\n";
+    } else if (!groupId.isEmpty()) {
+        QString root;
+        bool member = false;
+        bool known = false;
+        if (Global::discussionStore) {
+            const DiscussionGroup group = Global::discussionStore->groupById(groupId);
+            known = !group.id.isEmpty() && !group.sharePath.trimmed().isEmpty();
+            root = group.sharePath;
+            const QString peer = peerIpv4(m_sockfd);
+            for (int i = 0; i < group.members.size(); ++i) {
+                if (sameIpv4(group.members.at(i).ip, peer)) {
+                    member = true;
+                    break;
+                }
+            }
+        }
+        if (!known) {
+            answer.payload = "QIP1\nERR off\n";
+        } else {
+            answer = ShareFolder::answerGroup(requestPacket, root, member);
+        }
+    } else {
+        const bool enabled = Global::preferences && Global::preferences->shareEnabled;
+        const QString root = Global::preferences
+                ? Global::preferences->sharePath : QString();
+        const QString expected = Global::preferences
+                ? Global::preferences->sharePassword : QString();
+        answer = ShareFolder::answer(requestPacket, enabled, root, expected);
+    }
     if (!writeRaw(answer.payload, false)) {
         return false;
     }

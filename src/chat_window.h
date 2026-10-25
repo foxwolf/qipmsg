@@ -99,6 +99,7 @@ private slots:
     void setLocalPhoto();
     void clearLocalPhoto();
     void browsePeerShare();
+    void browseGroupShare();
 
 private:
     void createUi();
