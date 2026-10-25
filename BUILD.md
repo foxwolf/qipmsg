@@ -35,7 +35,7 @@ cmake ..
 cmake --build -j$(nproc)
 ```
 
-Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, discussion notice JSON, user-skin loading, and NIC selection. `qipmsgShareCheck` also covers discussion-folder `GLIST` / `GGET`.
+Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, discussion notice JSON, user-skin loading, and NIC selection. `qipmsgShareCheck` also covers discussion-folder `GLIST` / `GGET`. `qipmsgP3Check` covers schedule and favorite JSON plus the `IPMSG_DIALUPOPT` bit.
 
 Run locally without installing:
 
@@ -181,6 +181,24 @@ make
 - Custom stickers are files, not Unicode. Import copies PNG / GIF / WebP / JPEG / BMP into `stickers/` (max 8 MB, 400 files, 40 named groups). A click sends `[Sticker] …` plus `IPMSG_FILEATTACHOPT`, the same image-attach path as paste and screenshot. GIF animation is the file itself; the picker shows the first frame (WebP needs Qt's imageformats plugin for a thumbnail, but the file is still sent). FeiQ receives an ordinary image attachment, not a private face-id. Offline queue still refuses attachments.
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
+
+## Schedule, favorites, and dial-up hosts (2.45.13)
+
+No Qt Sql. No new wire opcode.
+
+### Reminders
+
+Main window **Schedule** and the tray item edit `~/.qipmsg/schedule.json` (at most 200). A timer checks while the process is running and shows a tray balloon. If the platform has no tray balloons, a dialog is used. The notice sound plays unless **No sound alarm** is on. Do-not-disturb does not hide a reminder you created. Quit does not leave a daemon. A time that passed while the program was closed is shown once on the next launch. **Notify peer** sends ordinary `SENDMSG` text (`Reminder: …`) through the existing send path, including the offline queue and the encrypt preference. There is no FeiQ `CLOCK` packet.
+
+### Favorites
+
+The chat toolbar **Favorites** button used to be disabled. It now writes `~/.qipmsg/favorites.json` (at most 300): selected chat text, an absolute file path, or a note about that peer. Search, open, and delete stay on this computer. Opening a file uses the desktop handler. Nothing is synced.
+
+### Dial-up
+
+`IPMSG_DIALUPOPT` (`0x00010000`) is the IPMSG flag for a member who may not receive subnet broadcasts. IPMSG `protocol.txt` says member-recognition commands are sent to that member one by one. qipmsg reads the bit on entry, answer, and absence (not on chat text). The contact row shows **Dial-up** and an amber badge. `BR_ENTRY`, `BR_ABSENCE`, and `BR_EXIT` are still broadcast, and the same command is unicast to known dial-up peers. Their `BR_ENTRY` is still answered with the existing `ANSENTRY` only, so two dial-up qipmsg peers do not bounce entry packets. **I am a dial-up host** (off by default, next to the broadcast list) sets the bit on our own presence packets. Peers without the bit are unchanged. The mark is stored in `peers.json` until a later presence packet clears it. FeiQ's dial-up icon was not compared packet by packet.
+
+The private-data zip includes `schedule.json` and `favorites.json`.
 
 ## Avatars, group log, and doodle (2.42.12)
 
