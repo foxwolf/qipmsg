@@ -45,14 +45,15 @@
 #include "pinyin.h"
 #include "groupPolicy.h"
 #include "groupPolicyDialog.h"
+#include "recentStore.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
 
 MainWindow::MainWindow(QString text, QString ip,
         QWidget *parent)
-    : QMainWindow(parent), m_initText(text), m_selectedIp(ip),
-    m_lastSearchDialog(0)
+    : QMainWindow(parent), m_groupSendHint(0), sendToGroupAct(0),
+    m_initText(text), m_selectedIp(ip), m_lastSearchDialog(0)
 {
     setAttribute(Qt::WA_DeleteOnClose, true);
     setAcceptDrops(true);
@@ -107,6 +108,14 @@ void MainWindow::createConnections()
         connect(Global::groupPolicy, SIGNAL(policyChanged()),
                 this, SLOT(rebuildContactTree()));
     }
+    if (Global::recentStore) {
+        connect(Global::recentStore, SIGNAL(contactsChanged()),
+                this, SLOT(rebuildContactTree()));
+    }
+    if (Global::windowManager) {
+        connect(Global::windowManager, SIGNAL(peerTypingChanged(QString,bool)),
+                this, SLOT(onPeerTyping(QString,bool)));
+    }
     connect(refreshButton, SIGNAL(clicked()),
             this, SLOT(refreshUserList()));
 
@@ -134,6 +143,8 @@ void MainWindow::createConnections()
 
     connect(contactTree, SIGNAL(itemDoubleClicked(QTreeWidgetItem*,int)),
             this, SLOT(onContactDoubleClicked(QTreeWidgetItem*,int)));
+    connect(contactTree, SIGNAL(itemClicked(QTreeWidgetItem*,int)),
+            this, SLOT(onRecentClicked(QTreeWidgetItem*,int)));
     connect(searchEdit, SIGNAL(textChanged(QString)),
             this, SLOT(applyContactFilter(QString)));
     connect(signatureEdit, SIGNAL(editingFinished()),
@@ -234,8 +245,13 @@ void MainWindow::createInputWidget()
     inputEdit->setTabChangesFocus(true);
     inputEdit->setMaximumHeight(90);
 
+    m_groupSendHint = new QLabel;
+    m_groupSendHint->setWordWrap(true);
+    m_groupSendHint->hide();
+
     QVBoxLayout *vbox = new QVBoxLayout;
     vbox->addWidget(fileListButton);
+    vbox->addWidget(m_groupSendHint);
     vbox->addWidget(inputEdit);
     vbox->addLayout(sendLayout);
 
@@ -285,6 +301,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     QMenu menu(this);
     menu.addAction(openChatAct);
     menu.addAction(broadcastAllAct);
+    menu.addAction(sendToGroupAct);
     menu.addMenu(selectGroupMenu);
     menu.addAction(sendFileAct);
     menu.addAction(sendDirAct);
@@ -333,6 +350,13 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
         hideFromGroupAct->blockSignals(false);
         muteGroupAct->blockSignals(false);
     }
+    sendToGroupAct->setVisible(hasGroup);
+    if (hasGroup && Global::userManager) {
+        const int count = reachableSendCount(groupName);
+        sendToGroupAct->setText(tr("Send to \"%1\" (%n online/away)", "", count)
+                                .arg(groupName));
+        sendToGroupAct->setData(groupName);
+    }
 
     updateSelectGroupMenu();
     menu.exec(event->globalPos());
@@ -371,6 +395,12 @@ void MainWindow::createActions()
     groupPolicyAct = new QAction(tr("Group permissions..."), this);
     connect(groupPolicyAct, SIGNAL(triggered()),
             this, SLOT(openGroupPolicyDialog()));
+    sendToGroupAct = new QAction(tr("Send to this group (online and away)"), this);
+    sendToGroupAct->setToolTip(tr(
+            "Multicast the current text to online and away members of this "
+            "department. Offline peers are not queued."));
+    connect(sendToGroupAct, SIGNAL(triggered()),
+            this, SLOT(sendToDepartment()));
 
     setLevelOneAct = new QAction(tr("Set level 1 (user %1 / %2)")
             .arg(m_levelOneCount)
@@ -391,14 +421,22 @@ void MainWindow::createActions()
 void MainWindow::updateSelectGroupMenu()
 {
     selectGroupMenu->clear();
-
-    foreach (QString group, Global::preferences->groupNameList) {
-        if (!group.isEmpty()) {
-            QAction *action = new QAction(group, this);
-            action->setData(group);
-            connect(action, SIGNAL(triggered()), this, SLOT(selectGroup()));
-            selectGroupMenu->addAction(action);
-        }
+    const QStringList names = Global::userManager
+            ? Global::userManager->departmentNames() : QStringList();
+    if (names.isEmpty()) {
+        QAction *empty = selectGroupMenu->addAction(tr("No department groups"));
+        empty->setEnabled(false);
+        return;
+    }
+    foreach (const QString &group, names) {
+        const int count = reachableSendCount(group);
+        QAction *action = new QAction(
+                tr("%1 (%n online/away)", "", count).arg(group), selectGroupMenu);
+        action->setData(group);
+        action->setToolTip(tr(
+                "Select online and away members. Grey offline peers stay out."));
+        connect(action, SIGNAL(triggered()), this, SLOT(selectGroup()));
+        selectGroupMenu->addAction(action);
     }
 }
 
@@ -457,13 +495,135 @@ void MainWindow::selectGroup()
         return;
     }
     const QString group = action->data().toString();
-    contactTree->clearSelection();
+    const int count = selectReachableInGroup(group);
+    if (count <= 0) {
+        m_groupSendHint->setText(tr("No online or away members in \"%1\".")
+                                 .arg(group));
+        m_groupSendHint->show();
+        return;
+    }
+    showGroupSendHint(group, count);
+}
 
-    foreach (QTreeWidgetItem *item, allPeerItems()) {
-        if (item->data(0, Qt::UserRole + 3).toString() == group) {
-            item->setSelected(true);
-            contactTree->scrollToItem(item);
+int MainWindow::reachableSendCount(const QString &groupName) const
+{
+    if (!Global::userManager) {
+        return 0;
+    }
+    int count = 0;
+    foreach (const QString &ip, Global::userManager->reachableIpsInGroup(groupName)) {
+        if (!isBlacklisted(ip)) {
+            ++count;
         }
+    }
+    return count;
+}
+
+int MainWindow::selectReachableInGroup(const QString &groupName)
+{
+    const QString key = GroupPolicy::normalizeName(groupName);
+    contactTree->clearSelection();
+    int count = 0;
+    QStringList seen;
+    foreach (QTreeWidgetItem *item, allPeerItems()) {
+        if (item->data(0, Qt::UserRole + 8).toString() == QLatin1String("recent")) {
+            continue;
+        }
+        const QString ip = item->data(0, Qt::UserRole).toString();
+        if (ip.isEmpty() || seen.contains(ip)) {
+            continue;
+        }
+        if (GroupPolicy::normalizeName(item->data(0, Qt::UserRole + 3).toString())
+                != key) {
+            continue;
+        }
+        if (isBlacklisted(ip) || !Global::userManager->isReachable(ip)) {
+            continue;
+        }
+        QTreeWidgetItem *parent = item->parent();
+        while (parent) {
+            parent->setExpanded(true);
+            parent = parent->parent();
+        }
+        item->setSelected(true);
+        contactTree->scrollToItem(item);
+        seen << ip;
+        ++count;
+    }
+    return count;
+}
+
+void MainWindow::showGroupSendHint(const QString &groupName, int count)
+{
+    m_groupSendHint->setText(tr(
+            "Group send: \"%1\" · %n online or away member(s). "
+            "Offline peers are not included. Press Send.",
+            "", count).arg(groupName));
+    m_groupSendHint->show();
+    inputEdit->setFocus();
+}
+
+void MainWindow::sendToDepartment()
+{
+    QAction *action = qobject_cast<QAction *>(sender());
+    const QString group = action ? action->data().toString() : groupAtCursor();
+    if (group.isEmpty() || !Global::userManager) {
+        return;
+    }
+    const int count = selectReachableInGroup(group);
+    if (count <= 0) {
+        QMessageBox::information(this, tr("Group send"),
+                tr("No online or away members in \"%1\". "
+                   "Offline peers are not queued.").arg(group));
+        m_groupSendHint->setText(tr("No online or away members in \"%1\".")
+                                 .arg(group));
+        m_groupSendHint->show();
+        return;
+    }
+    showGroupSendHint(group, count);
+    const bool hasBody = !inputEdit->toPlainText().trimmed().isEmpty()
+            || hasSendFile();
+    if (!hasBody) {
+        return;
+    }
+    if (QMessageBox::question(this, tr("Group send"),
+            tr("Send the current message to %n member(s) of \"%1\"?",
+               "", count).arg(group),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes)
+            != QMessageBox::Yes) {
+        return;
+    }
+    sendMessage();
+}
+
+void MainWindow::onPeerTyping(QString ip, bool typing)
+{
+    if (typing) {
+        m_typingIps.insert(ip);
+    } else {
+        m_typingIps.remove(ip);
+    }
+    foreach (QTreeWidgetItem *item, allPeerItems()) {
+        if (item->data(0, Qt::UserRole).toString() == ip) {
+            item->setData(0, Qt::UserRole + 9, typing);
+        }
+    }
+    if (contactTree && contactTree->viewport()) {
+        contactTree->viewport()->update();
+    }
+}
+
+void MainWindow::onRecentClicked(QTreeWidgetItem *item, int)
+{
+    if (!item || !Global::windowManager) {
+        return;
+    }
+    if (item->data(0, Qt::UserRole + 8).toString() != QLatin1String("recent")) {
+        return;
+    }
+    const QString ip = item->data(0, Qt::UserRole).toString();
+    if (!ip.isEmpty()) {
+        Global::windowManager->openChat(ip, true);
     }
 }
 
@@ -552,6 +712,7 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     item->setData(0, Qt::UserRole + 3, um->group(row));
     item->setData(0, Qt::UserRole + 4, subtitle);
     item->setData(0, Qt::UserRole + 6, display);
+    item->setData(0, Qt::UserRole + 9, m_typingIps.contains(ip));
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setSizeHint(0, QSize(180, 52));
 
@@ -602,6 +763,52 @@ void MainWindow::addDiscussionItem(QTreeWidgetItem *parent, const QString &id)
                      .arg(group.name, summary));
 }
 
+void MainWindow::addRecentItems(QTreeWidgetItem *parent)
+{
+    if (!parent || !Global::recentStore || !Global::userManager) {
+        return;
+    }
+    const QList<RecentContact> rows = Global::recentStore->items();
+    const int limit = qMin(rows.size(), 20);
+    for (int i = 0; i < limit; ++i) {
+        const RecentContact &row = rows.at(i);
+        const int userRow = Global::userManager->ipToRow(row.ip);
+        const int presence = userRow == -1
+                ? PRESENCE_STALE : Global::userManager->presence(userRow);
+        QString name = row.name;
+        const QString memo = Global::userManager->memoForIp(row.ip);
+        if (!memo.isEmpty()) {
+            name = memo;
+        } else if (name.isEmpty()) {
+            name = Global::userManager->displayNameForIp(row.ip);
+        }
+        QString whenText = row.when.toString("MM-dd hh:mm");
+        if (row.when.date() == QDate::currentDate()) {
+            whenText = row.when.toString("hh:mm");
+        }
+        const QString snippet = row.text.isEmpty() ? tr("(no text)") : row.text;
+        const QString subtitle = QString("%1 · %2").arg(whenText, snippet);
+
+        QTreeWidgetItem *item = new QTreeWidgetItem(parent);
+        item->setText(0, QString("%1 %2 %3").arg(name, snippet, row.ip));
+        item->setData(0, Qt::UserRole, row.ip);
+        item->setData(0, Qt::UserRole + 3, userRow == -1
+                ? QString() : Global::userManager->group(userRow));
+        item->setData(0, Qt::UserRole + 4, subtitle);
+        item->setData(0, Qt::UserRole + 6, name);
+        item->setData(0, Qt::UserRole + 8, QStringLiteral("recent"));
+        item->setData(0, Qt::UserRole + 9, m_typingIps.contains(row.ip));
+        item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        item->setSizeHint(0, QSize(180, 52));
+        if (presence == PRESENCE_STALE) {
+            item->setForeground(0, QBrush(QColor(120, 120, 120)));
+        }
+        item->setIcon(0, QIcon(peerAvatar(name, presence, 36)));
+        item->setToolTip(0, tr("Click to open chat\n%1").arg(subtitle));
+    }
+    updateGroupTitle(parent, tr("Recent contacts"));
+}
+
 bool MainWindow::isDiscussionItem(const QTreeWidgetItem *item) const
 {
     return item && !item->data(0, Qt::UserRole + 7).toString().isEmpty();
@@ -646,10 +853,13 @@ void MainWindow::rebuildContactTree()
     }
     if (expanded.isEmpty()) {
         expanded << "friends" << "ungrouped" << "self" << "blacklist"
-                 << "discussions";
+                 << "discussions" << "recent";
     }
 
     contactTree->clear();
+
+    QTreeWidgetItem *recent = makeGroupItem(tr("Recent contacts"), "recent");
+    addRecentItems(recent);
 
     QTreeWidgetItem *friends = makeGroupItem(tr("My Friends"), "friends");
     QTreeWidgetItem *ungrouped = makeGroupItem(tr("Ungrouped friends"),
@@ -696,6 +906,7 @@ void MainWindow::rebuildContactTree()
     updateGroupTitle(selfGroup, tr("Myself"));
     updateGroupTitle(blackGroup, tr("Blacklist"));
 
+    contactTree->addTopLevelItem(recent);
     contactTree->addTopLevelItem(friends);
     contactTree->addTopLevelItem(discGroup);
     QMapIterator<QString, QTreeWidgetItem *> it(depts);
