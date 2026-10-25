@@ -4,7 +4,7 @@
 
 QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户端，兼容飞秋（Feiqiu / FeiQ）等同类局域网通讯工具。
 
-当前版本：**2.33.8**
+当前版本：**2.33.9**
 
 ## 特性
 
@@ -51,11 +51,11 @@ QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户�
 - 共享文件夹：可指定目录和可选密码，联系人显示「享」。会话可浏览对方的 qipmsg 共享并下载。飞秋共享不能列出
 - 外观：浅色 / 暗色 / 跟随系统，记在 qipmsg.ini
 
-## 试用 2.33.8
+## 试用 2.33.9
 
 1. 偏好设置「发送/接收」勾选「对方有公钥时加密消息」。第一次会在 `~/.qipmsg/rsa_private.json` 写下私钥，界面可能停顿一下。之后在线包才带 ENCRYPTOPT。两台都打开的 qipmsg 互发纯文本，气泡前有「已加密」。带附件的消息仍是明文。没拿到公钥的飞秋仍收到原来的明文，未知命令应被忽略。飞秋和官方 IPMsg 能否解开这种 RSA 封装没有核对过，需要人工回归；解不开时会话会写明无法解密。
 2. 给灰色好友发一条文字和一次窗口抖动，完全退出再打开，托盘「离线消息队列」和主窗口顶栏仍能看到条数。对方以同一登录名和主机名从上线（哪怕 IP 变了，且只有一个匹配）后应按顺序送达。只发文件时会提示文件不入队。
-3. Windows 上对 `windeployqt` 目录执行 `makensis -DVERSION=2.33.8 -DDEPLOYDIR=... packaging\qipmsg.nsi`，得到当前用户安装包。GitHub Actions 的 Windows 产物里另有 `qipmsg-windows-setup`。
+3. Windows 上对 `windeployqt` 目录执行 `makensis -DVERSION=2.33.9 -DDEPLOYDIR=... packaging\qipmsg.nsi`，得到当前用户安装包。GitHub Actions 的 Windows 产物里另有 `qipmsg-windows-setup`。
 
 ## 试用 2.30.6
 

@@ -1,6 +1,6 @@
 # QIpMsg 变更日志
 
-## 2.33.8 — 2026-10-25
+## 2.33.9 — 2026-10-25
 
 发送限速、私人数据备份与还原、截图基础标注，以及仅保存在本机的自定义头像。同日再补已传文件秒传、qipmsg 共享目录，以及浅色/暗色主题。同日再补可选公钥加密、Windows 安装包，以及离线队列跨重启投递。
 
@@ -22,6 +22,7 @@
 - 更新 README、ROADMAP、BUILD 与 zh_CN，说明限速、备份范围、截图标注和本地头像不会出现在线上
 - 更新 README、ROADMAP、BUILD 与 zh_CN，说明秒传和共享只在 qipmsg 之间生效，飞秋仍需人工回归
 - 更新 README、ROADMAP、BUILD 与 zh_CN，说明公钥加密只在 qipmsg 之间按本实现封装，飞秋和官方 IPMsg 仍需人工回归；离线队列可保存窗口抖动；Windows 安装包见 BUILD
+- 加密自检改为破坏 RSA 会话密钥，避免只翻转密文末位时 PKCS#7 偶发仍能解开，导致 Ubuntu CI 失败
 
 #### 编译
 - Windows MSVC 在 Qt 6.5 编译「跟随系统」时补上 QStyleHints 头文件

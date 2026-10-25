@@ -93,7 +93,7 @@ C:\Qt\6.x.x\msvc2019_64\bin\windeployqt.exe Release\qipmsg.exe
 User-level NSIS installer (no admin). Copy the `windeployqt` output into one directory, then:
 
 ```cmd
-makensis -DVERSION=2.33.8 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.33.8-setup.exe packaging\qipmsg.nsi
+makensis -DVERSION=2.33.9 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.33.9-setup.exe packaging\qipmsg.nsi
 ```
 
 `VERSION` must match `src/version.h`. The script does not embed a version of its own. `OUTFILE` is optional; when omitted, the installer is written next to `packaging/qipmsg.nsi`. Installs to `%LOCALAPPDATA%\QIpMsg` and adds a Start Menu shortcut. GitHub Actions `windows-latest` installs NSIS with Chocolatey when `makensis` is missing, uploads `qipmsg-<version>-setup.exe` as artifact `qipmsg-windows-setup`, and still uploads the `win-deploy` folder. Every OS job checks that `src/version.h`, `CMakeLists.txt`, and `docs/README.md` carry the same version and that `packaging/qipmsg.nsi` exists.

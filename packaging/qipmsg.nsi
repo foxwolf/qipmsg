@@ -1,6 +1,6 @@
 ; QIpMsg user-level installer.
 ; Build after windeployqt has filled a directory that contains qipmsg.exe:
-;   makensis -DVERSION=2.33.8 -DDEPLOYDIR=C:\path\to\win-deploy packaging\qipmsg.nsi
+;   makensis -DVERSION=2.33.9 -DDEPLOYDIR=C:\path\to\win-deploy packaging\qipmsg.nsi
 ; VERSION and DEPLOYDIR are required. Do not hardcode the product version here.
 
 Unicode true
