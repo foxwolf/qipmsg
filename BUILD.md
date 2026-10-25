@@ -90,6 +90,14 @@ Deploy dependencies with `windeployqt` after building:
 C:\Qt\6.x.x\msvc2019_64\bin\windeployqt.exe Release\qipmsg.exe
 ```
 
+User-level NSIS installer (no admin). Copy the `windeployqt` output into one directory, then:
+
+```cmd
+makensis -DVERSION=2.30.7 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.30.7-setup.exe packaging\qipmsg.nsi
+```
+
+`VERSION` must match `src/version.h`. The script does not embed a version of its own. `OUTFILE` is optional; when omitted, the installer is written next to `packaging/qipmsg.nsi`. Installs to `%LOCALAPPDATA%\QIpMsg` and adds a Start Menu shortcut. GitHub Actions `windows-latest` installs NSIS with Chocolatey when `makensis` is missing, uploads `qipmsg-<version>-setup.exe` as artifact `qipmsg-windows-setup`, and still uploads the `win-deploy` folder. Every OS job checks that `src/version.h`, `CMakeLists.txt`, and `docs/README.md` carry the same version and that `packaging/qipmsg.nsi` exists.
+
 ---
 
 ## macOS
@@ -124,7 +132,7 @@ GitHub Actions (`.github/workflows/build.yml`) runs a CMake **Release** build on
 | `windows-latest` | `jurplel/install-qt-action@v4` Qt 6.8.3 MSVC 2022 (`qt5compat` + `qtmultimedia`) |
 | `macos-latest` | Homebrew `cmake` + `qt@6`, `CMAKE_PREFIX_PATH=$(brew --prefix qt@6)` |
 
-CMake ≥ 3.16, C++17, Qt 6 + Core5Compat. No Qt Sql. Each job uploads a `qipmsg-<os>` artifact.
+CMake ≥ 3.16, C++17, Qt 6 + Core5Compat. No Qt Sql. Each job uploads a `qipmsg-<os>` artifact. The Windows job also uploads `qipmsg-windows-setup` when `makensis` finishes.
 
 [![Build](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml/badge.svg)](https://github.com/foxwolf/qipmsg/actions/workflows/build.yml)
 
