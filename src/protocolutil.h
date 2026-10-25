@@ -66,6 +66,13 @@ public:
     // READMSG packet-number field. Returns empty when neither is a packet id.
     static QString readReceiptPacketNo(const QString &additionalInfo,
                                        const QString &packetNoField);
+
+    // FeiQ typing commands are decimal 121 / 122 with no option bits.
+    static bool isFeiqTypingCommand(quint32 command, bool *active);
+
+    // Seconds left from observed throughput. Negative when unknown.
+    static int etaSeconds(qint64 bytesSent, qint64 bytesTotal,
+                          qint64 elapsedMs);
 };
 
 #endif // !PROTOCOLUTIL_H

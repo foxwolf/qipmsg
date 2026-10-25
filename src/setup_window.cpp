@@ -671,6 +671,15 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     if (Global::preferences->isDoNotDisturb) {
         doNotDisturbCheck->setCheckState(Qt::Checked);
     }
+    shareTypingCheck = new QCheckBox(tr("Show my typing status"));
+    shareTypingCheck->setToolTip(tr(
+            "Sends FeiQ typing commands 121 and 122 (no extra option bits, "
+            "version stays 1). Classic IPMSG peers ignore them. FeiQ builds "
+            "that only accept a 1_lbt version string may not show the hint. "
+            "Incoming 121/122 are still displayed."));
+    if (Global::preferences->isShareTyping) {
+        shareTypingCheck->setCheckState(Qt::Checked);
+    }
     sealedSend = new QCheckBox(tr("Send sealed message by default"));
     if (Global::preferences->isSealed) {
         sealedSend->setCheckState(Qt::Checked);
@@ -720,6 +729,7 @@ void SetupWindow::createSendRecvSettingsGroupBox()
     vbox->addWidget(readCheck);
     vbox->addWidget(noAutoPopupMsg);
     vbox->addWidget(doNotDisturbCheck);
+    vbox->addWidget(shareTypingCheck);
     vbox->addWidget(noSoundAlarm);
     vbox->addWidget(presenceSoundCheck);
     vbox->addWidget(sealedSend);
@@ -883,6 +893,7 @@ void SetupWindow::applyPreferences()
     Global::preferences->isNoSoundAlarm = noSoundAlarm->isChecked();
     Global::preferences->isPresenceSound = presenceSoundCheck->isChecked();
     Global::preferences->isDoNotDisturb = doNotDisturbCheck->isChecked();
+    Global::preferences->isShareTyping = shareTypingCheck->isChecked();
     Global::preferences->isSealed = sealedSend->isChecked();
     Global::preferences->isQuoteMsg = quoteMsg->isChecked();
     Global::preferences->isOfflineQueue = offlineQueueCheck->isChecked();

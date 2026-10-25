@@ -95,6 +95,7 @@ void Preferences::reset()
     isTrayNotify = true;
     isOfflineQueue = true;
     isDoNotDisturb = false;
+    isShareTyping = true;
     isPresenceSound = false;
     onlineSound = Helper::soundPath() + "/info.wav";
     offlineSound = Helper::soundPath() + "/warning.wav";
@@ -137,6 +138,7 @@ void Preferences::load()
             isNoAutoPopupMsg).toBool();
     isQuoteMsg = set->value("isQuoteMsg", isQuoteMsg).toBool();
     isDoNotDisturb = set->value("isDoNotDisturb", isDoNotDisturb).toBool();
+    isShareTyping = set->value("isShareTyping", isShareTyping).toBool();
     set->endGroup();
 
     set->beginGroup("Other");
@@ -273,6 +275,7 @@ void Preferences::save()
     set->setValue("isReadCheck", QString("%1").arg(isReadCheck));
     set->setValue("isNoSoundAlarm", QString("%1").arg(isNoSoundAlarm));
     set->setValue("isDoNotDisturb", isDoNotDisturb);
+    set->setValue("isShareTyping", isShareTyping);
     set->endGroup();
 
     set->beginGroup("Detail");

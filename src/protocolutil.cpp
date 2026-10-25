@@ -300,6 +300,35 @@ bool isDecimalPacket(const QString &text)
 
 } // namespace
 
+bool ProtocolUtil::isFeiqTypingCommand(quint32 command, bool *active)
+{
+    const quint32 mode = GET_MODE(command);
+    if (mode != IPMSG_FEIQ_TYPING && mode != IPMSG_FEIQ_TYPINGSTOP) {
+        return false;
+    }
+    if (command != mode) {
+        return false;
+    }
+    if (active) {
+        *active = (mode == IPMSG_FEIQ_TYPING);
+    }
+    return true;
+}
+
+int ProtocolUtil::etaSeconds(qint64 bytesSent, qint64 bytesTotal,
+                             qint64 elapsedMs)
+{
+    if (bytesSent <= 0 || bytesTotal <= bytesSent || elapsedMs <= 0) {
+        return -1;
+    }
+    const double perSec = (double)bytesSent * 1000.0 / (double)elapsedMs;
+    if (perSec <= 0.0) {
+        return -1;
+    }
+    const int secs = (int)((double)(bytesTotal - bytesSent) / perSec + 0.5);
+    return secs < 1 ? 1 : secs;
+}
+
 QString ProtocolUtil::readReceiptPacketNo(const QString &additionalInfo,
                                           const QString &packetNoField)
 {

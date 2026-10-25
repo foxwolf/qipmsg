@@ -71,6 +71,16 @@
 #define IPMSG_GETPUBKEY			0x00000072UL
 #define IPMSG_ANSPUBKEY			0x00000073UL
 
+/* FeiQ "正在输入" / ShowInputStatus. Not in the IPMSG spec.
+   Captured FeiQ datagrams use command 121 while the peer is typing and
+   122 when typing pauses (low 8 bits; no option bits). The version field
+   on those captures is FeiQ's "1_lbt…" token. We keep version "1" so a
+   classic IPMSG parser still splits the packet and ignores an unknown
+   mode instead of seeing a broken header. FeiQ may only paint the hint
+   for its own version string — that needs a human check. */
+#define IPMSG_FEIQ_TYPING		121UL
+#define IPMSG_FEIQ_TYPINGSTOP		122UL
+
 /*  option for all command  */
 #define IPMSG_ABSENCEOPT		0x00000100UL
 #define IPMSG_SERVEROPT			0x00000200UL

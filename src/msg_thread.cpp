@@ -54,6 +54,8 @@ void MsgThread::run()
             Global::userManager, SLOT(newExitMsg(Msg)));
     connect(m_msgServer, SIGNAL(peerFlagsSeen(QString,quint32)),
             Global::userManager, SLOT(notePeerCaps(QString,quint32)));
+    connect(m_msgServer, SIGNAL(peerTyping(QString,bool)),
+            Global::windowManager, SLOT(notePeerTyping(QString,bool)));
 
     connect(m_msgServer, SIGNAL(error(QAbstractSocket::SocketError, QString)),
             this, SLOT(handleError(QAbstractSocket::SocketError, QString)));

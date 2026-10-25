@@ -88,6 +88,7 @@ public:
     bool isTrayNotify;
     bool isOfflineQueue;
     bool isDoNotDisturb;
+    bool isShareTyping;
     bool isPresenceSound;
     QString onlineSound;
     QString offlineSound;
