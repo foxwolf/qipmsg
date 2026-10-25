@@ -62,13 +62,21 @@ public:
 
     static QByteArray buildRequest(const QString &verb, const QString &relative,
                                    const QString &password, qint64 offset);
+    static QByteArray buildGroupRequest(const QString &verb, const QString &relative,
+                                        const QString &groupId, qint64 offset);
     static bool parseRequest(const QByteArray &packet, QString *verb,
-                              QString *relative, QString *password,
-                              qint64 *offset);
+                             QString *relative, QString *password,
+                             qint64 *offset, QString *groupId = 0);
+
+    static QString groupShareLine(const QString &groupId);
+    static QString groupIdFromText(const QString &text);
+    static bool groupIdOk(const QString &groupId);
 
     static ShareAnswer answer(const QByteArray &request, bool enabled,
-                               const QString &root,
-                               const QString &expectedPassword);
+                              const QString &root,
+                              const QString &expectedPassword);
+    static ShareAnswer answerGroup(const QByteArray &request, const QString &root,
+                                   bool memberAllowed);
 };
 
 #endif // !SHAREFOLDER_H

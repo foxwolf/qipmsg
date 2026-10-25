@@ -43,6 +43,12 @@ int main(int argc, char **argv)
     if (normalizeThemeName(QStringLiteral("nope")) != QLatin1String("light")) {
         return fail(3, "theme light");
     }
+    if (normalizeThemeName(QStringLiteral("skin:Ocean.1")) != QLatin1String("skin:Ocean.1")
+            || normalizeThemeName(QStringLiteral(" SKIN:Ab ")) != QLatin1String("skin:Ab")
+            || normalizeThemeName(QStringLiteral("skin:../x")) != QLatin1String("light")
+            || normalizeThemeName(QStringLiteral("skin:")) != QLatin1String("light")) {
+        return fail(27, "theme skin id");
+    }
     if (!ShareFolder::tokenIsQipmsg(QStringLiteral("qipmsg"))
             || !ShareFolder::tokenHasShare(QStringLiteral("qipmsg,share,lock"))
             || !ShareFolder::tokenHasLock(QStringLiteral("qipmsg,share,lock"))
@@ -201,6 +207,77 @@ int main(int argc, char **argv)
     }
     FileHashIndex::setStoreFile(QString());
     FileHashIndex::setEntryCap(2000);
+
+    const QByteArray groupList = ShareFolder::buildGroupRequest(
+                QStringLiteral("LIST"), QString(), QStringLiteral("9"), 0);
+    QString groupVerb;
+    QString groupRel;
+    QString groupPass;
+    QString groupId;
+    qint64 groupOffset = -1;
+    if (!ShareFolder::parseRequest(groupList, &groupVerb, &groupRel, &groupPass,
+                                   &groupOffset, &groupId)
+            || groupVerb != QLatin1String("LIST")
+            || !groupRel.isEmpty()
+            || groupId != QLatin1String("9")) {
+        return fail(28, "glist parse");
+    }
+    const ShareAnswer groupOnPersonal = ShareFolder::answer(
+                groupList, true, root, QStringLiteral("pw"));
+    if (groupOnPersonal.sendFile || !groupOnPersonal.payload.contains("ERR off")) {
+        return fail(29, "glist not personal");
+    }
+    const ShareAnswer groupAuth = ShareFolder::answerGroup(groupList, root, false);
+    if (groupAuth.sendFile || !groupAuth.payload.contains("ERR auth")) {
+        return fail(30, "glist auth");
+    }
+    const ShareAnswer groupOk = ShareFolder::answerGroup(groupList, root, true);
+    QList<ShareEntry> groupEntries;
+    if (!ShareFolder::decodeList(groupOk.payload, &groupEntries, &truncated, &error)) {
+        return fail(31, "glist list");
+    }
+    bool groupHello = false;
+    bool groupLeak = false;
+    for (int i = 0; i < groupEntries.size(); ++i) {
+        if (groupEntries.at(i).name == QLatin1String("hello.txt")) {
+            groupHello = true;
+        }
+        if (groupEntries.at(i).name.contains(QLatin1String("secret"))
+                || groupEntries.at(i).name.startsWith(QLatin1String("leak"))) {
+            groupLeak = true;
+        }
+    }
+    if (!groupHello || groupLeak) {
+        return fail(32, "glist contents");
+    }
+    const QByteArray groupEscape = ShareFolder::buildGroupRequest(
+                QStringLiteral("GET"), QStringLiteral("../outside/secret.txt"),
+                QStringLiteral("9"), 0);
+    const ShareAnswer groupDenied = ShareFolder::answerGroup(groupEscape, root, true);
+    if (groupDenied.sendFile || !groupDenied.payload.contains("ERR")) {
+        return fail(33, "glist escape");
+    }
+    const QByteArray groupGet = ShareFolder::buildGroupRequest(
+                QStringLiteral("GET"), QStringLiteral("sub/nested.txt"),
+                QStringLiteral("9-1"), 0);
+    const ShareAnswer groupFile = ShareFolder::answerGroup(groupGet, root, true);
+    if (!groupFile.sendFile || !groupFile.filePath.endsWith(QLatin1String("nested.txt"))) {
+        return fail(34, "gget");
+    }
+    if (ShareFolder::groupIdFromText(
+                QStringLiteral("see QIPSHARE:old later QIPSHARE:9-1 tail"))
+            != QLatin1String("9-1")
+            || !ShareFolder::groupIdFromText(QStringLiteral("QIPSHARE:")).isEmpty()
+            || !ShareFolder::buildGroupRequest(QStringLiteral("LIST"), QString(),
+                                               QStringLiteral("bad id"), 0).isEmpty()) {
+        return fail(35, "group token");
+    }
+    QString personalGroup;
+    if (!ShareFolder::parseRequest(request, &verb, &relative, &password, &offset,
+                                   &personalGroup)
+            || !personalGroup.isEmpty()) {
+        return fail(36, "personal group empty");
+    }
 
     std::fprintf(stdout, "share check ok\n");
     return 0;

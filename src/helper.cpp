@@ -45,12 +45,19 @@
 #include "constants.h"
 #include "ipmsg.h"
 #include "themeName.h"
+#include "userSkin.h"
 #include "global.h"
 #include "preferences.h"
 
 QString Helper::m_iniPath;
 QString Helper::m_appPath;
 bool Helper::m_darkTheme = false;
+bool Helper::m_skinColors = false;
+QColor Helper::m_skinInBg;
+QColor Helper::m_skinInFg;
+QColor Helper::m_skinOutBg;
+QColor Helper::m_skinOutFg;
+QColor Helper::m_skinMetaFg;
 qint64 Helper::m_packetNo;
 QFile Helper::m_internalLogFile;
 QString Helper::m_internalLogFileName;
@@ -580,26 +587,41 @@ bool Helper::darkTheme()
 
 QColor Helper::bubbleIncomingBg()
 {
+    if (m_skinColors && m_skinInBg.isValid()) {
+        return m_skinInBg;
+    }
     return m_darkTheme ? QColor("#1F2937") : QColor("#FFFFFF");
 }
 
 QColor Helper::bubbleIncomingFg()
 {
+    if (m_skinColors && m_skinInFg.isValid()) {
+        return m_skinInFg;
+    }
     return m_darkTheme ? QColor("#F9FAFB") : QColor("#1F2937");
 }
 
 QColor Helper::bubbleOutgoingBg()
 {
+    if (m_skinColors && m_skinOutBg.isValid()) {
+        return m_skinOutBg;
+    }
     return QColor("#2563EB");
 }
 
 QColor Helper::bubbleOutgoingFg()
 {
+    if (m_skinColors && m_skinOutFg.isValid()) {
+        return m_skinOutFg;
+    }
     return QColor("#FFFFFF");
 }
 
 QColor Helper::bubbleMetaFg()
 {
+    if (m_skinColors && m_skinMetaFg.isValid()) {
+        return m_skinMetaFg;
+    }
     return m_darkTheme ? QColor("#9CA3AF") : QColor("#8A8F98");
 }
 
@@ -610,7 +632,22 @@ void Helper::applyAppTheme(QApplication *app)
     }
 
     const QString theme = storedThemeName();
-    if (theme == QLatin1String("dark")) {
+    const QString skinId = themeSkinId(theme);
+    SkinPack skin;
+    if (!skinId.isEmpty()) {
+        skin = UserSkin::load(skinId);
+    }
+    m_skinColors = false;
+
+    if (skin.found) {
+        m_darkTheme = skin.base == QLatin1String("dark");
+        m_skinColors = true;
+        m_skinInBg = skin.bubbleInBg;
+        m_skinInFg = skin.bubbleInFg;
+        m_skinOutBg = skin.bubbleOutBg;
+        m_skinOutFg = skin.bubbleOutFg;
+        m_skinMetaFg = skin.bubbleMeta;
+    } else if (theme == QLatin1String("dark")) {
         m_darkTheme = true;
     } else if (theme == QLatin1String("system")) {
         m_darkTheme = systemPrefersDark();
@@ -622,7 +659,22 @@ void Helper::applyAppTheme(QApplication *app)
         app->setStyle(fusion);
     }
 
-    if (m_darkTheme) {
+    if (skin.found) {
+        QPalette pal;
+        pal.setColor(QPalette::Window, skin.window);
+        pal.setColor(QPalette::WindowText, skin.windowText);
+        pal.setColor(QPalette::Base, skin.baseColor);
+        pal.setColor(QPalette::AlternateBase, skin.window);
+        pal.setColor(QPalette::Text, skin.text);
+        pal.setColor(QPalette::Button, skin.button);
+        pal.setColor(QPalette::ButtonText, skin.buttonText);
+        pal.setColor(QPalette::Highlight, skin.highlight);
+        pal.setColor(QPalette::HighlightedText, skin.highlightedText);
+        pal.setColor(QPalette::ToolTipBase, skin.toolTipBase);
+        pal.setColor(QPalette::ToolTipText, skin.toolTipText);
+        pal.setColor(QPalette::PlaceholderText, skin.placeholder);
+        app->setPalette(pal);
+    } else if (m_darkTheme) {
         QPalette pal;
         pal.setColor(QPalette::Window, QColor("#111827"));
         pal.setColor(QPalette::WindowText, QColor("#F9FAFB"));
@@ -652,8 +704,32 @@ void Helper::applyAppTheme(QApplication *app)
 
     QFile file(m_darkTheme ? QStringLiteral(":/themeDark.qss")
                            : QStringLiteral(":/theme.qss"));
+    QString sheet;
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        app->setStyleSheet(QString::fromUtf8(file.readAll()));
+        sheet = QString::fromUtf8(file.readAll());
+    }
+    if (skin.found && skin.qssOk && !skin.qss.isEmpty()) {
+        sheet.append(QLatin1Char('\n'));
+        sheet.append(skin.qss);
+    } else if (skin.found && !skin.qssProblem.isEmpty()) {
+        qWarning("Helper::applyAppTheme: skin QSS ignored (%s)",
+                 qPrintable(skin.qssProblem));
+    } else if (!skinId.isEmpty() && !skin.found) {
+        qWarning("Helper::applyAppTheme: skin '%s' missing, using built-in",
+                 qPrintable(skinId));
+    }
+    if (skin.found && !skin.backgroundPath.isEmpty()) {
+        QString url = QDir::fromNativeSeparators(skin.backgroundPath);
+        url.replace(QLatin1Char('\\'), QLatin1Char('/'));
+        url.replace(QLatin1Char('"'), QString());
+        sheet.append(QStringLiteral(
+                "\nQMainWindow, QDialog, #chatRoot {"
+                "background-image: url(\"%1\");"
+                "background-position: center;"
+                "background-repeat: no-repeat;}\n").arg(url));
+    }
+    if (!sheet.isEmpty()) {
+        app->setStyleSheet(sheet);
     }
 }
 

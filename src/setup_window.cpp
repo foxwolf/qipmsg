@@ -28,6 +28,8 @@
 #include "dataBackup.h"
 #include "sendThrottle.h"
 #include "themeName.h"
+#include "userSkin.h"
+#include "nicBind.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -100,12 +102,12 @@ DetailTab::DetailTab(QWidget *parent)
     }
 
     themeCombo = new QComboBox;
-    themeCombo->addItem(tr("Light"), QStringLiteral("light"));
-    themeCombo->addItem(tr("Dark"), QStringLiteral("dark"));
-    themeCombo->addItem(tr("Follow system"), QStringLiteral("system"));
-    const int themeIndex = themeCombo->findData(
-                normalizeThemeName(Global::preferences->themeName));
-    themeCombo->setCurrentIndex(themeIndex < 0 ? 0 : themeIndex);
+    fillThemes(normalizeThemeName(Global::preferences->themeName));
+    QPushButton *importSkinButton = new QPushButton(tr("Import skin"));
+    QMenu *skinMenu = new QMenu(importSkinButton);
+    skinMenu->addAction(tr("From folder..."), this, SLOT(importSkinFolder()));
+    skinMenu->addAction(tr("From zip..."), this, SLOT(importSkinZip()));
+    importSkinButton->setMenu(skinMenu);
 
     QLabel *intervalLabel = new QLabel(tr("Refresh interval:"));
     QLabel *staleLabel = new QLabel(tr("Mark stale after missed refreshes:"));
@@ -130,12 +132,16 @@ DetailTab::DetailTab(QWidget *parent)
     layout->addWidget(startHint, 11, 0, 1, 2);
     layout->addWidget(themeLabel, 12, 0);
     layout->addWidget(themeCombo, 12, 1);
+    layout->addWidget(importSkinButton, 13, 0, 1, 2);
     QLabel *themeHint = new QLabel(tr(
         "Light keeps the 2.4 messenger theme. Dark uses the same layout. "
         "Follow system uses the OS color scheme on Qt 6.5+, otherwise the "
-        "window color at startup. Open chats keep the bubbles they already drew."));
+        "window color at startup. A skin is a folder or zip under the skins "
+        "directory with skin.json, optional theme.qss, and an optional "
+        "background image. A broken QSS falls back to the built-in sheet. "
+        "Open chats keep the bubbles they already drew."));
     themeHint->setWordWrap(true);
-    layout->addWidget(themeHint, 13, 0, 1, 2);
+    layout->addWidget(themeHint, 14, 0, 1, 2);
 
     setLayout(layout);
 }
@@ -159,6 +165,77 @@ void DetailTab::save()
     if (qApp) {
         Helper::applyAppTheme(qApp);
     }
+    const QString skinProblem = UserSkin::lastProblem();
+    if (themeSkinId(Global::preferences->themeName).isEmpty()) {
+        return;
+    }
+    if (!skinProblem.isEmpty()) {
+        QMessageBox::information(this, tr("Appearance"),
+                tr("The skin is active, but its QSS was not applied (%1). "
+                   "The built-in light or dark sheet is still in use.")
+                .arg(skinProblem));
+    }
+}
+
+void DetailTab::fillThemes(const QString &selectId)
+{
+    const QString current = selectId.isEmpty()
+            ? themeCombo->currentData().toString() : selectId;
+    themeCombo->clear();
+    themeCombo->addItem(tr("Light"), QStringLiteral("light"));
+    themeCombo->addItem(tr("Dark"), QStringLiteral("dark"));
+    themeCombo->addItem(tr("Follow system"), QStringLiteral("system"));
+    const QList<SkinInfo> skins = UserSkin::installed();
+    for (int i = 0; i < skins.size(); ++i) {
+        const QString label = skins.at(i).name == skins.at(i).id
+                ? skins.at(i).id
+                : QString("%1 (%2)").arg(skins.at(i).name, skins.at(i).id);
+        themeCombo->addItem(tr("Skin: %1").arg(label),
+                            QStringLiteral("skin:") + skins.at(i).id);
+    }
+    const QString normalized = normalizeThemeName(current);
+    int index = themeCombo->findData(normalized);
+    if (index < 0 && !themeSkinId(normalized).isEmpty()) {
+        themeCombo->addItem(tr("Missing skin: %1").arg(themeSkinId(normalized)),
+                            normalized);
+        index = themeCombo->findData(normalized);
+    }
+    themeCombo->setCurrentIndex(index < 0 ? 0 : index);
+}
+
+void DetailTab::importSkinFolder()
+{
+    const QString dir = QFileDialog::getExistingDirectory(
+                this, tr("Skin folder"), UserSkin::rootDir());
+    if (dir.isEmpty()) {
+        return;
+    }
+    QString id;
+    QString error;
+    if (!UserSkin::importDirectory(dir, &id, &error)) {
+        QMessageBox::warning(this, tr("Import skin"),
+                             tr("Could not import that folder (%1).").arg(error));
+        return;
+    }
+    fillThemes(QStringLiteral("skin:") + id);
+}
+
+void DetailTab::importSkinZip()
+{
+    const QString path = QFileDialog::getOpenFileName(
+                this, tr("Skin zip"), UserSkin::rootDir(),
+                tr("Zip files (*.zip)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    QString id;
+    QString error;
+    if (!UserSkin::importZip(path, &id, &error)) {
+        QMessageBox::warning(this, tr("Import skin"),
+                             tr("Could not import that zip (%1).").arg(error));
+        return;
+    }
+    fillThemes(QStringLiteral("skin:") + id);
 }
 
 LogTab::LogTab(QWidget *parent)
@@ -453,12 +530,16 @@ NetworkTab::NetworkTab(QWidget *parent)
     fillBindCombo();
 
     QLabel *portLabel = new QLabel(tr("UDP listen port"));
-    QLabel *bindLabel = new QLabel(tr("Bind address"));
+    QLabel *bindLabel = new QLabel(tr("Bind interface"));
     QLabel *hint = new QLabel(tr(
         "Changes take effect after restart. UDP discovery and TCP file "
         "transfer use the same port (IPMSG / FeiQ, default 2425). "
-        "Empty / 0.0.0.0 binds any IPv4 NIC. Bind failure is logged and "
-        "the app continues (soft-fail)."));
+        "Any IPv4 keeps discovery on every NIC. Choosing a NIC stores its "
+        "MAC as the interface id (or the interface name when no MAC is "
+        "reported) and listens on that NIC's current IPv4. "
+        "%1 Bind failure is logged and the app continues (soft-fail). "
+        "A chosen NIC that is down does not fall back to the other NICs.")
+            .arg(NicBind::platformNote()));
     hint->setWordWrap(true);
 
     QGridLayout *layout = new QGridLayout;
@@ -475,38 +556,57 @@ NetworkTab::NetworkTab(QWidget *parent)
 void NetworkTab::fillBindCombo()
 {
     bindCombo->addItem(tr("Any IPv4 (0.0.0.0)"), QString());
-
-    foreach (const QNetworkInterface networkInterface,
-             QNetworkInterface::allInterfaces()) {
-        const QNetworkInterface::InterfaceFlags flags = networkInterface.flags();
-        if (!(flags & QNetworkInterface::IsUp)
-                || (flags & QNetworkInterface::IsLoopBack)) {
-            continue;
-        }
-        foreach (const QNetworkAddressEntry entry,
-                 networkInterface.addressEntries()) {
-            const QHostAddress ip = entry.ip();
-            if (ip.protocol() != QAbstractSocket::IPv4Protocol
-                    || ip.isLoopback()
-                    || ip.isNull()) {
-                continue;
-            }
-            const QString text = QString("%1 (%2)")
-                    .arg(ip.toString(), networkInterface.humanReadableName());
-            bindCombo->addItem(text, ip.toString());
-        }
+    const QList<NicRecord> nics = NicBind::localInterfaces();
+    for (int i = 0; i < nics.size(); ++i) {
+        const NicRecord &nic = nics.at(i);
+        const QString mac = nic.mac.isEmpty() ? tr("no MAC") : nic.mac;
+        const QString label = nic.humanName.isEmpty() ? nic.name : nic.humanName;
+        const QString text = QString("%1  %2  %3").arg(nic.ipv4, label, mac);
+        const int row = bindCombo->count();
+        bindCombo->addItem(text, nic.ipv4);
+        bindCombo->setItemData(row, nic.mac, Qt::UserRole + 1);
+        bindCombo->setItemData(row, nic.name, Qt::UserRole + 2);
+        bindCombo->setItemData(row, NicBind::interfaceId(nic.mac, nic.name),
+                               Qt::UserRole + 3);
     }
 
-    const QString current = Global::preferences->bindAddress.trimmed();
-    if (current.isEmpty()) {
+    const QString savedId = Global::preferences->bindInterfaceId.trimmed();
+    const QString savedMac = NicBind::normalizeMac(Global::preferences->bindMac);
+    const QString savedIp = Global::preferences->bindAddress.trimmed();
+    if (savedId.isEmpty() && savedMac.isEmpty()
+            && Global::preferences->bindInterfaceName.trimmed().isEmpty()
+            && (savedIp.isEmpty() || savedIp == QLatin1String("0.0.0.0"))) {
         bindCombo->setCurrentIndex(0);
         return;
     }
 
-    int index = bindCombo->findData(current);
+    int index = -1;
+    for (int i = 1; i < bindCombo->count(); ++i) {
+        const QString id = bindCombo->itemData(i, Qt::UserRole + 3).toString();
+        const QString mac = bindCombo->itemData(i, Qt::UserRole + 1).toString();
+        const QString name = bindCombo->itemData(i, Qt::UserRole + 2).toString();
+        const QString ip = bindCombo->itemData(i, Qt::UserRole).toString();
+        if ((!savedMac.isEmpty() && mac == savedMac)
+                || (!savedId.isEmpty() && id == savedId)
+                || (savedMac.isEmpty() && savedId.isEmpty()
+                    && !Global::preferences->bindInterfaceName.isEmpty()
+                    && name.compare(Global::preferences->bindInterfaceName,
+                                    Qt::CaseInsensitive) == 0)
+                || (savedMac.isEmpty()
+                    && Global::preferences->bindInterfaceName.isEmpty()
+                    && ip == savedIp)) {
+            index = i;
+            break;
+        }
+    }
     if (index < 0) {
-        bindCombo->addItem(current, current);
-        index = bindCombo->findData(current);
+        const QString label = savedId.isEmpty() ? savedIp : savedId;
+        bindCombo->addItem(tr("Saved interface %1").arg(label), savedIp);
+        index = bindCombo->count() - 1;
+        bindCombo->setItemData(index, savedMac, Qt::UserRole + 1);
+        bindCombo->setItemData(index, Global::preferences->bindInterfaceName,
+                               Qt::UserRole + 2);
+        bindCombo->setItemData(index, savedId, Qt::UserRole + 3);
     }
     bindCombo->setCurrentIndex(index);
 }
@@ -516,17 +616,27 @@ void NetworkTab::save()
     Global::preferences->udpPort = portSpin->value();
 
     const QString typed = bindCombo->currentText().trimmed();
+    const int index = bindCombo->currentIndex();
     QString address = bindCombo->currentData().toString();
-    if (bindCombo->currentIndex() == 0
+    QString mac = bindCombo->currentData(Qt::UserRole + 1).toString();
+    QString name = bindCombo->currentData(Qt::UserRole + 2).toString();
+    if (index == 0
             && (typed.isEmpty()
                 || typed == bindCombo->itemText(0)
                 || typed == QLatin1String("0.0.0.0"))) {
         address.clear();
-    } else if (address.isEmpty()) {
+        mac.clear();
+        name.clear();
+    } else if (address.isEmpty() && mac.isEmpty() && name.isEmpty()) {
         QHostAddress parsed(typed);
         address = parsed.isNull() ? QString() : parsed.toString();
     }
     Global::preferences->bindAddress = address;
+    Global::preferences->bindMac = NicBind::normalizeMac(mac);
+    Global::preferences->bindInterfaceName = name.trimmed();
+    Global::preferences->bindInterfaceId = NicBind::interfaceId(
+                Global::preferences->bindMac,
+                Global::preferences->bindInterfaceName);
 }
 
 void LogTab::getLogFilePath()

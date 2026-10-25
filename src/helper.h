@@ -104,6 +104,12 @@ private:
     static QString m_appPath;
     static QString m_iniPath;
     static bool m_darkTheme;
+    static bool m_skinColors;
+    static QColor m_skinInBg;
+    static QColor m_skinInFg;
+    static QColor m_skinOutBg;
+    static QColor m_skinOutFg;
+    static QColor m_skinMetaFg;
     static qint64 m_packetNo;
     static QFile m_internalLogFile;
     static QString m_internalLogFileName;

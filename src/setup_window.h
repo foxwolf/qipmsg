@@ -43,7 +43,12 @@ public:
 
     void save();
 
+private slots:
+    void importSkinFolder();
+    void importSkinZip();
+
 private:
+    void fillThemes(const QString &selectId);
     QCheckBox *autoMinimizeCheckBox;
     QCheckBox *singleClickCheckBox;
     QCheckBox *enableHotKeyCheckBox;

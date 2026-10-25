@@ -179,6 +179,9 @@ void ChatWindow::createUi()
     toolLayout->addWidget(makeToolButton(tr("Browse peer share"),
                                          tr("List a qipmsg shared folder. FeiQ share has no verified packet format."),
                                          SLOT(browsePeerShare())));
+    toolLayout->addWidget(makeToolButton(tr("Group folder"),
+                                         tr("Request files from a discussion folder this peer published."),
+                                         SLOT(browseGroupShare())));
     QToolButton *shot = makeToolButton(tr("Screenshot"),
                                        tr("Screenshot"), 0);
     QMenu *shotMenu = new QMenu(shot);
@@ -490,6 +493,33 @@ void ChatWindow::clearLocalPhoto()
 void ChatWindow::browsePeerShare()
 {
     ShareBrowser dialog(m_peerIp, this);
+    dialog.exec();
+}
+
+void ChatWindow::browseGroupShare()
+{
+    QString groupId;
+    if (Global::messageStore) {
+        const QList<ChatRecord> records =
+                Global::messageStore->loadHistory(m_peerIp, 200);
+        for (int i = 0; i < records.size(); ++i) {
+            if (records.at(i).direction == QLatin1String("out")) {
+                continue;
+            }
+            const QString found = ShareFolder::groupIdFromText(records.at(i).text);
+            if (!found.isEmpty()) {
+                groupId = found;
+            }
+        }
+    }
+    if (groupId.isEmpty()) {
+        QMessageBox::information(this, tr("Group folder"),
+                tr("No discussion-folder token from this peer yet. "
+                   "They publish it from their discussion window. "
+                   "FeiQ has no packet for this."));
+        return;
+    }
+    ShareBrowser dialog(m_peerIp, groupId, this);
     dialog.exec();
 }
 

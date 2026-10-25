@@ -108,6 +108,9 @@ public:
 
     int udpPort;
     QString bindAddress;
+    QString bindMac;
+    QString bindInterfaceName;
+    QString bindInterfaceId;
 
     quint16 listenPort() const;
     QHostAddress listenAddress() const;

@@ -23,6 +23,7 @@
 #include "mention_highlighter.h"
 #include "message_store.h"
 #include "richText.h"
+#include "shareFolder.h"
 #include "msg.h"
 #include "msg_thread.h"
 #include "send_msg.h"
@@ -31,10 +32,12 @@
 
 #include <QCloseEvent>
 #include <QDialog>
+#include <QFileDialog>
 #include <QDialogButtonBox>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QCursor>
+#include <QDir>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QHostAddress>
@@ -55,7 +58,8 @@
 
 DiscussionWindow::DiscussionWindow(const QString &groupId, QWidget *parent)
     : QWidget(parent), m_groupId(groupId), m_noticeBanner(0), m_noticeButton(0),
-      m_composerHighlight(0), m_historyLoaded(false)
+      m_shareLabel(0), m_shareList(0), m_shareSetButton(0), m_shareClearButton(0),
+      m_sharePublishButton(0), m_composerHighlight(0), m_historyLoaded(false)
 {
     createUi();
     refreshCaption();
@@ -167,6 +171,28 @@ void DiscussionWindow::createUi()
     sideLayout->addWidget(hint);
     sideLayout->addWidget(m_memberList, 1);
 
+    m_shareLabel = new QLabel(tr("No group folder yet."));
+    m_shareLabel->setObjectName("profileMeta");
+    m_shareLabel->setWordWrap(true);
+    m_shareList = new QListWidget;
+    m_shareList->setObjectName("profileForm");
+    m_shareSetButton = new QPushButton(tr("Set folder"));
+    m_shareClearButton = new QPushButton(tr("Clear folder"));
+    m_sharePublishButton = new QPushButton(tr("Tell the group"));
+    m_shareSetButton->setToolTip(tr(
+            "Folder on this computer for this discussion only."));
+    m_sharePublishButton->setToolTip(tr(
+            "Send the file names and a qipmsg token. Members request files "
+            "while you are online. This is not a FeiQ room."));
+    connect(m_shareSetButton, SIGNAL(clicked()), this, SLOT(chooseShareFolder()));
+    connect(m_shareClearButton, SIGNAL(clicked()), this, SLOT(clearShareFolder()));
+    connect(m_sharePublishButton, SIGNAL(clicked()), this, SLOT(publishShare()));
+    sideLayout->addWidget(m_shareLabel);
+    sideLayout->addWidget(m_shareList, 1);
+    sideLayout->addWidget(m_shareSetButton);
+    sideLayout->addWidget(m_shareClearButton);
+    sideLayout->addWidget(m_sharePublishButton);
+
     QSplitter *splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(chatPane);
     splitter->addWidget(side);
@@ -205,6 +231,7 @@ void DiscussionWindow::refreshCaption()
         }
     }
     refreshMembers();
+    refreshShare();
     QStringList names = mentionNames();
     const QString me = localName();
     if (!me.isEmpty() && !names.contains(me)) {
@@ -433,7 +460,11 @@ void DiscussionWindow::publishNotice(const QString &notice)
     const QString body = notice.isEmpty()
             ? tr("[Group notice cleared] %1").arg(m_group.name)
             : tr("[Group notice] %1\n%2").arg(m_group.name, notice);
+    deliverPlain(body);
+}
 
+void DiscussionWindow::deliverPlain(const QString &body)
+{
     QStringList reachable;
     if (Global::userManager) {
         foreach (const QString &ip, m_group.memberIps()) {
@@ -479,9 +510,116 @@ void DiscussionWindow::publishNotice(const QString &notice)
 
     if (reachable.isEmpty()) {
         QMessageBox::information(
-                this, tr("Group notice"),
+                this, tr("Discussion"),
                 tr("Saved on this computer. No online member received it."));
     }
+}
+
+void DiscussionWindow::refreshShare()
+{
+    if (!m_shareList || !m_shareLabel) {
+        return;
+    }
+    m_shareList->clear();
+    const QString path = m_group.sharePath.trimmed();
+    if (path.isEmpty()) {
+        m_shareLabel->setText(tr(
+                "No group folder yet. Set one on this computer, then tell the group. "
+                "Members can fetch files only while you are online."));
+        return;
+    }
+    m_shareLabel->setText(tr("This discussion folder: %1").arg(path));
+    QList<ShareEntry> entries;
+    bool truncated = false;
+    QString error;
+    if (!ShareFolder::listDirectory(path, QString(), &entries, &truncated, &error)) {
+        m_shareList->addItem(tr("Folder is not available (%1).").arg(error));
+        return;
+    }
+    if (entries.isEmpty()) {
+        m_shareList->addItem(tr("(empty)"));
+    }
+    for (int i = 0; i < entries.size(); ++i) {
+        const ShareEntry &entry = entries.at(i);
+        const QString kind = entry.directory ? tr("Folder") : tr("File");
+        m_shareList->addItem(QString("%1  %2").arg(entry.name, kind));
+    }
+    if (truncated) {
+        m_shareList->addItem(tr("List truncated."));
+    }
+}
+
+void DiscussionWindow::chooseShareFolder()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    const QString current = m_group.sharePath.isEmpty()
+            ? QDir::homePath() : m_group.sharePath;
+    const QString dir = QFileDialog::getExistingDirectory(
+                this, tr("Discussion folder"), current);
+    if (dir.isEmpty()) {
+        return;
+    }
+    if (QDir::cleanPath(dir) == QDir::cleanPath(m_group.sharePath)) {
+        return;
+    }
+    if (!Global::discussionStore->setSharePath(m_groupId, dir)) {
+        QMessageBox::warning(this, tr("Discussion folder"),
+                             tr("That folder could not be saved."));
+        return;
+    }
+    m_group = Global::discussionStore->groupById(m_groupId);
+    refreshShare();
+}
+
+void DiscussionWindow::clearShareFolder()
+{
+    if (!Global::discussionStore || m_group.sharePath.isEmpty()) {
+        return;
+    }
+    Global::discussionStore->setSharePath(m_groupId, QString());
+    m_group = Global::discussionStore->groupById(m_groupId);
+    refreshShare();
+}
+
+void DiscussionWindow::publishShare()
+{
+    if (m_group.sharePath.trimmed().isEmpty()) {
+        QMessageBox::information(this, tr("Discussion folder"),
+                tr("Set a folder on this computer first."));
+        return;
+    }
+    const QString token = ShareFolder::groupShareLine(m_group.id);
+    if (token.isEmpty()) {
+        return;
+    }
+    QList<ShareEntry> entries;
+    bool truncated = false;
+    QString error;
+    QStringList lines;
+    if (!ShareFolder::listDirectory(m_group.sharePath, QString(), &entries,
+                                    &truncated, &error)) {
+        lines << tr("Folder is not available right now.");
+    } else {
+        const int limit = qMin(entries.size(), 40);
+        for (int i = 0; i < limit; ++i) {
+            lines << (entries.at(i).directory
+                      ? entries.at(i).name + QLatin1Char('/')
+                      : entries.at(i).name);
+        }
+        if (truncated || entries.size() > limit) {
+            lines << tr("...");
+        }
+        if (lines.isEmpty()) {
+            lines << tr("(empty)");
+        }
+    }
+    const QString body = tr("[Group share] %1\n%2\n%3\n"
+                            "qipmsg peers can request these files while I am online. "
+                            "FeiQ cannot browse this folder.")
+            .arg(m_group.name, lines.join(QLatin1Char('\n')), token);
+    deliverPlain(body);
 }
 
 void DiscussionWindow::insertMention()

@@ -14,5 +14,5 @@
 // along with QIpMsg.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#define VERSION                 "2.36.10"
+#define VERSION                 "2.39.11"
 

@@ -93,7 +93,21 @@ ShareBrowser::ShareBrowser(const QString &ip, QWidget *parent)
       m_passwordEdit(0), m_upButton(0), m_refreshButton(0),
       m_downloadButton(0), m_table(0)
 {
-    setWindowTitle(tr("Browse peer share"));
+    init();
+}
+
+ShareBrowser::ShareBrowser(const QString &ip, const QString &groupId, QWidget *parent)
+    : QDialog(parent), m_ip(ip), m_groupId(groupId), m_busy(false), m_status(0),
+      m_pathLabel(0), m_passwordEdit(0), m_upButton(0), m_refreshButton(0),
+      m_downloadButton(0), m_table(0)
+{
+    init();
+}
+
+void ShareBrowser::init()
+{
+    const bool groupMode = !m_groupId.isEmpty();
+    setWindowTitle(groupMode ? tr("Discussion folder") : tr("Browse peer share"));
     resize(560, 420);
 
     m_status = new QLabel;
@@ -136,20 +150,34 @@ ShareBrowser::ShareBrowser(const QString &ip, QWidget *parent)
     layout->addWidget(m_table, 1);
     layout->addLayout(passRow);
 
+    if (!m_groupId.isEmpty()) {
+        m_passwordEdit->setEnabled(false);
+        m_passwordEdit->setPlaceholderText(tr("Group folder uses membership, not a password"));
+    }
     if (!peerReady()) {
         m_table->setEnabled(false);
         m_upButton->setEnabled(false);
         m_refreshButton->setEnabled(false);
         m_downloadButton->setEnabled(false);
         m_passwordEdit->setEnabled(false);
-        m_status->setText(tr(
-            "This peer is not advertising a qipmsg shared folder. "
-            "FeiQ's share protocol is not in the IPMSG spec and has no "
-            "verified packet format here, so a FeiQ share cannot be listed. "
-            "Turn on sharing in qipmsg Preferences, Detail, File."));
+        if (!m_groupId.isEmpty()) {
+            m_status->setText(tr(
+                "This peer is not a reachable qipmsg. FeiQ cannot serve a "
+                "discussion folder. The owner must be online with this version."));
+        } else {
+            m_status->setText(tr(
+                "This peer is not advertising a qipmsg shared folder. "
+                "FeiQ's share protocol is not in the IPMSG spec and has no "
+                "verified packet format here, so a FeiQ share cannot be listed. "
+                "Turn on sharing in qipmsg Preferences, Detail, File."));
+        }
         return;
     }
-    if (Global::userManager
+    if (!m_groupId.isEmpty()) {
+        m_status->setText(tr(
+            "Listing this discussion folder. Files stay under that folder only. "
+            "FeiQ peers still have no share browser."));
+    } else if (Global::userManager
             && ShareFolder::tokenHasLock(Global::userManager->peerQipToken(m_ip))) {
         m_status->setText(tr("This share asks for a password."));
     } else {
@@ -167,7 +195,19 @@ bool ShareBrowser::peerReady() const
     if (!Global::userManager->isReachable(m_ip)) {
         return false;
     }
-    return ShareFolder::tokenHasShare(Global::userManager->peerQipToken(m_ip));
+    const QString token = Global::userManager->peerQipToken(m_ip);
+    if (!m_groupId.isEmpty()) {
+        return ShareFolder::tokenIsQipmsg(token) && ShareFolder::groupIdOk(m_groupId);
+    }
+    return ShareFolder::tokenHasShare(token);
+}
+
+QByteArray ShareBrowser::makeRequest(const QString &verb, const QString &relative) const
+{
+    if (!m_groupId.isEmpty()) {
+        return ShareFolder::buildGroupRequest(verb, relative, m_groupId, 0);
+    }
+    return ShareFolder::buildRequest(verb, relative, m_password, 0);
 }
 
 QString ShareBrowser::currentRelative() const
@@ -234,8 +274,7 @@ bool ShareBrowser::fetchList()
 {
     m_busy = true;
     QString error;
-    const QByteArray request = ShareFolder::buildRequest(
-                QStringLiteral("LIST"), m_relative, m_password, 0);
+    const QByteArray request = makeRequest(QStringLiteral("LIST"), m_relative);
     const QByteArray payload = exchange(request, &error, QString(), 0);
     m_busy = false;
     if (!error.isEmpty()) {
@@ -289,8 +328,9 @@ bool ShareBrowser::downloadEntry(const ShareEntry &entry)
 
     m_busy = true;
     QString error;
-    const QByteArray request = ShareFolder::buildRequest(
-                QStringLiteral("GET"), rel, m_password, 0);
+    const QByteArray request = m_groupId.isEmpty()
+            ? ShareFolder::buildRequest(QStringLiteral("GET"), rel, m_password, 0)
+            : ShareFolder::buildGroupRequest(QStringLiteral("GET"), rel, m_groupId, 0);
     qint64 wrote = 0;
     exchange(request, &error, savePath, &wrote);
     m_busy = false;

@@ -18,6 +18,8 @@ HEADERS += \
 	shareBrowser.h \
 	shareFolder.h \
 	themeName.h \
+	userSkin.h \
+	nicBind.h \
 	dataBackup.h \
 	msg_server.h \
 	constants.h \
@@ -99,6 +101,9 @@ SOURCES += \
 	fileHashIndex.cpp \
 	shareBrowser.cpp \
 	shareFolder.cpp \
+	userSkin.cpp \
+	nicBind.cpp \
+	puffInflate.cpp \
 	dataBackup.cpp \
 	dataBackupUi.cpp \
 	msg_server.cpp \
