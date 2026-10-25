@@ -173,6 +173,8 @@ make
 
 ## Version
 
+**2.30.7** includes `QStyleHints` so Qt 6.5 follow-system appearance builds on Windows MSVC, on top of **2.30.6**.
+
 **2.30.6** adds a local file-hash index with qipmsg instant skip, qipmsg shared-folder browse and download on the existing file port, and a light / dark / system theme, on top of **2.27.5**.
 
 ## Trying 2.30.6 instant skip, share browse, and dark theme
