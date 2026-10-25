@@ -15,6 +15,7 @@
 //
 
 #include "discussion_window.h"
+#include "groupLog.h"
 #include "msgCrypto.h"
 #include "constants.h"
 #include "global.h"
@@ -30,8 +31,10 @@
 #include "user_manager.h"
 #include "window_manager.h"
 
+#include <QCheckBox>
 #include <QCloseEvent>
 #include <QDialog>
+#include <QFile>
 #include <QFileDialog>
 #include <QDialogButtonBox>
 #include <QMessageBox>
@@ -43,6 +46,7 @@
 #include <QHostAddress>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
 #include <QPushButton>
@@ -59,7 +63,8 @@
 DiscussionWindow::DiscussionWindow(const QString &groupId, QWidget *parent)
     : QWidget(parent), m_groupId(groupId), m_noticeBanner(0), m_noticeButton(0),
       m_shareLabel(0), m_shareList(0), m_shareSetButton(0), m_shareClearButton(0),
-      m_sharePublishButton(0), m_composerHighlight(0), m_historyLoaded(false)
+      m_sharePublishButton(0), m_logStatus(0), m_logList(0), m_logEdit(0),
+      m_logTell(0), m_composerHighlight(0), m_historyLoaded(false)
 {
     createUi();
     refreshCaption();
@@ -171,6 +176,36 @@ void DiscussionWindow::createUi()
     sideLayout->addWidget(hint);
     sideLayout->addWidget(m_memberList, 1);
 
+    QLabel *logTitle = new QLabel(tr("Group log"));
+    logTitle->setObjectName("profileName");
+    m_logStatus = new QLabel(tr("Local notes for this discussion. Not a FeiQ room."));
+    m_logStatus->setObjectName("profileMeta");
+    m_logStatus->setWordWrap(true);
+    m_logList = new QListWidget;
+    m_logList->setObjectName("profileForm");
+    m_logList->setMaximumHeight(120);
+    m_logList->setWordWrap(true);
+    m_logEdit = new QLineEdit;
+    m_logEdit->setMaxLength(500);
+    m_logEdit->setPlaceholderText(tr("Short log note"));
+    m_logTell = new QCheckBox(tr("Tell online members"));
+    m_logTell->setChecked(true);
+    m_logTell->setToolTip(tr(
+            "Also send this note as plain text. Offline members are not queued. "
+            "This is not a FeiQ room protocol."));
+    QPushButton *logAdd = new QPushButton(tr("Add log entry"));
+    QPushButton *logExport = new QPushButton(tr("Export log"));
+    connect(logAdd, SIGNAL(clicked()), this, SLOT(addLogEntry()));
+    connect(logExport, SIGNAL(clicked()), this, SLOT(exportLog()));
+    connect(m_logEdit, SIGNAL(returnPressed()), this, SLOT(addLogEntry()));
+    sideLayout->addWidget(logTitle);
+    sideLayout->addWidget(m_logStatus);
+    sideLayout->addWidget(m_logList);
+    sideLayout->addWidget(m_logEdit);
+    sideLayout->addWidget(m_logTell);
+    sideLayout->addWidget(logAdd);
+    sideLayout->addWidget(logExport);
+
     m_shareLabel = new QLabel(tr("No group folder yet."));
     m_shareLabel->setObjectName("profileMeta");
     m_shareLabel->setWordWrap(true);
@@ -232,6 +267,7 @@ void DiscussionWindow::refreshCaption()
     }
     refreshMembers();
     refreshShare();
+    refreshLog();
     QStringList names = mentionNames();
     const QString me = localName();
     if (!me.isEmpty() && !names.contains(me)) {
@@ -620,6 +656,98 @@ void DiscussionWindow::publishShare()
                             "FeiQ cannot browse this folder.")
             .arg(m_group.name, lines.join(QLatin1Char('\n')), token);
     deliverPlain(body);
+}
+
+void DiscussionWindow::refreshLog()
+{
+    if (!m_logList) {
+        return;
+    }
+    m_logList->clear();
+    const QList<GroupLogEntry> rows = GroupLog::load(m_groupId, 200);
+    if (rows.isEmpty()) {
+        m_logList->addItem(tr("No log entries yet."));
+        return;
+    }
+    for (int i = 0; i < rows.size(); ++i) {
+        const GroupLogEntry &entry = rows.at(i);
+        m_logList->addItem(QString("%1  %2: %3")
+                           .arg(entry.when, entry.author, entry.text));
+    }
+}
+
+void DiscussionWindow::addLogEntry()
+{
+    if (!m_logEdit) {
+        return;
+    }
+    const QString text = m_logEdit->text().trimmed();
+    if (text.isEmpty()) {
+        QMessageBox::information(this, tr("Group log"),
+                                 tr("Write a short note first."));
+        return;
+    }
+    QString error;
+    if (!GroupLog::append(m_groupId, localName(), text, &error)) {
+        QString message = tr("Could not write the log.");
+        if (error == QLatin1String("full")) {
+            message = tr("This log file is full (2 MB). Export it before adding more.");
+        } else if (error == QLatin1String("empty")) {
+            message = tr("Write a short note first.");
+        } else if (error == QLatin1String("id")) {
+            message = tr("This discussion cannot store a log.");
+        }
+        QMessageBox::warning(this, tr("Group log"), message);
+        return;
+    }
+    m_logEdit->clear();
+    refreshLog();
+    if (m_logStatus) {
+        m_logStatus->setText(tr("Saved on this computer."));
+    }
+    if (m_logTell && m_logTell->isChecked()) {
+        const QString body = tr("[Group log] %1\n%2").arg(m_group.name, text);
+        deliverPlain(body);
+    }
+}
+
+void DiscussionWindow::exportLog()
+{
+    const QList<GroupLogEntry> rows = GroupLog::load(m_groupId, 1);
+    if (rows.isEmpty()) {
+        QMessageBox::information(this, tr("Group log"),
+                                 tr("There is nothing to export."));
+        return;
+    }
+    const QString path = QFileDialog::getSaveFileName(
+                this, tr("Export group log"),
+                QDir::homePath(),
+                tr("Text (*.txt);;JSON lines (*.jsonl)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    QByteArray bytes;
+    if (path.endsWith(QLatin1String(".jsonl"), Qt::CaseInsensitive)) {
+        QFile in(GroupLog::filePath(m_groupId));
+        if (!in.open(QIODevice::ReadOnly)) {
+            QMessageBox::warning(this, tr("Group log"),
+                                 tr("Could not read the log."));
+            return;
+        }
+        bytes = in.readAll();
+    } else {
+        bytes = GroupLog::exportPlain(m_groupId).toUtf8();
+    }
+    QFile out(path);
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate)
+            || out.write(bytes) != bytes.size()) {
+        QMessageBox::warning(this, tr("Group log"),
+                             tr("Could not write %1.").arg(path));
+        return;
+    }
+    if (m_logStatus) {
+        m_logStatus->setText(tr("Exported to %1.").arg(path));
+    }
 }
 
 void DiscussionWindow::insertMention()

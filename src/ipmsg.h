@@ -87,8 +87,10 @@
    is an optional formatting sidecar for the plain SENDMSG with that packet
    number. The SENDMSG body stays plain text so FeiQ still displays it.
    TCP body on the file port lists or downloads a qipmsg shared folder
-   (see shareFolder). FeiQ ignores unknown modes; we do not send this to
-   peers that did not advertise "qipmsg". */
+   (see shareFolder) and, with verb AVATAR, returns a small PNG
+   (see avatarWire). FeiQ has no verified photo opcode. FeiQ ignores
+   unknown modes; we do not send this to peers that did not advertise
+   "qipmsg". */
 #define IPMSG_QIPMSG_EXT		126UL
 
 /*  option for all command  */

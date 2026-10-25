@@ -5,10 +5,14 @@
 #include "userSkin.h"
 #include "nicBind.h"
 #include "themeName.h"
+#include "avatarWire.h"
+#include "groupLog.h"
+#include "doodleCanvas.h"
 
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QImage>
 #include <QTemporaryDir>
 #include <QTextCharFormat>
 #include <QTextCursor>
@@ -382,6 +386,86 @@ int main(int argc, char **argv)
     CHECK(NicBind::interfaceId(QString(), QStringLiteral("eth0"))
           == QStringLiteral("eth0"));
     CHECK(NicBind::platformNote().size() > 8);
+
+    QImage swatch(8, 8, QImage::Format_RGB32);
+    swatch.fill(Qt::red);
+    QString wireError;
+    const QByteArray png = AvatarWire::makeWirePng(swatch, &wireError);
+    CHECK(wireError.isEmpty());
+    CHECK(AvatarWire::pngLooksOk(png));
+    const QString photoId = AvatarWire::shortIdOf(png);
+    CHECK(AvatarWire::idOk(photoId));
+    CHECK(photoId.size() == AvatarWire::idHexLen);
+    QString headerError;
+    const QByteArray header = AvatarWire::headerFor(png, &headerError);
+    CHECK(headerError.isEmpty());
+    const QByteArray framed = header + png;
+    QString gotId;
+    QString gotErr;
+    int gotBytes = 0;
+    const int headerAt = AvatarWire::takeHeader(framed, &gotId, &gotBytes, &gotErr);
+    CHECK(headerAt > 0);
+    CHECK(gotId == photoId);
+    CHECK(gotBytes == png.size());
+    CHECK(gotErr.isEmpty());
+    CHECK(AvatarWire::isRequest(AvatarWire::buildRequest()));
+    CHECK(!AvatarWire::isRequest(QByteArray("1:1:qip:qipmsg:7e:LIST:::\n")));
+    CHECK(!AvatarWire::isRequest(QByteArray("INSTANT:1:2:abcd\n")));
+    CHECK(AvatarWire::hashFromToken(QStringLiteral("qipmsg,share,av:") + photoId)
+          == photoId);
+    CHECK(AvatarWire::hashFromToken(QStringLiteral("qipmsg,share,lock")).isEmpty());
+    CHECK(AvatarWire::hashFromToken(
+              QStringLiteral("1_lbt6_0#128#001122334455#0#0#0#4001#9")).isEmpty());
+    QString errId;
+    QString errCode;
+    int errBytes = 0;
+    const int errAt = AvatarWire::takeHeader(
+                QByteArray("QIP1\nERR none\n"), &errId, &errBytes, &errCode);
+    CHECK(errAt > 0);
+    CHECK(errCode == QLatin1String("none"));
+    CHECK(errBytes < 0);
+    CHECK(AvatarWire::takeHeader(QByteArray("QIP1"), 0, 0, 0) == -1);
+    CHECK(AvatarWire::takeHeader(QByteArray("NOPE\nX\n"), 0, 0, 0) == -2);
+
+    QTemporaryDir logDir;
+    CHECK(logDir.isValid());
+    GroupLog::setStorageDirForTest(logDir.path());
+    QString logError;
+    CHECK(GroupLog::append(QStringLiteral("12-3"), QStringLiteral("me"),
+                           QStringLiteral("hello log"), &logError));
+    CHECK(logError.isEmpty());
+    CHECK(!GroupLog::append(QStringLiteral("12-3"), QStringLiteral("me"),
+                            QStringLiteral("   "), &logError));
+    CHECK(logError == QLatin1String("empty"));
+    CHECK(!GroupLog::append(QStringLiteral("../x"), QStringLiteral("me"),
+                            QStringLiteral("no"), &logError));
+    CHECK(logError == QLatin1String("id"));
+    const QList<GroupLogEntry> logRows = GroupLog::load(QStringLiteral("12-3"), 10);
+    CHECK(logRows.size() == 1);
+    CHECK(logRows.at(0).text == QStringLiteral("hello log"));
+    CHECK(logRows.at(0).author == QStringLiteral("me"));
+    CHECK(GroupLog::exportPlain(QStringLiteral("12-3")).contains(QStringLiteral("hello log")));
+    CHECK(GroupLog::filePath(QStringLiteral("12-3")).endsWith(QStringLiteral("12-3.jsonl")));
+
+    QVector<DoodleStroke> strokes;
+    DoodleStroke stroke;
+    stroke.color = Qt::black;
+    stroke.points << QPoint(2, 2) << QPoint(28, 28);
+    strokes.append(stroke);
+    const QImage drawn = DoodleCanvas::render(QSize(32, 32), strokes);
+    CHECK(!drawn.isNull());
+    CHECK(drawn.size() == QSize(32, 32));
+    int dark = 0;
+    for (int y = 0; y < drawn.height(); ++y) {
+        for (int x = 0; x < drawn.width(); ++x) {
+            if (drawn.pixelColor(x, y).value() < 250) {
+                ++dark;
+            }
+        }
+    }
+    CHECK(dark > 0);
+    const QImage blank = DoodleCanvas::render(QSize(16, 16), QVector<DoodleStroke>());
+    CHECK(blank.pixelColor(0, 0) == QColor(Qt::white));
 
     if (g_fails != 0) {
         std::fprintf(stderr, "%d checks failed\n", g_fails);

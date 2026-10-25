@@ -41,6 +41,7 @@
 #include "stickerStore.h"
 #include "recentStore.h"
 #include "avatarStore.h"
+#include "avatarFetch.h"
 #include "msgCrypto.h"
 
 SendFileManager *Global::sendFileManager = 0;
@@ -57,6 +58,7 @@ GroupPolicy *Global::groupPolicy = 0;
 StickerStore *Global::stickerStore = 0;
 RecentStore *Global::recentStore = 0;
 AvatarStore *Global::avatarStore = 0;
+AvatarFetch *Global::avatarFetch = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -109,6 +111,9 @@ void Global::globalInit(QString path)
     soundThread = new SoundThread;
 
     userManager = new UserManager;
+    avatarFetch = new AvatarFetch;
+    QObject::connect(avatarStore, SIGNAL(selfPhotoChanged()),
+                     avatarFetch, SLOT(republish()));
     windowManager = new WindowManager;
 
     systray = new Systray;
@@ -119,6 +124,9 @@ void Global::globalEnd()
     qDebug("Global::globalEnd");
 
     delete sendFileManager;
+
+    delete avatarFetch;
+    avatarFetch = 0;
 
     delete userManager;
 

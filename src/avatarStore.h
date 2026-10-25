@@ -17,16 +17,19 @@
 #ifndef AVATARSTORE_H
 #define AVATARSTORE_H
 
+#include <QByteArray>
 #include <QColor>
 #include <QHash>
+#include <QMutex>
 #include <QObject>
 #include <QPixmap>
 #include <QString>
 
 class QWidget;
 
-// Local PNG copies under ~/.qipmsg/avatars. Nothing is put on the wire.
-// "self" is this user. Any other key is a peer address stored only here.
+// PNG copies under ~/.qipmsg/avatars. A manual file for an IP overrides
+// the wire copy in avatars/wire/. "self" is this user. self-wire.png is
+// the small PNG advertised to other qipmsg peers.
 
 class AvatarStore : public QObject
 {
@@ -43,13 +46,39 @@ public:
     bool chooseAndSet(const QString &key, QWidget *parent);
     void noteFilesChanged();
 
+    QString selfWireId();
+    QByteArray selfWireBytes();
+
+    bool hasManual(const QString &key) const;
+    bool hasWire(const QString &key) const;
+    QString wireId(const QString &key) const;
+    QString skipId(const QString &key) const;
+    QString status(const QString &key) const;
+
+    void setStatus(const QString &key, const QString &text);
+    void setWireHidden(const QString &key, bool hidden);
+    void writeSkip(const QString &key, const QString &id);
+    void clearManual(const QString &key);
+    void clearWire(const QString &key);
+    bool saveWire(const QString &key, const QByteArray &png, const QString &id,
+                  QString *error);
+
 signals:
     void changed();
+    void selfPhotoChanged();
 
 private:
     QString fileForKey(const QString &key) const;
+    QString wirePathFor(const QString &key) const;
+    QString wireIdPath(const QString &key) const;
+    QString skipPath(const QString &key) const;
+    QString selfWirePath() const;
+    bool ensureSelfWire();
 
+    mutable QMutex m_lock;
     mutable QHash<QString, QPixmap> m_cache;
+    QHash<QString, QString> m_status;
+    QHash<QString, bool> m_wireHidden;
 };
 
 #endif // !AVATARSTORE_H

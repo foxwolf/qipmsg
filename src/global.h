@@ -41,6 +41,7 @@ class GroupPolicy;
 class StickerStore;
 class RecentStore;
 class AvatarStore;
+class AvatarFetch;
 
 namespace Global
 {
@@ -60,6 +61,7 @@ namespace Global
     extern StickerStore *stickerStore;
     extern RecentStore *recentStore;
     extern AvatarStore *avatarStore;
+    extern AvatarFetch *avatarFetch;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

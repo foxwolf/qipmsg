@@ -15,6 +15,7 @@
 //
 
 #include "avatarStore.h"
+#include "avatarWire.h"
 #include "helper.h"
 
 #include <QCoreApplication>
@@ -25,6 +26,7 @@
 #include <QImage>
 #include <QImageReader>
 #include <QMessageBox>
+#include <QMutexLocker>
 #include <QSaveFile>
 
 namespace {
@@ -72,9 +74,51 @@ QString AvatarStore::fileForKey(const QString &key) const
             + QLatin1String(".png");
 }
 
+QString AvatarStore::wirePathFor(const QString &key) const
+{
+    const QString manual = fileForKey(key);
+    if (manual.isEmpty() || key.trimmed() == selfKey()) {
+        return QString();
+    }
+    const QString base = QFileInfo(manual).completeBaseName();
+    return Helper::appHomePath() + QLatin1String("/avatars/wire/") + base
+            + QLatin1String(".png");
+}
+
+QString AvatarStore::wireIdPath(const QString &key) const
+{
+    const QString png = wirePathFor(key);
+    if (png.isEmpty()) {
+        return QString();
+    }
+    return png.left(png.size() - 4) + QLatin1String(".id");
+}
+
+QString AvatarStore::skipPath(const QString &key) const
+{
+    const QString png = wirePathFor(key);
+    if (png.isEmpty()) {
+        return QString();
+    }
+    return png.left(png.size() - 4) + QLatin1String(".skip");
+}
+
+QString AvatarStore::selfWirePath() const
+{
+    return Helper::appHomePath() + QLatin1String("/avatars/self-wire.png");
+}
+
 QPixmap AvatarStore::rounded(const QString &key, int size, const QColor &status) const
 {
-    const QString path = fileForKey(key);
+    QMutexLocker locker(&m_lock);
+    QString path = fileForKey(key);
+    const bool manual = !path.isEmpty() && QFileInfo::exists(path);
+    if (!manual) {
+        if (key.trimmed() != selfKey() && m_wireHidden.value(key, false)) {
+            return QPixmap();
+        }
+        path = (key.trimmed() == selfKey()) ? QString() : wirePathFor(key);
+    }
     if (path.isEmpty() || !QFileInfo::exists(path)) {
         return QPixmap();
     }
@@ -90,6 +134,7 @@ QPixmap AvatarStore::rounded(const QString &key, int size, const QColor &status)
         source = QPixmap::fromImage(image);
         m_cache.insert(path, source);
     }
+    locker.unlock();
     return Helper::roundAvatar(source, size, status);
 }
 
@@ -143,8 +188,17 @@ bool AvatarStore::setFromFile(const QString &key, const QString &source, QString
         }
         return false;
     }
-    m_cache.remove(dest);
+    {
+        QMutexLocker locker(&m_lock);
+        m_cache.remove(dest);
+    }
     emit changed();
+    if (key == selfKey()) {
+        emit selfPhotoChanged();
+    } else {
+        setStatus(key, tr("Using a photo set on this computer. "
+                          "It overrides the peer photo."));
+    }
     return true;
 }
 
@@ -155,8 +209,18 @@ void AvatarStore::clearKey(const QString &key)
         return;
     }
     QFile::remove(dest);
-    m_cache.remove(dest);
+    if (key == selfKey()) {
+        QFile::remove(selfWirePath());
+    }
+    {
+        QMutexLocker locker(&m_lock);
+        m_cache.remove(dest);
+        m_cache.remove(selfWirePath());
+    }
     emit changed();
+    if (key == selfKey()) {
+        emit selfPhotoChanged();
+    }
 }
 
 bool AvatarStore::chooseAndSet(const QString &key, QWidget *parent)
@@ -182,6 +246,246 @@ bool AvatarStore::chooseAndSet(const QString &key, QWidget *parent)
 
 void AvatarStore::noteFilesChanged()
 {
+    QMutexLocker locker(&m_lock);
     m_cache.clear();
+    locker.unlock();
     emit changed();
+}
+
+bool AvatarStore::ensureSelfWire()
+{
+    const QString selfPath = fileForKey(selfKey());
+    const QString wirePath = selfWirePath();
+    if (selfPath.isEmpty() || !QFileInfo::exists(selfPath)) {
+        QFile::remove(wirePath);
+        return false;
+    }
+    const QFileInfo selfInfo(selfPath);
+    const QFileInfo wireInfo(wirePath);
+    if (wireInfo.exists() && wireInfo.lastModified() >= selfInfo.lastModified()
+            && wireInfo.size() > 0 && wireInfo.size() <= AvatarWire::maxPngBytes) {
+        return true;
+    }
+
+    QImageReader reader(selfPath);
+    reader.setAutoTransform(true);
+    const QImage image = reader.read();
+    QString error;
+    const QByteArray png = AvatarWire::makeWirePng(image, &error);
+    if (png.isEmpty()) {
+        QFile::remove(wirePath);
+        return false;
+    }
+    QDir().mkpath(QFileInfo(wirePath).absolutePath());
+    QSaveFile out(wirePath);
+    if (!out.open(QIODevice::WriteOnly) || out.write(png) != png.size() || !out.commit()) {
+        QFile::remove(wirePath);
+        return false;
+    }
+    return true;
+}
+
+QString AvatarStore::selfWireId()
+{
+    QMutexLocker locker(&m_lock);
+    if (!ensureSelfWire()) {
+        return QString();
+    }
+    QFile file(selfWirePath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+    const QByteArray bytes = file.read(AvatarWire::maxPngBytes + 1);
+    if (!AvatarWire::pngLooksOk(bytes)) {
+        return QString();
+    }
+    return AvatarWire::shortIdOf(bytes);
+}
+
+QByteArray AvatarStore::selfWireBytes()
+{
+    QMutexLocker locker(&m_lock);
+    if (!ensureSelfWire()) {
+        return QByteArray();
+    }
+    QFile file(selfWirePath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QByteArray();
+    }
+    const QByteArray bytes = file.read(AvatarWire::maxPngBytes + 1);
+    if (!AvatarWire::pngLooksOk(bytes)) {
+        return QByteArray();
+    }
+    return bytes;
+}
+
+bool AvatarStore::hasManual(const QString &key) const
+{
+    if (key.trimmed().isEmpty() || key.trimmed() == selfKey()) {
+        return false;
+    }
+    const QString path = fileForKey(key);
+    return !path.isEmpty() && QFileInfo::exists(path);
+}
+
+bool AvatarStore::hasWire(const QString &key) const
+{
+    const QString path = wirePathFor(key);
+    return !path.isEmpty() && QFileInfo::exists(path);
+}
+
+QString AvatarStore::wireId(const QString &key) const
+{
+    const QString idPath = wireIdPath(key);
+    if (!idPath.isEmpty()) {
+        QFile file(idPath);
+        if (file.open(QIODevice::ReadOnly)) {
+            const QString id = QString::fromLatin1(file.readAll()).trimmed().toLower();
+            if (AvatarWire::idOk(id)) {
+                return id;
+            }
+        }
+    }
+    const QString pngPath = wirePathFor(key);
+    QFile png(pngPath);
+    if (!png.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+    const QByteArray bytes = png.read(AvatarWire::maxPngBytes + 1);
+    if (!AvatarWire::pngLooksOk(bytes)) {
+        return QString();
+    }
+    return AvatarWire::shortIdOf(bytes);
+}
+
+QString AvatarStore::skipId(const QString &key) const
+{
+    const QString path = skipPath(key);
+    if (path.isEmpty()) {
+        return QString();
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+    return QString::fromLatin1(file.readAll()).trimmed();
+}
+
+QString AvatarStore::status(const QString &key) const
+{
+    QMutexLocker locker(&m_lock);
+    return m_status.value(key);
+}
+
+void AvatarStore::setStatus(const QString &key, const QString &text)
+{
+    {
+        QMutexLocker locker(&m_lock);
+        if (m_status.value(key) == text) {
+            return;
+        }
+        m_status.insert(key, text);
+    }
+    emit changed();
+}
+
+void AvatarStore::setWireHidden(const QString &key, bool hidden)
+{
+    {
+        QMutexLocker locker(&m_lock);
+        if (m_wireHidden.value(key, false) == hidden) {
+            return;
+        }
+        m_wireHidden.insert(key, hidden);
+        m_cache.remove(wirePathFor(key));
+    }
+    emit changed();
+}
+
+void AvatarStore::writeSkip(const QString &key, const QString &id)
+{
+    const QString path = skipPath(key);
+    if (path.isEmpty()) {
+        return;
+    }
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return;
+    }
+    file.write(id.toLatin1());
+}
+
+void AvatarStore::clearManual(const QString &key)
+{
+    const QString dest = fileForKey(key);
+    if (dest.isEmpty()) {
+        return;
+    }
+    QFile::remove(dest);
+    {
+        QMutexLocker locker(&m_lock);
+        m_cache.remove(dest);
+    }
+    emit changed();
+}
+
+void AvatarStore::clearWire(const QString &key)
+{
+    const QString dest = wirePathFor(key);
+    if (!dest.isEmpty()) {
+        QFile::remove(dest);
+        QFile::remove(wireIdPath(key));
+    }
+    {
+        QMutexLocker locker(&m_lock);
+        m_cache.remove(dest);
+    }
+    emit changed();
+}
+
+bool AvatarStore::saveWire(const QString &key, const QByteArray &png,
+                           const QString &id, QString *error)
+{
+    if (!AvatarWire::pngLooksOk(png) || AvatarWire::shortIdOf(png) != id) {
+        if (error) {
+            *error = tr("The photo data was not a readable PNG.");
+        }
+        return false;
+    }
+    const QString path = wirePathFor(key);
+    const QString idFile = wireIdPath(key);
+    if (path.isEmpty() || idFile.isEmpty()) {
+        if (error) {
+            *error = tr("Could not store that photo.");
+        }
+        return false;
+    }
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile out(path);
+    if (!out.open(QIODevice::WriteOnly) || out.write(png) != png.size() || !out.commit()) {
+        if (error) {
+            *error = tr("Could not store that photo.");
+        }
+        return false;
+    }
+    QFile idOut(idFile);
+    if (!idOut.open(QIODevice::WriteOnly | QIODevice::Truncate)
+            || idOut.write(id.toLatin1()) != id.size()) {
+        if (error) {
+            *error = tr("Could not store that photo.");
+        }
+        return false;
+    }
+    QFile::remove(skipPath(key));
+    {
+        QMutexLocker locker(&m_lock);
+        m_cache.remove(path);
+        m_wireHidden.insert(key, false);
+    }
+    if (error) {
+        error->clear();
+    }
+    emit changed();
+    return true;
 }

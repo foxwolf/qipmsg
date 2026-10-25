@@ -30,6 +30,8 @@
 #include "screen_capture.h"
 #include "shotEditor.h"
 #include "avatarStore.h"
+#include "avatarFetch.h"
+#include "doodleCanvas.h"
 #include "send_file_manager.h"
 #include "send_file_map.h"
 #include "send_file_window.h"
@@ -190,6 +192,9 @@ void ChatWindow::createUi()
     shot->setMenu(shotMenu);
     shot->setPopupMode(QToolButton::InstantPopup);
     toolLayout->addWidget(shot);
+    toolLayout->addWidget(makeToolButton(tr("Doodle"),
+                                         tr("Draw a picture and send it as an image attachment."),
+                                         SLOT(openDoodle())));
     toolLayout->addWidget(makeToolButton(tr("Emoji"),
                                          tr("Emoji and custom stickers"),
                                          SLOT(showEmojiPicker())));
@@ -374,15 +379,24 @@ void ChatWindow::createUi()
     profileLayout->addWidget(profileTitle);
     profileLayout->addSpacing(8);
     profileLayout->addWidget(m_profileAvatar, 0, Qt::AlignHCenter);
+    m_photoStatus = new QLabel;
+    m_photoStatus->setObjectName("profileMeta");
+    m_photoStatus->setWordWrap(true);
+    m_photoStatus->setAlignment(Qt::AlignCenter);
     m_localPhotoButton = new QPushButton(tr("Local photo..."));
     m_localPhotoButton->setToolTip(tr(
-            "PNG or JPEG shown for this IP on this computer only. "
-            "FeiQ peers still see a color block."));
+            "PNG or JPEG for this IP on this computer. It overrides a photo "
+            "fetched from another qipmsg. FeiQ still has no photo packet."));
     m_clearPhotoButton = new QPushButton(tr("Clear local photo"));
+    m_clearPhotoButton->setToolTip(tr(
+            "Remove the photo set on this computer. A fetched qipmsg photo "
+            "can show again. If only a fetched photo is saved, it stays "
+            "hidden until that peer publishes a different one."));
     connect(m_localPhotoButton, SIGNAL(clicked()),
             this, SLOT(setLocalPhoto()));
     connect(m_clearPhotoButton, SIGNAL(clicked()),
             this, SLOT(clearLocalPhoto()));
+    profileLayout->addWidget(m_photoStatus);
     profileLayout->addWidget(m_localPhotoButton);
     profileLayout->addWidget(m_clearPhotoButton);
     profileLayout->addWidget(m_profileName);
@@ -410,6 +424,9 @@ void ChatWindow::createUi()
 
 void ChatWindow::refreshPeerCaption()
 {
+    if (Global::avatarFetch) {
+        Global::avatarFetch->consider(m_peerIp);
+    }
     const int row = Global::userManager->ipToRow(m_peerIp);
     const QString name = Global::userManager->displayNameForIp(m_peerIp);
     const QString host = row != -1 ? Global::userManager->host(row) : QString();
@@ -461,6 +478,14 @@ void ChatWindow::refreshProfile()
                             ? Global::userManager->group(row) : QString("-"));
     m_profileIp->setText(m_peerIp);
     m_profileAvatar->setPixmap(peerAvatar(name, 64));
+    QString photo = Global::avatarStore
+            ? Global::avatarStore->status(m_peerIp) : QString();
+    if (photo.isEmpty()) {
+        photo = tr("No peer photo yet.");
+    }
+    if (m_photoStatus) {
+        m_photoStatus->setText(photo);
+    }
 }
 
 QPixmap ChatWindow::peerAvatar(const QString &name, int size) const
@@ -485,9 +510,29 @@ void ChatWindow::setLocalPhoto()
 
 void ChatWindow::clearLocalPhoto()
 {
+    if (Global::avatarFetch) {
+        Global::avatarFetch->clearLocal(m_peerIp);
+        return;
+    }
     if (Global::avatarStore) {
         Global::avatarStore->clearKey(m_peerIp);
     }
+}
+
+void ChatWindow::openDoodle()
+{
+    const QPixmap pixmap = DoodleCanvas::edit(this);
+    if (pixmap.isNull()) {
+        return;
+    }
+    const QString path = ScreenCapture::savePixmap(pixmap, QStringLiteral("doodle"));
+    if (path.isEmpty()) {
+        QMessageBox::information(this, tr("Doodle"),
+                                 tr("Could not save the doodle."));
+        return;
+    }
+    sendPayload(tr("[Doodle] %1").arg(QFileInfo(path).fileName()),
+                QStringList() << path);
 }
 
 void ChatWindow::browsePeerShare()

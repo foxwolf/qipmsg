@@ -33,6 +33,8 @@
 #include "preferences.h"
 #include "shareFolder.h"
 #include "discussion_store.h"
+#include "avatarStore.h"
+#include "avatarWire.h"
 
 #include <QDir>
 #include <QDateTime>
@@ -310,6 +312,23 @@ bool ServeSocket::handleRequest(const QByteArray &requestPacket)
             const quint32 command = Helper::parseIpmsgCommand(
                         head.at(MSG_FLAGS_POS), &commandOk);
             if (commandOk && GET_MODE(command) == IPMSG_QIPMSG_EXT) {
+                if (AvatarWire::isRequest(requestPacket)) {
+                    QByteArray png;
+                    if (Global::avatarStore) {
+                        png = Global::avatarStore->selfWireBytes();
+                    }
+                    QString errorCode;
+                    const QByteArray header = AvatarWire::headerFor(png, &errorCode);
+                    if (header.isEmpty()) {
+                        QByteArray line = "QIP1\nERR ";
+                        line.append(errorCode.isEmpty()
+                                    ? QByteArray("none")
+                                    : errorCode.toUtf8());
+                        line.append('\n');
+                        return writeRaw(line, false);
+                    }
+                    return writeRaw(header + png, false);
+                }
                 return handleShare(requestPacket);
             }
         }

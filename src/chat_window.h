@@ -100,6 +100,7 @@ private slots:
     void clearLocalPhoto();
     void browsePeerShare();
     void browseGroupShare();
+    void openDoodle();
 
 private:
     void createUi();
@@ -142,6 +143,7 @@ private:
     QLabel *m_profileLogin;
     QLabel *m_profileGroup;
     QLabel *m_profileIp;
+    QLabel *m_photoStatus;
     QPushButton *m_localPhotoButton;
     QPushButton *m_clearPhotoButton;
     QTextBrowser *m_historyEdit;
