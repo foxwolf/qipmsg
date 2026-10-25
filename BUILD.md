@@ -35,7 +35,7 @@ cmake ..
 cmake --build -j$(nproc)
 ```
 
-Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, and discussion notice JSON.
+Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, discussion notice JSON, user-skin loading, and NIC selection. `qipmsgShareCheck` also covers discussion-folder `GLIST` / `GGET`.
 
 Run locally without installing:
 
@@ -165,7 +165,7 @@ make
 - Offline queue (FeiQ-like 在线自动发送, best-effort): sending text or a window shake to a stale/offline/unknown peer enqueues it under `offline_queue.json` (atomic replace, no Qt Sql). The file survives restart. Default is auto-queue (Preferences → Send/Receive; uncheck to confirm each time). Flush runs at startup, every few seconds, and when `UserManager` marks the IP `PRESENCE_ONLINE` or `PRESENCE_AWAY` (typically `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`). If the old IP is gone but exactly one reachable peer has the same non-empty login and host, the item is retargeted. History is written only on flush. A failed handoff to the send thread puts the item back. Files are not queued — the UI says so. The main-window header, queue dialog, and tray show the count.
 - Optional message encryption is off by default (Preferences → Send/Receive). Turning it on creates `rsa_private.json` (owner read/write) and adds `ENCRYPTOPT` to presence only while the preference stays on. `GETPUBKEY` / `ANSPUBKEY` follow the IPMSG draft (`caps:exponent-modulus`, then `caps:rsa-pkcs1(session):pkcs7-cbc` with a zero IV). qipmsg seals text with RSA-1024 and AES-256 or Blowfish-128. Peers with no parsed key, and any packet that carries a file, stay classic plaintext so unknown commands do not replace a message FeiQ can read. Official IPMsg CryptoAPI blobs and FeiQ encryption were not verified.
 - File receive options live in Preferences → Detail → File: resume (`GETFILEDATA` hex offset), auto-accept, auto-rename, default folder. Directory transfers restart from the tree root (IPMSG dir stream); only regular files persist an offset.
-- UDP listen port and NIC/bind address live in Preferences → Detail → Network (`qipmsg.ini` `[Network]` `udpPort` / `bindAddress`). Default **2425** / any IPv4 (`0.0.0.0`). UDP and TCP file listen share that port. Changes need a restart. Bind failure is logged and the app continues (soft-fail); file receive needs a successful TCP listen.
+- UDP listen port and NIC choice live in Preferences → Detail → Network (`qipmsg.ini` `[Network]` `udpPort`, `bindAddress`, `bindMac`, `bindInterfaceName`, `bindInterfaceId`). Default **2425** / any IPv4 (`0.0.0.0`). UDP and TCP file listen share that port. Changes need a restart. Bind failure is logged and the app continues (soft-fail); file receive needs a successful TCP listen. **Any IPv4** still discovers on every up, non-loopback NIC. Choosing a NIC stores its MAC as `bindInterfaceId` when a MAC is reported, otherwise the interface name, and listens on that NIC's current IPv4 (DHCP can change the address; the MAC is the id). Other NICs are not used for discovery while a choice is saved, and a missing NIC does not fall back to them. Extra broadcast-list targets are still probed through the chosen NIC. Linux then tries `SO_BINDTODEVICE` (it can fail without permission; the IPv4 bind remains). macOS sets `IP_BOUND_IF`. Windows sets `IP_UNICAST_IF`. No platform here binds a socket to a raw MAC address; outbound frames use that NIC's MAC because the route is pinned to the interface.
 - FeiQ 2013 / IPMSG file-transfer assumptions (no new protocol):
   - TCP `GETFILEDATA` / `GETDIRFILES` command field is accepted as **decimal or hex** (FeiQ often sends hex `60`/`62`; classic IPMSG and older qipmsg send decimal `96`/`98`). Outgoing requests use hex.
   - File-list and stream sizes/offsets are hex. Qt `QString::arg` width is a minimum, so values above 4 GB are sent in full hex (not truncated to 8 digits).
@@ -182,7 +182,51 @@ make
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
 
+## User skins, NIC choice, and discussion folders (2.39.11)
+
+No Qt Sql. Light / dark / system appearance stays.
+
+### Skin pack
+
+Put a folder or a zip under `~/.qipmsg/skins/` (Windows: `%USERPROFILE%\.qipmsg\skins\`). The id is the folder name, or the zip name without `.zip`. Ids are 1–64 characters: letters, digits, `.` and `-`. Preferences → Detail → **Import skin** copies a folder or zip into that directory. `[Appearance] theme` is `light`, `dark`, `system`, or `skin:<id>`.
+
+`skin.json`:
+
+```json
+{
+  "name": "Ocean",
+  "base": "dark",
+  "qss": "theme.qss",
+  "background": "background.png",
+  "colors": {
+    "window": "#0B1D36",
+    "windowText": "#E8F1FF",
+    "base": "#12263F",
+    "text": "#E8F1FF",
+    "button": "#16324F",
+    "buttonText": "#E8F1FF",
+    "highlight": "#3B82F6",
+    "highlightedText": "#FFFFFF",
+    "bubbleIncomingBg": "#16324F",
+    "bubbleIncomingFg": "#E8F1FF",
+    "bubbleOutgoingBg": "#2563EB",
+    "bubbleOutgoingFg": "#FFFFFF",
+    "bubbleMeta": "#93C5FD"
+  }
+}
+```
+
+`base` is `light` or `dark` (default light) and selects the built-in sheet and palette. Color keys are optional. `theme.qss` is appended after that sheet. It is ignored when it is empty, contains a NUL, is over 256 KB, has unbalanced braces, or contains `url(`, `@import`, `expression(`, `javascript:`, `http://`, or `https://`. The built-in sheet stays. `background` is an optional PNG/JPEG/BMP/WebP inside the pack (max 4 MB), drawn behind the main window and chats. A zip may use store or deflate (the inflater is zlib's puff, vendored as `src/puffInflate.cpp`). Encrypted entries, `..`, and archives over 8 MB are rejected. A missing pack falls back to light. Skin files are not in the private-data zip.
+
+### Discussion folder
+
+A discussion object in `discussions.json` may include `sharePath`, an absolute directory on that computer. Empty means the key is omitted. The discussion window lists names in that folder. **Tell the group** sends one plain `SENDMSG` (with `MULTICASTOPT` when more than one member is reachable) containing the names and a line `QIPSHARE:<id>`. Grey offline members are not queued.
+
+A member opens the 1:1 chat and chooses **Group folder**. That sends TCP command 126 `GLIST` / `GGET` on the file port, only to a reachable qipmsg peer, and only while the owner is online. The owner serves the file when the TCP peer's IPv4 is a member of that discussion. Paths cannot leave `sharePath`. Personal `LIST` / `GET` is unchanged; an older qipmsg that does not know `GLIST` rejects the verb and does not open the personal share. FeiQ shows the text and has no browser for this folder. This is not a FeiQ multicast room.
+
 ## Version
+
+**2.39.11** adds the skin pack, NIC interface id, and discussion folder above, on top of **2.36.10**.
 
 **2.30.7** includes `QStyleHints` so Qt 6.5 follow-system appearance builds on Windows MSVC, on top of **2.30.6**.
 

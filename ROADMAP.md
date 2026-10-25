@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.36.10 adds a practical chat rich-text subset, window snap while selecting a screenshot region, and a local discussion-group notice. The SENDMSG body stays plain UTF-8/GBK text so FeiQ stays readable. A qipmsg peer may also get private command 126 `RICH:<packet>:<base64 HTML>` when the message is neither encrypted nor sealed. Snap uses top-level window bounds where the platform allows it; hold Alt (Option on macOS) to disable. The notice is a string in `discussions.json` plus the existing multi-send, not a FeiQ multicast room. 2.30.6 adds a local file-hash index with qipmsg-only instant skip, a qipmsg shared folder (browse and download on the existing file port), and light / dark / system appearance. FeiQ still receives a full file transfer and cannot browse this share: neither hash handshake nor FeiQ share packets were verified. 2.27.5 outbound TCP send cap, zip backup (no Qt Sql), screenshot annotation, and local-only avatars stay. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
+2.39.11 adds a user skin pack (folder or zip under `~/.qipmsg/skins/`), a NIC choice stored by MAC when the adapter has one, and a per-discussion local folder that online qipmsg members can list. Light / dark / system stay. A bad QSS falls back to the built-in sheet. Binding is still an IPv4 listen; Linux may also set `SO_BINDTODEVICE`, macOS `IP_BOUND_IF`, and Windows `IP_UNICAST_IF`. No stack here binds a raw MAC. Any-IPv4 discovery still walks every NIC. The discussion folder is `sharePath` in `discussions.json` plus the existing file-port command 126 (`GLIST` / `GGET`), not a FeiQ multicast room. 2.36.10 adds a practical chat rich-text subset, window snap while selecting a screenshot region, and a local discussion-group notice. The SENDMSG body stays plain UTF-8/GBK text so FeiQ stays readable. A qipmsg peer may also get private command 126 `RICH:<packet>:<base64 HTML>` when the message is neither encrypted nor sealed. Snap uses top-level window bounds where the platform allows it; hold Alt (Option on macOS) to disable. The notice is a string in `discussions.json` plus the existing multi-send, not a FeiQ multicast room. 2.30.6 adds a local file-hash index with qipmsg-only instant skip, a qipmsg shared folder (browse and download on the existing file port), and light / dark / system appearance. FeiQ still receives a full file transfer and cannot browse this share: neither hash handshake nor FeiQ share packets were verified. 2.27.5 outbound TCP send cap, zip backup (no Qt Sql), screenshot annotation, and local-only avatars stay. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
 
 ## In this line of work (done)
 
@@ -70,6 +70,15 @@
 - [x] Chat composer bold / italic / underline / size / color. Wire body is plain text. Optional HTML sidecar is qipmsg-only (command 126). No OLE/RTF blob as the message body
 - [x] Screenshot region snap to nearby top-level windows; hold Alt (Option on macOS) to turn snap off. Pen / rect / arrow / text annotation stays after capture
 - [x] Discussion group notice in `discussions.json` (no Qt Sql). Banner when non-empty. Change is a plain SENDMSG to online/away members (`MULTICASTOPT` when more than one). Not a FeiQ room
+- [x] User skin folder or zip (`skin.json`, optional `theme.qss`, optional background). Broken QSS keeps the built-in light or dark sheet
+- [x] Network preference can stick to one NIC by MAC (or interface name). Any IPv4 still discovers on every NIC
+- [x] Per-discussion local folder in `discussions.json`. Online qipmsg members list it with command 126. Not a FeiQ room
+
+## How to try 2.39.11
+
+1. Preferences → Detail → Appearance, or drop a folder/zip in `~/.qipmsg/skins/`. See BUILD for `skin.json`. Light, Dark, and Follow system remain. A QSS with unbalanced braces, `url(`, or `@import` is ignored and the built-in sheet stays. Reopen a chat to restyle bubbles.
+2. Preferences → Detail → Network: pick one NIC instead of Any IPv4, then restart. `bindMac` / `bindInterfaceId` are written. Discovery broadcasts for other NICs stop. Switch back to Any IPv4 and they return. Linux tries `SO_BINDTODEVICE` (permission failure is logged, the IPv4 bind remains). macOS sets `IP_BOUND_IF`. Windows sets `IP_UNICAST_IF`. None of these bind a MAC address itself.
+3. In a discussion, **Set folder**, then **Tell the group**. The side list is local. Online members get a plain SENDMSG that includes `QIPSHARE:<id>`. In the 1:1 chat, **Group folder** lists and downloads only that directory. The owner must stay online. FeiQ shows the text and cannot browse. Personal share LIST/GET is unchanged. This is not a FeiQ multicast room.
 
 ## How to try 2.36.10
 
@@ -87,11 +96,9 @@
 
 1. **FeiQ plugin system**
 2. **FeiQ share-protocol interop** (qipmsg↔qipmsg browse is done; FeiQ's packet format was not verified)
-3. **FeiQ multicast group / 群 chat rooms** (shared room membership, full room sync). Local multi-send 讨论组 and the 2.36.10 notice string are not that protocol.
+3. **FeiQ multicast group / 群 chat rooms** (shared room membership, full room sync). Local multi-send 讨论组, the 2.36.10 notice string, and the 2.39.11 per-discussion folder are not that protocol.
 4. **Voice**
-5. **Extra skins**
-   - Light and dark ship with 2.30.6. User-supplied skins remain later
-6. **More installers**
+5. **More installers**
    - Windows NSIS from the windeployqt folder ships with 2.33.9
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
