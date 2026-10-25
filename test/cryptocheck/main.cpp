@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QRegularExpression>
+#include <QStringList>
 #include <QTemporaryDir>
 
 #include <cstdio>
@@ -62,10 +63,13 @@ int main(int argc, char **argv)
     CHECK(MsgCrypto::openEnvelope(extra, &openedExtra));
     CHECK(openedExtra == plain);
 
-    QString tampered = envelope;
-    tampered.chop(1);
-    tampered.append(tampered.endsWith(QLatin1Char('0'))
-                    ? QLatin1Char('1') : QLatin1Char('0'));
+    QStringList parts = envelope.split(QLatin1Char(':'));
+    CHECK(parts.size() >= 3);
+    QString wrapped = parts.at(1);
+    wrapped[0] = (wrapped.at(0) == QLatin1Char('a'))
+            ? QLatin1Char('b') : QLatin1Char('a');
+    parts[1] = wrapped;
+    const QString tampered = parts.join(QLatin1Char(':'));
     QByteArray junk;
     CHECK(!MsgCrypto::openEnvelope(tampered, &junk));
 
