@@ -48,13 +48,16 @@ private slots:
     void refreshCaption();
     void sendMessage();
     void insertMention();
+    void editNotice();
 
 private:
     void createUi();
     void appendMessage(const QDateTime &when, const QString &name,
                        const QString &text, bool incoming,
-                       bool encrypted = false);
+                       bool encrypted = false,
+                       const QString &richHtml = QString());
     void refreshMembers();
+    void publishNotice(const QString &notice);
     QStringList mentionNames() const;
     QString localName() const;
 
@@ -62,6 +65,8 @@ private:
     DiscussionGroup m_group;
     QLabel *m_titleLabel;
     QLabel *m_metaLabel;
+    QLabel *m_noticeBanner;
+    QPushButton *m_noticeButton;
     QTextEdit *m_historyEdit;
     QTextEdit *m_inputEdit;
     QListWidget *m_memberList;

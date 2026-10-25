@@ -36,6 +36,7 @@ public:
     QString peerName;
     QString direction;
     QString text;
+    QString richHtml;
     QStringList imagePaths;
     QString packetNo;
     bool expectRead;
@@ -50,6 +51,9 @@ public:
 
     bool append(const ChatRecord &record);
     bool markRead(const QString &peerIp, const QString &packetNo);
+    // 1 updated, 0 no matching packet yet, -1 packet found but html does not match.
+    int attachRich(const QString &peerIp, const QString &packetNo,
+                   const QString &html);
     QList<ChatRecord> loadHistory(const QString &peerIp,
                                   int limit = CHAT_HISTORY_LOAD_LIMIT) const;
     QList<ChatRecord> search(const QString &needle, int limit) const;

@@ -22,6 +22,7 @@
 #endif
 
 #include "msg_server.h"
+#include "richText.h"
 #include "msgCrypto.h"
 #include "protocolutil.h"
 #include "send_msg.h"
@@ -307,6 +308,12 @@ void MsgServer::processGetAbsenceInfo(Msg msg)
 void MsgServer::processQipExtension(Msg msg)
 {
     const QString body = msg->additionalInfo();
+    QString packetNo;
+    QString html;
+    if (RichText::parseSidecar(body, &packetNo, &html)) {
+        emit richHtmlReady(msg->ip(), packetNo, html);
+        return;
+    }
     const QStringList parts = body.split(QLatin1Char(':'));
     if (parts.size() < 4 || parts.at(0) != QLatin1String("INSTANT")) {
         return;

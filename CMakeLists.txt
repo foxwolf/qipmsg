@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.33.9 LANGUAGES CXX)
+project(qipmsg VERSION 2.36.10 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -65,6 +65,7 @@ set(SOURCES
     src/recv_file_transfer.cpp
     src/recv_file_window.cpp
     src/resume_store.cpp
+    src/richText.cpp
     src/recvfilesortfilterproxymodel.cpp
     src/recv_msg.cpp
     src/retry_recv_file_dialog.cpp
@@ -95,6 +96,7 @@ set(SOURCES
     src/translator.cpp
     src/user_manager.cpp
     src/window_manager.cpp
+    src/windowSnap.cpp
 )
 
 set(HEADERS
@@ -145,6 +147,7 @@ set(HEADERS
     src/recv_file_window.h
     src/recvfilesortfilterproxymodel.h
     src/resume_store.h
+    src/richText.h
     src/screen_capture.h
     src/recv_msg.h
     src/retry_recv_file_dialog.h
@@ -176,6 +179,7 @@ set(HEADERS
     src/user_manager.h
     src/version.h
     src/window_manager.h
+    src/windowSnap.h
 )
 
 set(RESOURCES src/icons.qrc)
@@ -219,6 +223,14 @@ add_executable(qipmsgQueueCheck
 )
 target_include_directories(qipmsgQueueCheck PRIVATE src)
 
+add_executable(qipmsgP2Check
+    test/p2check/main.cpp
+    src/richText.cpp
+    src/windowSnap.cpp
+    src/discussion_store.cpp
+)
+target_include_directories(qipmsgP2Check PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -234,6 +246,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
+    target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -246,10 +259,21 @@ else()
     target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
+    target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets)
 endif()
 
 if (WIN32)
     target_link_libraries(qipmsg PRIVATE ws2_32)
+endif()
+
+if (APPLE)
+    target_link_libraries(qipmsg PRIVATE "-framework CoreGraphics")
+    target_link_libraries(qipmsgP2Check PRIVATE "-framework CoreGraphics")
+endif()
+
+if (UNIX AND NOT APPLE)
+    target_link_libraries(qipmsg PRIVATE ${CMAKE_DL_LIBS})
+    target_link_libraries(qipmsgP2Check PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
 # Installation

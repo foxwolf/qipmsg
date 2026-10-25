@@ -179,6 +179,27 @@ QToolTip {
     border-top: 1px solid #374151;
 }
 
+#richToolBar QToolButton {
+    min-width: 28px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: #E5E7EB;
+}
+
+#richToolBar QToolButton:hover,
+#richToolBar QToolButton:checked {
+    background: #1E3A5F;
+    color: #BFDBFE;
+}
+
+#groupNoticeBanner {
+    background: #451A03;
+    color: #FDE68A;
+    border: 1px solid #92400E;
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
 #composerEdit {
     background: #111827;
     border: 1px solid transparent;

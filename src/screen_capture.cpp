@@ -16,6 +16,7 @@
 
 #include "screen_capture.h"
 #include "helper.h"
+#include "windowSnap.h"
 
 #include <QApplication>
 #include <QDateTime>
@@ -28,16 +29,20 @@
 #include <QScreen>
 
 ScreenCapture::ScreenCapture(const QPixmap &desktop, QWidget *parent)
-    : QWidget(parent), m_desktop(desktop), m_dragging(false), m_accepted(false)
+    : QWidget(parent), m_desktop(desktop), m_dragging(false), m_accepted(false),
+      m_snapOff(false)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
                    | Qt::Tool);
     setCursor(Qt::CrossCursor);
     setMouseTracking(true);
     setAttribute(Qt::WA_DeleteOnClose, false);
+    QRect screenRect;
     if (QScreen *screen = QGuiApplication::primaryScreen()) {
-        setGeometry(screen->geometry());
+        screenRect = screen->geometry();
+        setGeometry(screenRect);
     }
+    m_snapTargets = WindowSnap::topLevelRects(screenRect, 0);
 }
 
 QPixmap ScreenCapture::capturePrimaryScreen()
@@ -112,13 +117,33 @@ void ScreenCapture::paintEvent(QPaintEvent *)
         painter.drawRect(box.adjusted(0, 0, -1, -1));
         painter.setPen(Qt::white);
         painter.drawText(10, 20,
-                         tr("Drag to select a region. Enter/double-click to "
-                            "capture, Esc to cancel."));
+                         m_snapOff
+                         ? tr("Snap is off. Release Alt to snap again. "
+                              "Enter/double-click captures, Esc cancels.")
+                         : tr("Drag to select. Snaps to nearby windows. "
+                              "Hold Alt to turn snap off. Enter/double-click "
+                              "captures, Esc cancels."));
     } else {
         painter.setPen(Qt::white);
         painter.drawText(10, 20,
-                         tr("Drag to select a region. Esc to cancel."));
+                         tr("Drag to select a region. It snaps to nearby "
+                            "windows. Hold Alt to turn snap off. Esc cancels."));
     }
+}
+
+bool ScreenCapture::snapDisabled(Qt::KeyboardModifiers mods) const
+{
+    return m_snapOff || (mods & Qt::AltModifier) != 0;
+}
+
+void ScreenCapture::updateSelection(const QPoint &pos, Qt::KeyboardModifiers mods)
+{
+    m_cursor = pos;
+    if (m_dragging) {
+        const QRect raw(m_origin, pos);
+        m_rect = WindowSnap::snapSelection(raw, m_snapTargets, 12, snapDisabled(mods));
+    }
+    update();
 }
 
 void ScreenCapture::mousePressEvent(QMouseEvent *event)
@@ -126,6 +151,7 @@ void ScreenCapture::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_dragging = true;
         m_origin = event->pos();
+        m_cursor = event->pos();
         m_rect = QRect(m_origin, QSize());
         update();
     }
@@ -134,17 +160,15 @@ void ScreenCapture::mousePressEvent(QMouseEvent *event)
 void ScreenCapture::mouseMoveEvent(QMouseEvent *event)
 {
     if (m_dragging) {
-        m_rect = QRect(m_origin, event->pos());
-        update();
+        updateSelection(event->pos(), event->modifiers());
     }
 }
 
 void ScreenCapture::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
+    if (event->button() == Qt::LeftButton && m_dragging) {
+        updateSelection(event->pos(), event->modifiers());
         m_dragging = false;
-        m_rect = QRect(m_origin, event->pos());
-        update();
     }
 }
 
@@ -167,5 +191,16 @@ void ScreenCapture::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_Return
                || event->key() == Qt::Key_Enter) {
         finish(m_rect.normalized().width() > 2);
+    } else if (event->key() == Qt::Key_Alt) {
+        m_snapOff = true;
+        updateSelection(m_cursor, event->modifiers());
+    }
+}
+
+void ScreenCapture::keyReleaseEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Alt) {
+        m_snapOff = false;
+        updateSelection(m_cursor, event->modifiers() & ~Qt::AltModifier);
     }
 }

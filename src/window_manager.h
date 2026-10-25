@@ -59,7 +59,8 @@ public:
                         const QStringList &imagePaths = QStringList(),
                         const QString &packetNo = QString(),
                         bool expectRead = false,
-                        bool encrypted = false);
+                        bool encrypted = false,
+                        const QString &richHtml = QString());
     bool deliverText(const QString &ip, const QString &text);
     bool deliverShake(const QString &ip);
     int broadcastTextToOnline(const QString &text);
@@ -70,7 +71,11 @@ public:
     void recordIncomingText(const QString &ip, const QString &peerName,
                             const QString &text, bool notifyUser,
                             const QStringList &imagePaths = QStringList(),
-                            bool encrypted = false);
+                            bool encrypted = false,
+                            const QString &packetNo = QString(),
+                            const QString &richHtml = QString());
+    void sendRichSidecar(const QString &ip, const QString &packetNo,
+                         const QString &html);
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);
@@ -92,6 +97,7 @@ signals:
 public slots:
     void clearUnread(QString ip);
     void noteInstantSkip(QString ip, QString fileName, bool incoming);
+    void noteRichHtml(QString ip, QString packetNo, QString html);
 
 private slots:
     void newMsg(Msg msg);
@@ -140,6 +146,7 @@ private:
     QMap<QString, int> m_unreadByIp;
     QMap<QString, QDateTime> m_lastAutoReply;
     QHash<QString, SealedLetter> m_sealedLetters;
+    QHash<QString, QString> m_pendingRich;
     QHash<QString, QDateTime> m_typingUntil;
     QTimer *m_typingSweep;
     QTimer *m_queueRetry;
