@@ -182,6 +182,10 @@ make
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
 
+## Session window layout (2.50.15)
+
+The chat toolbar is grouped so a long row of text buttons does not set the window's minimum width. **Transfer** is send file and send folder. **Chat** is screenshot (full screen or region), emoji, shake, and find. **More** holds browse peer share, group folder, doodle, favorites, zone, and log, then the still-disabled remote assist, remote control, and voice items. Everyday actions stay one click, or one click plus the screenshot menu. The header **Profile** button shows or hides the peer card (shown by default). Closing a chat writes `[ChatWindow]` in `qipmsg.ini`: `width`, `height`, `maximized`, `profileVisible`, and `splitter` when the card is open. The next chat window reuses that size. No Qt Sql, and no new packet.
+
 ## Network neighborhood, local send, and notes (2.48.14)
 
 No Qt Sql. No plugin API. Remote assist, remote control, and voice stay disabled.
@@ -203,7 +207,7 @@ qipmsg --msg login@host --text "hello"
 
 ### Local notes
 
-The chat toolbar **Zone** and **Log** buttons open the same browser for `~/.qipmsg/zone/` (created if missing). Create, edit, and delete `.md`, `.txt`, and `.markdown` files there. Nothing is sent to peers. This is not FeiQ's `zone/*.db` blog. The private-data zip includes `zone/`.
+**More → Zone** and **Log** open the same browser for `~/.qipmsg/zone/` (created if missing). Create, edit, and delete `.md`, `.txt`, and `.markdown` files there. Nothing is sent to peers. This is not FeiQ's `zone/*.db` blog. The private-data zip includes `zone/`.
 
 ## Schedule, favorites, and dial-up hosts (2.45.13)
 
@@ -215,7 +219,7 @@ Main window **Schedule** and the tray item edit `~/.qipmsg/schedule.json` (at mo
 
 ### Favorites
 
-The chat toolbar **Favorites** button used to be disabled. It now writes `~/.qipmsg/favorites.json` (at most 300): selected chat text, an absolute file path, or a note about that peer. Search, open, and delete stay on this computer. Opening a file uses the desktop handler. Nothing is synced.
+**More → Favorites** used to be a disabled toolbar button. It now writes `~/.qipmsg/favorites.json` (at most 300): selected chat text, an absolute file path, or a note about that peer. Search, open, and delete stay on this computer. Opening a file uses the desktop handler. Nothing is synced.
 
 ### Dial-up
 
@@ -239,7 +243,7 @@ When `avatars/self.png` exists, presence keeps the fourth NUL field that already
 
 ### Doodle
 
-The chat toolbar **Doodle** is a pen, four colors, and clear. Send writes a PNG under `screenshots/` and uses the existing image attachment. An empty canvas is refused. There is no pressure-sensitive tablet path.
+**More → Doodle** is a pen, four colors, and clear. Send writes a PNG under `screenshots/` and uses the existing image attachment. An empty canvas is refused. There is no pressure-sensitive tablet path.
 
 ## User skins, NIC choice, and discussion folders (2.39.11)
 
@@ -281,7 +285,7 @@ Put a folder or a zip under `~/.qipmsg/skins/` (Windows: `%USERPROFILE%\.qipmsg\
 
 A discussion object in `discussions.json` may include `sharePath`, an absolute directory on that computer. Empty means the key is omitted. The discussion window lists names in that folder. **Tell the group** sends one plain `SENDMSG` (with `MULTICASTOPT` when more than one member is reachable) containing the names and a line `QIPSHARE:<id>`. Grey offline members are not queued.
 
-A member opens the 1:1 chat and chooses **Group folder**. That sends TCP command 126 `GLIST` / `GGET` on the file port, only to a reachable qipmsg peer, and only while the owner is online. The owner serves the file when the TCP peer's IPv4 is a member of that discussion. Paths cannot leave `sharePath`. Personal `LIST` / `GET` is unchanged; an older qipmsg that does not know `GLIST` rejects the verb and does not open the personal share. FeiQ shows the text and has no browser for this folder. This is not a FeiQ multicast room.
+A member opens the 1:1 chat and chooses **More → Group folder**. That sends TCP command 126 `GLIST` / `GGET` on the file port, only to a reachable qipmsg peer, and only while the owner is online. The owner serves the file when the TCP peer's IPv4 is a member of that discussion. Paths cannot leave `sharePath`. Personal `LIST` / `GET` is unchanged; an older qipmsg that does not know `GLIST` rejects the verb and does not open the personal share. FeiQ shows the text and has no browser for this folder. This is not a FeiQ multicast room.
 
 ## Version
 
@@ -296,7 +300,7 @@ A member opens the 1:1 chat and chooses **Group folder**. That sends TCP command
 ## Trying 2.30.6 instant skip, share browse, and dark theme
 
 1. Send the same regular file between two qipmsg instances. The first copy uses TCP and is recorded in `~/.qipmsg/filehash.json` (size + SHA-256, cap 2000, missing files pruned). Send it again. If the receive folder already has the same name, size, and hash, or the index has another copy of that content, TCP is skipped and both chats show an instant-send note. Directories are never skipped. The hash extend-attr (`0x71`) and UDP command 126 (`INSTANT:…`) are sent only when the peer's presence token starts with `qipmsg`. FeiQ file lists stay the previous shape and still transfer the whole file. Resume is unchanged. A human FeiQ capture should confirm the file-list shape. `filehash.json` is an exact file in the private-data zip.
-2. Preferences → Detail → File: share one folder and an optional password (stored in `qipmsg.ini`, same as other settings). Saving re-announces presence. A fourth NUL field after the signature is `qipmsg`, plus `,share` when sharing is on and `,lock` when a password is set. Classic readers stop at the signature NUL. The contact row shows a green 享 badge. Chat toolbar **Browse peer share** lists up to 200 names and downloads into the receive folder. The TCP request is command 126 (`LIST` / `GET`) on the existing file port, and only when that peer advertised a qipmsg share. `..`, absolute paths, and symlink escapes outside the share root are rejected. FeiQ's share protocol has no verified packet format here, so the button explains the limit and does not connect.
+2. Preferences → Detail → File: share one folder and an optional password (stored in `qipmsg.ini`, same as other settings). Saving re-announces presence. A fourth NUL field after the signature is `qipmsg`, plus `,share` when sharing is on and `,lock` when a password is set. Classic readers stop at the signature NUL. The contact row shows a green 享 badge. **More → Browse peer share** lists up to 200 names and downloads into the receive folder. The TCP request is command 126 (`LIST` / `GET`) on the existing file port, and only when that peer advertised a qipmsg share. `..`, absolute paths, and symlink escapes outside the share root are rejected. FeiQ's share protocol has no verified packet format here, so the button explains the limit and does not connect.
 3. Preferences → Detail → Appearance: Light, Dark, or Follow system. Light is the 2.4 messenger QSS. Dark is `themeDark.qss` plus palette colors for bubbles and the contact tree. The choice is `[Appearance] theme` = `light` / `dark` / `system`. Follow system uses `QStyleHints::colorScheme` on Qt 6.5+ and otherwise the window lightness at startup. Bubbles already drawn in an open chat keep their old colors until that chat is reopened.
 
 **2.27.5** adds an outbound send cap, uncompressed zip backup/restore of private data, basic screenshot annotation, and local-only avatars, on top of **2.23.4**.
