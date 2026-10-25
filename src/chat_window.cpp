@@ -33,6 +33,8 @@
 #include "avatarFetch.h"
 #include "doodleCanvas.h"
 #include "favoriteDialog.h"
+#include "zoneBrowser.h"
+#include "winShare.h"
 #include "send_file_manager.h"
 #include "send_file_map.h"
 #include "send_file_window.h"
@@ -207,7 +209,12 @@ void ChatWindow::createUi()
     toolLayout->addWidget(makeToolButton(tr("Favorites"),
                                          tr("Save chat text, a file path, or a note about this peer on this computer."),
                                          SLOT(showFavorites())));
-    toolLayout->addWidget(makeStubButton(tr("Zone")));
+    toolLayout->addWidget(makeToolButton(tr("Zone"),
+                                         tr("Open local notes under the zone folder. This is not a FeiQ zone database."),
+                                         SLOT(showZone())));
+    toolLayout->addWidget(makeToolButton(tr("Log"),
+                                         tr("Open the same local note folder. This is not a FeiQ zone log and not the message log file."),
+                                         SLOT(showZone())));
     toolLayout->addStretch();
 
     m_fileListButton = new QPushButton;
@@ -399,9 +406,13 @@ void ChatWindow::createUi()
             this, SLOT(setLocalPhoto()));
     connect(m_clearPhotoButton, SIGNAL(clicked()),
             this, SLOT(clearLocalPhoto()));
+    m_shareButton = new QPushButton(tr("Network neighborhood"));
+    connect(m_shareButton, SIGNAL(clicked()),
+            this, SLOT(openNetworkNeighborhood()));
     profileLayout->addWidget(m_photoStatus);
     profileLayout->addWidget(m_localPhotoButton);
     profileLayout->addWidget(m_clearPhotoButton);
+    profileLayout->addWidget(m_shareButton);
     profileLayout->addWidget(m_profileName);
     profileLayout->addWidget(m_profileStatus);
     profileLayout->addWidget(m_profileSign);
@@ -489,6 +500,21 @@ void ChatWindow::refreshProfile()
     if (m_photoStatus) {
         m_photoStatus->setText(photo);
     }
+    if (m_shareButton) {
+        if (!WinShare::platformSupports()) {
+            m_shareButton->setEnabled(false);
+            m_shareButton->setToolTip(tr(
+                    "Windows network neighborhood is only available on Windows."));
+        } else if (!WinShare::isSafeIpv4(m_peerIp, 0)) {
+            m_shareButton->setEnabled(false);
+            m_shareButton->setToolTip(tr("The address is not a plain IPv4 address."));
+        } else {
+            m_shareButton->setEnabled(true);
+            m_shareButton->setToolTip(tr(
+                    "Open \\\\%1\\ in Explorer. Windows asks for a password if one is required. This program does not ask for share credentials.")
+                                      .arg(m_peerIp));
+        }
+    }
 }
 
 QPixmap ChatWindow::peerAvatar(const QString &name, int size) const
@@ -536,6 +562,21 @@ void ChatWindow::openDoodle()
     }
     sendPayload(tr("[Doodle] %1").arg(QFileInfo(path).fileName()),
                 QStringList() << path);
+}
+
+void ChatWindow::showZone()
+{
+    ZoneBrowser dialog(this);
+    dialog.exec();
+}
+
+void ChatWindow::openNetworkNeighborhood()
+{
+    const WinShareOpen opened = WinShare::openNeighborhood(m_peerIp);
+    if (opened.result == winShareOk) {
+        return;
+    }
+    QMessageBox::warning(this, tr("Network neighborhood"), WinShare::describe(opened));
 }
 
 void ChatWindow::showFavorites()

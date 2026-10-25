@@ -35,6 +35,7 @@
 #include "groupPolicy.h"
 #include "msgCrypto.h"
 #include "richText.h"
+#include "localMsg.h"
 
 #include <QHostAddress>
 #include <QMessageBox>
@@ -438,6 +439,45 @@ bool WindowManager::deliverText(const QString &ip, const QString &text)
     recordOutgoing(ip, Global::userManager->displayNameForIp(ip), text,
                    QStringList(), sendMsg.packetNoString(), false, encrypted);
     return true;
+}
+
+QString WindowManager::deliverLocalCommand(const QString &target, const QString &text)
+{
+    QList<LocalPeerRef> peers;
+    if (Global::userManager) {
+        const int rows = Global::userManager->userCount();
+        for (int row = 0; row < rows; ++row) {
+            LocalPeerRef peer;
+            peer.ip = Global::userManager->ip(row);
+            peer.login = Global::userManager->loginName(row);
+            peer.host = Global::userManager->host(row);
+            peer.reachable = Global::userManager->isReachable(peer.ip);
+            peers.append(peer);
+        }
+    }
+    const bool queueOn = Global::preferences && Global::preferences->isOfflineQueue;
+    const LocalPlan plan = LocalMsg::planDelivery(target, text, peers, queueOn);
+    if (plan.kind == localPlanSend) {
+        if (!deliverText(plan.ip, text)) {
+            return QStringLiteral("ERR send-failed");
+        }
+        return QStringLiteral("OK sent ") + plan.ip;
+    }
+    if (plan.kind == localPlanQueue) {
+        if (!Global::offlineQueue) {
+            return QStringLiteral("ERR send-failed");
+        }
+        QString login;
+        QString host;
+        peerIdentity(plan.ip, &login, &host);
+        const QString id = Global::offlineQueue->enqueue(
+                    plan.ip, text, QStringLiteral("text"), login, host);
+        if (id.isEmpty()) {
+            return QStringLiteral("ERR send-failed");
+        }
+        return QStringLiteral("OK queued ") + plan.ip;
+    }
+    return LocalMsg::planError(plan);
 }
 
 bool WindowManager::deliverShake(const QString &ip)

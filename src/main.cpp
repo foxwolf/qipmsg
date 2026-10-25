@@ -33,8 +33,11 @@
 #include "user_manager.h"
 #include "preferences.h"
 #include "constants.h"
+#include "localMsg.h"
+#include "window_manager.h"
 
 static void createHomeDirectory();
+static int runLocalMessage(const LocalCli &cli);
 static void myMessageOutput(QtMsgType type, const QMessageLogContext &context,
                             const QString &msg);
 static void checkTcpServerError();
@@ -42,6 +45,13 @@ static void checkTcpServerError();
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    const LocalCli cli = LocalMsg::parseCli(app.arguments());
+    if (!cli.error.isEmpty()) {
+        fprintf(stderr, "%s\n%s\n",
+                cli.error.toLocal8Bit().constData(),
+                LocalMsg::usageText().toLocal8Bit().constData());
+        return 2;
+    }
 
     qInstallMessageHandler(myMessageOutput);
 
@@ -59,10 +69,19 @@ int main(int argc, char *argv[])
 
     // Make sure there is only one instance running.
     LockFile::instance()->setLockFile(Helper::lockFile());
-    if (!LockFile::instance()->lock()) {
+    if (!LockFile::instance()->lock(!cli.isMsg)) {
+        if (cli.isMsg) {
+            return runLocalMessage(cli);
+        }
         qWarning("main: lock '%s' failed, exit.",
                  Helper::lockFile().toUtf8().data());
         return -1;
+    }
+    if (cli.isMsg) {
+        fprintf(stderr, "qipmsg is not running\n%s\n",
+                LocalMsg::usageText().toLocal8Bit().constData());
+        LockFile::instance()->unlock();
+        return 3;
     }
 
     // Set init package number as random.
@@ -75,13 +94,26 @@ int main(int argc, char *argv[])
 
     QIpMsg *qipmsg = new QIpMsg;
 
-    checkTcpServerError();
-
     Global::msgThread->start();
     // this make sure thead started
     while (!Global::msgThread->isRunning()) {
         QThread::msleep(200);
     }
+
+    LocalMsgServer *localServer = new LocalMsgServer(qipmsg);
+    localServer->setHandler([](const QString &target, const QString &text) {
+        if (!Global::windowManager) {
+            return QStringLiteral("ERR not-ready");
+        }
+        return Global::windowManager->deliverLocalCommand(target, text);
+    });
+    QString localError;
+    if (!localServer->start(QString(), &localError)) {
+        qWarning("main: local message channel failed: %s",
+                 localError.toUtf8().constData());
+    }
+
+    checkTcpServerError();
 
     Global::userManager->announcePresence();
 
@@ -96,6 +128,19 @@ int main(int argc, char *argv[])
     delete qipmsg;
 
     return rc;
+}
+
+static int runLocalMessage(const LocalCli &cli)
+{
+    const LocalSendResult result = LocalMsg::sendToServer(
+                LocalMsg::serverName(), cli.target, cli.text, 15);
+    if (result.code == 0) {
+        fprintf(stdout, "%s\n", result.response.toLocal8Bit().constData());
+        return 0;
+    }
+    const QString line = result.error.isEmpty() ? result.response : result.error;
+    fprintf(stderr, "%s\n", line.toLocal8Bit().constData());
+    return result.code;
 }
 
 static void createHomeDirectory()

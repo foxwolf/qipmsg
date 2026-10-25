@@ -30,7 +30,7 @@ LockFile *LockFile::instance()
     return lockFile();
 }
 
-bool LockFile::lock()
+bool LockFile::lock(bool warnOnFail)
 {
     if (m_lockFile && m_lockFile->isLocked()) {
         return true;
@@ -43,8 +43,10 @@ bool LockFile::lock()
 
     m_lockFile.reset(new QLockFile(fileName));
     if (!m_lockFile->tryLock()) {
-        qWarning("LockFile::lock: can not lock %s.",
-                 fileName.toUtf8().data());
+        if (warnOnFail) {
+            qWarning("LockFile::lock: can not lock %s.",
+                     fileName.toUtf8().data());
+        }
         return false;
     }
 

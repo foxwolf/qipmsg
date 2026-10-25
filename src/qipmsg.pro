@@ -35,6 +35,7 @@ HEADERS += \
 	groupPolicyDialog.h \
 	helper.h \
 	ipmsg.h \
+	localMsg.h \
 	lockfile.h \
 	main_window.h \
         chat_window.h \
@@ -99,8 +100,11 @@ HEADERS += \
 	user_manager.h \
 	transfer_file_window.h \
 	transfer_file_model.h \
+	winShare.h \
 	window_manager.h \
-	windowSnap.h
+	windowSnap.h \
+	zoneBrowser.h \
+	zoneStore.h
 
 SOURCES += \
 	about_dialog.cpp \
@@ -125,6 +129,7 @@ SOURCES += \
 	groupPolicy.cpp \
 	groupPolicyDialog.cpp \
 	helper.cpp \
+	localMsg.cpp \
 	lockfile.cpp \
 	main.cpp \
 	main_window.cpp \
@@ -191,8 +196,11 @@ SOURCES += \
 	user_manager.cpp \
 	transfer_file_window.cpp \
 	transfer_file_model.cpp \
+	winShare.cpp \
 	window_manager.cpp \
-	windowSnap.cpp
+	windowSnap.cpp \
+	zoneBrowser.cpp \
+	zoneStore.cpp
 
 unix:!macx {
     LIBS += -ldl
@@ -217,5 +225,5 @@ unix {
 }
 
 win32 {
-  LIBS += -lws2_32
+  LIBS += -lws2_32 -lshell32
 }

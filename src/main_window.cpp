@@ -50,6 +50,7 @@
 #include "avatarStore.h"
 #include "avatarFetch.h"
 #include "scheduleDialog.h"
+#include "winShare.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -57,7 +58,7 @@ quint32 MainWindow::m_levelTwoCount = 0;
 MainWindow::MainWindow(QString text, QString ip,
         QWidget *parent)
     : QMainWindow(parent), m_groupSendHint(0), m_scheduleButton(0), sendToGroupAct(0),
-    setMyPhotoAct(0), setPeerPhotoAct(0), clearPeerPhotoAct(0),
+    setMyPhotoAct(0), setPeerPhotoAct(0), clearPeerPhotoAct(0), openShareAct(0),
     m_initText(text), m_selectedIp(ip), m_lastSearchDialog(0)
 {
     setAttribute(Qt::WA_DeleteOnClose, true);
@@ -332,6 +333,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addMenu(selectGroupMenu);
     menu.addAction(sendFileAct);
     menu.addAction(sendDirAct);
+    menu.addAction(openShareAct);
     menu.addAction(searchUserAct);
     menu.addAction(findHistoryAct);
     menu.addSeparator();
@@ -363,6 +365,7 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     }
     blacklistAct->setEnabled(!ips.isEmpty());
     setMemoAct->setEnabled(ips.size() == 1);
+    updateShareAction(ips);
     setPeerPhotoAct->setEnabled(ips.size() == 1);
     clearPeerPhotoAct->setEnabled(ips.size() == 1);
 
@@ -408,6 +411,11 @@ void MainWindow::createActions()
     addToDiscussionAct = new QAction(tr("Add selected contacts to discussion"), this);
     sendFileAct = new QAction(tr("Send file"), this);
     sendDirAct = new QAction(tr("Send folder"), this);
+    openShareAct = new QAction(tr("Open network neighborhood"), this);
+    openShareAct->setToolTip(tr(
+            "Open \\\\IP\\ in Explorer on Windows. Windows asks for a password if one is required."));
+    connect(openShareAct, SIGNAL(triggered()),
+            this, SLOT(openNetworkNeighborhood()));
     searchUserAct = new QAction(tr("Search user"), this);
     findHistoryAct = new QAction(tr("Find in history..."), this);
     connect(findHistoryAct, SIGNAL(triggered()),
@@ -463,6 +471,43 @@ void MainWindow::createActions()
 
     selectGroupMenu = new QMenu(tr("Select group"), this);
     updateSelectGroupMenu();
+}
+
+void MainWindow::updateShareAction(const QStringList &ips)
+{
+    if (!openShareAct) {
+        return;
+    }
+    if (!WinShare::platformSupports()) {
+        openShareAct->setText(tr("Open network neighborhood (Windows only)"));
+        openShareAct->setEnabled(false);
+        openShareAct->setToolTip(tr(
+                "Windows network neighborhood is only available on Windows."));
+        return;
+    }
+    openShareAct->setText(tr("Open network neighborhood"));
+    const bool one = ips.size() == 1 && WinShare::isSafeIpv4(ips.first(), 0);
+    openShareAct->setEnabled(one);
+    if (one) {
+        openShareAct->setToolTip(tr(
+                "Open \\\\%1\\ in Explorer. Windows asks for a password if one is required. This program does not ask for share credentials.")
+                                 .arg(ips.first()));
+    } else {
+        openShareAct->setToolTip(tr("Select one peer with an IPv4 address."));
+    }
+}
+
+void MainWindow::openNetworkNeighborhood()
+{
+    const QStringList ips = selectedPeerIps();
+    if (ips.size() != 1) {
+        return;
+    }
+    const WinShareOpen opened = WinShare::openNeighborhood(ips.first());
+    if (opened.result == winShareOk) {
+        return;
+    }
+    QMessageBox::warning(this, tr("Network neighborhood"), WinShare::describe(opened));
 }
 
 void MainWindow::updateSelectGroupMenu()

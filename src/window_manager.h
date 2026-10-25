@@ -62,6 +62,7 @@ public:
                         bool encrypted = false,
                         const QString &richHtml = QString());
     bool deliverText(const QString &ip, const QString &text);
+    QString deliverLocalCommand(const QString &target, const QString &text);
     bool deliverShake(const QString &ip);
     int broadcastTextToOnline(const QString &text);
     bool openSealedLetter(const QString &ip, const QString &packetNo);

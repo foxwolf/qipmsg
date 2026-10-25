@@ -42,6 +42,7 @@ set(SOURCES
     src/groupPolicyDialog.cpp
     src/helper.cpp
     src/history_search_window.cpp
+    src/localMsg.cpp
     src/lockfile.cpp
     src/main.cpp
     src/main_window.cpp
@@ -106,8 +107,11 @@ set(SOURCES
     src/translator.cpp
     src/userSkin.cpp
     src/user_manager.cpp
+    src/winShare.cpp
     src/window_manager.cpp
     src/windowSnap.cpp
+    src/zoneBrowser.cpp
+    src/zoneStore.cpp
 )
 
 set(HEADERS
@@ -136,6 +140,7 @@ set(HEADERS
     src/helper.h
     src/history_search_window.h
     src/ipmsg.h
+    src/localMsg.h
     src/lockfile.h
     src/main_window.h
     src/mention_highlighter.h
@@ -199,8 +204,11 @@ set(HEADERS
     src/userSkin.h
     src/user_manager.h
     src/version.h
+    src/winShare.h
     src/window_manager.h
     src/windowSnap.h
+    src/zoneBrowser.h
+    src/zoneStore.h
 )
 
 set(RESOURCES src/icons.qrc)
@@ -263,6 +271,9 @@ add_executable(qipmsgP3Check
     src/scheduleStore.cpp
     src/favoriteStore.cpp
     src/protocolutil.cpp
+    src/winShare.cpp
+    src/localMsg.cpp
+    src/zoneStore.cpp
 )
 target_include_directories(qipmsgP3Check PRIVATE src)
 
@@ -300,7 +311,8 @@ else()
 endif()
 
 if (WIN32)
-    target_link_libraries(qipmsg PRIVATE ws2_32)
+    target_link_libraries(qipmsg PRIVATE ws2_32 shell32)
+    target_link_libraries(qipmsgP3Check PRIVATE shell32)
 endif()
 
 if (APPLE)
