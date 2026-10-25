@@ -144,7 +144,7 @@ make
 
 ## Runtime notes
 
-- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, default receive files in `recv/`, and screenshots in `screenshots/`.
+- On first run the app creates `~/.qipmsg/` (Linux/macOS) or `%USERPROFILE%\.qipmsg\` (Windows) for settings (`qipmsg.ini`), the lock file, internal log, **per-peer chat history** in `history/<ip>.jsonl` (discussion transcripts use `history/disc-<id>.jsonl`), last-seen peers in `peers.json`, discussion groups in `discussions.json` (named member keys `user@host/ip`; local multi-send UX, **not** FeiQ multicast group protocol; no Qt Sql), file-resume offsets in `resume.json`, **offline text queue** in `offline_queue.json` (plain JSON, no Qt Sql), department-group hide/mute flags in `group_policy.json`, custom stickers in `stickers/` with an index `stickers.json`, local avatars in `avatars/` (self.png and per-IP PNG copies; not an IPMSG photo packet), default receive files in `recv/`, and screenshots in `screenshots/`. Tray **Backup private data** stores an uncompressed zip of the private files above except `recv/`, `screenshots/`, the lock file, and the internal log.
 - Transfer codec defaults to **GBK** (FeiQ / 飞鸽). Change it under Preferences → Detail/Log → Transfer. Decode tries the configured codec, then GBK, GB2312, and UTF-8, unless the datagram's command has `IPMSG_UTF8OPT` (`0x00800000`), in which case the whole datagram is decoded as UTF-8.
 - `BR_ENTRY` / `BR_ABSENCE` / `BR_EXIT` / `ANSENTRY` announce `IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT`. `ANSENTRY` previously omitted even the file-attach bit; it now uses the same capability word. Presence text stays on the configured codec and sets `IPMSG_UTF8OPT` only when that codec is UTF-8, so FeiQ 2013 keeps reading GBK nicknames. A directed `SENDMSG` sets `IPMSG_UTF8OPT` and is encoded as UTF-8 when the peer has advertised `CAPUTF8OPT` (or when our codec is already UTF-8). Clipboard images are still ordinary file attachments; the capability bit is an announcement, not a new file type on the wire (`IPMSG_FILE_CLIPBOARD` is defined but not sent, so FeiQ file receive stays unchanged).
 - Cross-subnet discovery: Preferences stores extra targets in `userSpecifiedBroadcastIp` (same `\r`-separated list). A token may be one IPv4, `start-end`, or `addr/prefix`. Each refresh expands it and unicasts `BR_ENTRY` there. One token is limited to 1024 addresses. There is no directory server.
@@ -163,7 +163,8 @@ make
   - TCP connect uses the peer’s last UDP source port (fallback 2425), with an 8 s timeout. Regular-file reads are capped at remaining bytes.
 - Personal signature is sent as a third NUL field after `nickname\0group\0` on `BR_ENTRY` / `ANSENTRY` / `BR_ABSENCE`. Classic IPMSG ignores extra fields; FeiQ `PersonSign` uses the same extra slot.
 - Window shake is a normal `IPMSG_SENDMSG` whose text is `#@#shake#@#` (also accepted: `{shake}`, `SHAKE`, `窗口抖动`, `#qipmsg-shake#`, and ESC+SHAKE). FeiQ peers that do not implement shake treat it as ordinary text.
-- Screenshot uses `QScreen::grabWindow` (full screen or rubber-band region) and sends a PNG through the existing file-attach path. Wayland/headless sessions may return an empty grab.
+- Screenshot uses `QScreen::grabWindow` (full screen or rubber-band region). A basic editor (pen, rectangle, arrow, text, undo) runs before the PNG is saved and sent through the existing file-attach path. Wayland/headless sessions may return an empty grab.
+- Outbound TCP file sends honor `sendSpeedLimitKBps` in `qipmsg.ini` (`[FileRecv]`, 0 = unlimited, cap 102400). Parallel sends share one token bucket. The transfer window shows and can change the same value.
 - Chat bubbles show a thumbnail for `png` / `jpg` / `jpeg` / `gif` / `bmp` / `webp` attachments (outgoing local path, incoming after receive into the save folder, plus path/filename in history). Click opens the file with the desktop handler. Clipboard paste (`Ctrl+V` of an image) saves under `screenshots/` and attaches it — the same IPMSG file-attach path FeiQ uses.
 - The toolbar emoji pack inserts Unicode into the compose box and sends it as ordinary `IPMSG_SENDMSG` text (no new protocol, no Qt Sql). FeiQ 2013 typically uses GBK, which cannot encode most emoji; those peers may see `?`. Use Preferences → Transfer → UTF-8 for Unicode emoji interop. Incoming FeiQ-style tokens such as `/微笑` are rendered as emoji locally only.
 - Custom stickers are files, not Unicode. Import copies PNG / GIF / WebP / JPEG / BMP into `stickers/` (max 8 MB, 400 files, 40 named groups). A click sends `[Sticker] …` plus `IPMSG_FILEATTACHOPT`, the same image-attach path as paste and screenshot. GIF animation is the file itself; the picker shows the first frame (WebP needs Qt's imageformats plugin for a thumbnail, but the file is still sent). FeiQ receives an ordinary image attachment, not a private face-id. Offline queue still refuses attachments.
@@ -171,6 +172,15 @@ make
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
 
 ## Version
+
+**2.27.5** adds an outbound send cap, uncompressed zip backup/restore of private data, basic screenshot annotation, and local-only avatars, on top of **2.23.4**.
+
+## Trying 2.27.5 send cap, backup, annotation, and local avatars
+
+1. Preferences → Detail → File, or the transfer monitor: set the send limit to 256 KB/s (0 is unlimited). A large TCP send should stay near that rate. Cancel still aborts the socket. The limit is not advertised to the peer.
+2. Backup from the tray or the File tab. The zip is STORE-only (no compression) so it round-trips in qipmsg. Restore asks before overwrite, then asks to restart. Do not recompress the archive. `recv/` and `screenshots/` are not part of the backup.
+3. Ctrl+Shift+S and Ctrl+Shift+A still start a capture. Annotate, then Send. Esc drops the capture and does not attach a file.
+4. The header avatar and a peer's **Set local photo** copy a PNG into `avatars/`. There is no FeiQ photo opcode. Other clients keep showing a color block.
 
 **2.23.4** adds department-group send, a recent-contacts panel, FeiQ typing commands 121/122, and in-progress transfer cancel with an ETA, on top of **2.19.3** (per-group hide, mute, sticker groups).
 
