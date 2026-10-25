@@ -122,7 +122,7 @@ void DataBackup::importInteractive(QWidget *parent)
                 DataBackup::tr("This replaces matching files under %1.\n\n"
                          "Preferences, peers, history, stickers, group policy, "
                          "recent contacts, resume data, discussions, the offline "
-                         "queue, and local avatars in the archive overwrite the "
+                         "queue, RSA keys, and local avatars in the archive overwrite the "
                          "same paths. Other files, including received files and "
                          "screenshots, stay. This cannot be undone.\n\n"
                          "Continue?")
