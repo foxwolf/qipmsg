@@ -39,6 +39,7 @@
 #include "offline_queue.h"
 #include "groupPolicy.h"
 #include "stickerStore.h"
+#include "recentStore.h"
 
 SendFileManager *Global::sendFileManager = 0;
 QSettings *Global::settings = 0;
@@ -52,6 +53,7 @@ DiscussionStore *Global::discussionStore = 0;
 OfflineQueue *Global::offlineQueue = 0;
 GroupPolicy *Global::groupPolicy = 0;
 StickerStore *Global::stickerStore = 0;
+RecentStore *Global::recentStore = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -85,6 +87,8 @@ void Global::globalInit(QString path)
     transferCodec = new TransferCodec;
 
     messageStore = new MessageStore;
+    recentStore = new RecentStore;
+    recentStore->seedFromHistoryDir(messageStore->historyDir());
     resumeStore = new ResumeStore;
     discussionStore = new DiscussionStore;
     offlineQueue = new OfflineQueue;
@@ -126,6 +130,7 @@ void Global::globalEnd()
     delete transferCodec;
 
     delete messageStore;
+    delete recentStore;
     delete resumeStore;
     delete offlineQueue;
 
