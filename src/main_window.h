@@ -102,6 +102,7 @@ private slots:
     void setPeerPhoto();
     void clearPeerPhoto();
     void updateHeader();
+    void openSchedule();
 
 signals:
     void messageReplyed();
@@ -154,6 +155,7 @@ private:
     QLabel *avatarLabel;
     QLabel *m_groupSendHint;
     QPushButton *refreshButton;
+    QPushButton *m_scheduleButton;
     QPushButton *sendButton;
     QPushButton *broadcastButton;
     QCheckBox *encapCheckBox;

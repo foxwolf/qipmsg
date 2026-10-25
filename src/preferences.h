@@ -91,6 +91,7 @@ public:
     bool isDoNotDisturb;
     bool isShareTyping;
     bool isPresenceSound;
+    bool isDialup;
     QString onlineSound;
     QString offlineSound;
     bool isStartWithOs;

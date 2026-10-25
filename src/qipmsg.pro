@@ -41,7 +41,9 @@ HEADERS += \
         contactDelegate.h \
         discussion_store.h \
         discussion_window.h \
-        emoji_pack.h \
+	emoji_pack.h \
+	favoriteDialog.h \
+	favoriteStore.h \
         mention_highlighter.h \
 	message_store.h \
 	msgCrypto.h \
@@ -49,7 +51,9 @@ HEADERS += \
         recentStore.h \
         resume_store.h \
         richText.h \
-        screen_capture.h \
+	screen_capture.h \
+	scheduleDialog.h \
+	scheduleStore.h \
         search_user_dialog.h \
         sendThrottle.h \
         shotEditor.h \
@@ -129,6 +133,8 @@ SOURCES += \
         discussion_store.cpp \
         discussion_window.cpp \
         emoji_pack.cpp \
+        favoriteDialog.cpp \
+        favoriteStore.cpp \
         mention_highlighter.cpp \
         message_store.cpp \
         msgCrypto.cpp \
@@ -138,6 +144,8 @@ SOURCES += \
         resume_store.cpp \
         richText.cpp \
         screen_capture.cpp \
+        scheduleDialog.cpp \
+        scheduleStore.cpp \
         search_user_dialog.cpp \
         sendThrottle.cpp \
         shotEditor.cpp \

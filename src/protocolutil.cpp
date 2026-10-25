@@ -300,6 +300,11 @@ bool isDecimalPacket(const QString &text)
 
 } // namespace
 
+bool ProtocolUtil::isDialupOption(quint32 flags)
+{
+    return (flags & IPMSG_DIALUPOPT) != 0;
+}
+
 bool ProtocolUtil::isFeiqTypingCommand(quint32 command, bool *active)
 {
     const quint32 mode = GET_MODE(command);

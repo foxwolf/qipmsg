@@ -100,7 +100,9 @@ bool isExactFile(const QString &rel)
             || rel == QLatin1String("offline_queue.json")
             || rel == QLatin1String("filehash.json")
             || rel == QLatin1String("rsa_private.json")
-            || rel == QLatin1String("peer_pubkeys.json");
+            || rel == QLatin1String("peer_pubkeys.json")
+            || rel == QLatin1String("schedule.json")
+            || rel == QLatin1String("favorites.json");
 }
 
 bool isAllowedTree(const QString &rel)

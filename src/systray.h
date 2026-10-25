@@ -70,6 +70,9 @@ private slots:
     void broadcastToOnline();
     void backupPrivateData();
     void restorePrivateData();
+    void openSchedule();
+    void onReminderDue(QString text, QString peerIp, QString peerName,
+                       bool notifyPeer);
 
 private:
     void createActions();
@@ -94,6 +97,7 @@ private:
     QAction *broadcastAction;
     QAction *backupAction;
     QAction *restoreAction;
+    QAction *m_scheduleAction;
     QMenu *leaveMenu;
     QAction *quitAction;
 

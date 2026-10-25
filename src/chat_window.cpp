@@ -32,6 +32,7 @@
 #include "avatarStore.h"
 #include "avatarFetch.h"
 #include "doodleCanvas.h"
+#include "favoriteDialog.h"
 #include "send_file_manager.h"
 #include "send_file_map.h"
 #include "send_file_window.h"
@@ -203,7 +204,9 @@ void ChatWindow::createUi()
     toolLayout->addWidget(makeToolButton(tr("Find"),
                                          tr("Find in history"),
                                          SLOT(findInHistory())));
-    toolLayout->addWidget(makeStubButton(tr("Favorites")));
+    toolLayout->addWidget(makeToolButton(tr("Favorites"),
+                                         tr("Save chat text, a file path, or a note about this peer on this computer."),
+                                         SLOT(showFavorites())));
     toolLayout->addWidget(makeStubButton(tr("Zone")));
     toolLayout->addStretch();
 
@@ -533,6 +536,26 @@ void ChatWindow::openDoodle()
     }
     sendPayload(tr("[Doodle] %1").arg(QFileInfo(path).fileName()),
                 QStringList() << path);
+}
+
+void ChatWindow::showFavorites()
+{
+    QString selected;
+    if (m_historyEdit) {
+        selected = m_historyEdit->textCursor().selectedText();
+    }
+    if (selected.trimmed().isEmpty() && m_inputEdit) {
+        selected = m_inputEdit->textCursor().selectedText();
+    }
+    selected.replace(QChar(0x2029), QChar('\n'));
+    selected = selected.trimmed();
+    const QString name = Global::userManager
+            ? Global::userManager->displayNameForIp(m_peerIp) : m_peerIp;
+    const QString note = Global::userManager
+            ? Global::userManager->memoForIp(m_peerIp) : QString();
+    FavoriteDialog dialog(this);
+    dialog.setContext(m_peerIp, name, selected, note);
+    dialog.exec();
 }
 
 void ChatWindow::browsePeerShare()

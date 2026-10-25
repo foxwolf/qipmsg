@@ -270,6 +270,7 @@ private:
     QLineEdit *rangeStartEdit;
     QLineEdit *rangeEndEdit;
     QLineEdit *cidrEdit;
+    QCheckBox *m_dialupCheck;
 };
 
 #endif // !SETUP_WINDOW_H

@@ -42,6 +42,8 @@
 #include "recentStore.h"
 #include "avatarStore.h"
 #include "avatarFetch.h"
+#include "scheduleStore.h"
+#include "favoriteStore.h"
 #include "msgCrypto.h"
 
 SendFileManager *Global::sendFileManager = 0;
@@ -59,6 +61,8 @@ StickerStore *Global::stickerStore = 0;
 RecentStore *Global::recentStore = 0;
 AvatarStore *Global::avatarStore = 0;
 AvatarFetch *Global::avatarFetch = 0;
+ScheduleStore *Global::scheduleStore = 0;
+FavoriteStore *Global::favoriteStore = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -116,6 +120,9 @@ void Global::globalInit(QString path)
                      avatarFetch, SLOT(republish()));
     windowManager = new WindowManager;
 
+    scheduleStore = new ScheduleStore;
+    favoriteStore = new FavoriteStore;
+
     systray = new Systray;
 }
 
@@ -131,6 +138,11 @@ void Global::globalEnd()
     delete userManager;
 
     delete windowManager;
+
+    delete scheduleStore;
+    scheduleStore = 0;
+    delete favoriteStore;
+    favoriteStore = 0;
 
     delete discussionStore;
     delete groupPolicy;

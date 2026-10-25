@@ -32,6 +32,8 @@ set(SOURCES
     src/discussion_store.cpp
     src/discussion_window.cpp
     src/emoji_pack.cpp
+    src/favoriteDialog.cpp
+    src/favoriteStore.cpp
     src/fileHashIndex.cpp
     src/file_server.cpp
     src/global.cpp
@@ -76,6 +78,8 @@ set(SOURCES
     src/recv_msg.cpp
     src/retry_recv_file_dialog.cpp
     src/screen_capture.cpp
+    src/scheduleDialog.cpp
+    src/scheduleStore.cpp
     src/search_user_dialog.cpp
     src/sendThrottle.cpp
     src/shareBrowser.cpp
@@ -121,6 +125,8 @@ set(HEADERS
     src/discussion_store.h
     src/discussion_window.h
     src/emoji_pack.h
+    src/favoriteDialog.h
+    src/favoriteStore.h
     src/fileHashIndex.h
     src/file_server.h
     src/global.h
@@ -161,6 +167,8 @@ set(HEADERS
     src/resume_store.h
     src/richText.h
     src/screen_capture.h
+    src/scheduleDialog.h
+    src/scheduleStore.h
     src/recv_msg.h
     src/retry_recv_file_dialog.h
     src/search_user_dialog.h
@@ -250,6 +258,14 @@ add_executable(qipmsgP2Check
 )
 target_include_directories(qipmsgP2Check PRIVATE src)
 
+add_executable(qipmsgP3Check
+    test/p3check/main.cpp
+    src/scheduleStore.cpp
+    src/favoriteStore.cpp
+    src/protocolutil.cpp
+)
+target_include_directories(qipmsgP3Check PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -266,6 +282,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
     target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
+    target_link_libraries(qipmsgP3Check PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -279,6 +296,7 @@ else()
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
     target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network)
+    target_link_libraries(qipmsgP3Check PRIVATE Qt5::Core Qt5::Gui Qt5::Network)
 endif()
 
 if (WIN32)

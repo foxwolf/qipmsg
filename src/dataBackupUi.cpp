@@ -98,8 +98,8 @@ void DataBackup::exportInteractive(QWidget *parent)
                 DataBackup::tr("Saved %1 files to %2.\n\n"
                          "Included: preferences, peers, history, stickers, "
                          "group policy, recent contacts, resume data, "
-                         "discussions, the offline queue, RSA keys, local avatars, and "
-                         "group logs. "
+                         "discussions, the offline queue, RSA keys, local avatars, "
+                         "group logs, schedules, and favorites. "
                          "Received files and screenshots are not included.")
                 .arg(count)
                 .arg(zipPath));
@@ -123,7 +123,7 @@ void DataBackup::importInteractive(QWidget *parent)
                 DataBackup::tr("This replaces matching files under %1.\n\n"
                          "Preferences, peers, history, stickers, group policy, "
                          "recent contacts, resume data, discussions, the offline "
-                         "queue, RSA keys, local avatars, and group logs in the archive overwrite the "
+                         "queue, RSA keys, local avatars, group logs, schedules, and favorites in the archive overwrite the "
                          "same paths. Other files, including received files and "
                          "screenshots, stay. This cannot be undone.\n\n"
                          "Continue?")

@@ -101,6 +101,7 @@ void Preferences::reset()
     isDoNotDisturb = false;
     isShareTyping = true;
     isPresenceSound = false;
+    isDialup = false;
     onlineSound = Helper::soundPath() + "/info.wav";
     offlineSound = Helper::soundPath() + "/warning.wav";
     isStartWithOs = false;
@@ -217,6 +218,7 @@ void Preferences::load()
     isOfflineQueue = set->value("isOfflineQueue", isOfflineQueue).toBool();
     isEncryptMsg = set->value("isEncryptMsg", isEncryptMsg).toBool();
     isPresenceSound = set->value("isPresenceSound", isPresenceSound).toBool();
+    isDialup = set->value("isDialup", isDialup).toBool();
     set->endGroup();
 
     set->beginGroup("System");
@@ -358,6 +360,7 @@ void Preferences::save()
     set->setValue("isOfflineQueue", isOfflineQueue);
     set->setValue("isEncryptMsg", isEncryptMsg);
     set->setValue("isPresenceSound", isPresenceSound);
+    set->setValue("isDialup", isDialup);
     set->endGroup();
 
     set->beginGroup("System");

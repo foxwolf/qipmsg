@@ -30,6 +30,7 @@
 #include "transfer_codec.h"
 #include "sound_thread.h"
 #include "groupPolicy.h"
+#include "protocolutil.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -110,11 +111,13 @@ void UserManager::newUserMsg(Msg msg)
         GET_MODE(msg->flags()) == IPMSG_BR_ABSENCE
         || (msg->flags() & IPMSG_ABSENCEOPT);
 
+    const bool dialup = ProtocolUtil::isDialupOption(msg->flags());
     if (contains(msg->ip())) {
         const int row = ipToRow(msg->ip());
         const QString previousGroup = group(row);
         updateUser(msg->owner(), row);
         touchUser(row, absence);
+        applyDialupFlag(row, dialup);
         scheduleSavePeers();
         notifyUsersChanged();
         reconcileGroupVisibility(msg->ip(), previousGroup, msg->owner().group());
@@ -123,6 +126,7 @@ void UserManager::newUserMsg(Msg msg)
         m_model->insertRow(row);
         addUser(msg->owner(), row);
         touchUser(row, absence);
+        applyDialupFlag(row, dialup);
         scheduleSavePeers();
 
         emit userCountUpdated(m_model->rowCount());
@@ -326,6 +330,9 @@ quint32 UserManager::presenceFlags(quint32 command) const
     if (Global::preferences->isEncryptMsg) {
         flags |= IPMSG_ENCRYPTOPT;
     }
+    if (Global::preferences->isDialup) {
+        flags |= IPMSG_DIALUPOPT;
+    }
     return flags;
 }
 
@@ -400,6 +407,7 @@ void UserManager::broadcastExit() const
                     commandFlags(IPMSG_BR_EXIT));
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
+    unicastPresenceToDialup(IPMSG_BR_EXIT);
 }
 
 QString UserManager::localQipToken() const
@@ -439,6 +447,49 @@ bool UserManager::peerHasShare(const QString &ip) const
     return ShareFolder::tokenHasShare(peerQipToken(ip));
 }
 
+bool UserManager::peerIsDialup(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    if (row < 0) {
+        return false;
+    }
+    return m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         Qt::UserRole + 5).toBool();
+}
+
+void UserManager::applyDialupFlag(int row, bool dialup)
+{
+    if (row < 0 || !m_model) {
+        return;
+    }
+    m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                     dialup, Qt::UserRole + 5);
+}
+
+void UserManager::unicastPresenceToDialup(quint32 command) const
+{
+    if (!Global::msgThread) {
+        return;
+    }
+    // protocol.txt: a host with IPMSG_DIALUPOPT may miss subnet broadcasts,
+    // so member-recognition commands are sent to that host individually.
+    // This follows our own announce. It is not a reply to their entry, so
+    // two dial-up qipmsg peers do not bounce BR_ENTRY forever. ANSENTRY
+    // still answers their BR_ENTRY on the existing path.
+    const bool exitPacket = GET_MODE(command) == IPMSG_BR_EXIT;
+    for (int row = 0; row < userCount(); ++row) {
+        const QString peerIp = ip(row);
+        if (peerIp.isEmpty() || !peerIsDialup(peerIp)) {
+            continue;
+        }
+        if (!exitPacket && Global::groupPolicy
+                && Global::groupPolicy->isHidden(group(row))) {
+            continue;
+        }
+        sendDirectedUserPacket(peerIp, 0, command);
+    }
+}
+
 void UserManager::refreshLocalView()
 {
     notifyUsersChanged();
@@ -471,6 +522,7 @@ void UserManager::broadcastEntry() const
                     commandFlags(IPMSG_BR_ENTRY));
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
+    unicastPresenceToDialup(IPMSG_BR_ENTRY);
 }
 
 void UserManager::broadcastAbsence() const
@@ -482,6 +534,7 @@ void UserManager::broadcastAbsence() const
                     commandFlags(IPMSG_BR_ABSENCE) | IPMSG_ABSENCEOPT);
 
     Global::msgThread->addSendMsg(Msg(sendMsg));
+    unicastPresenceToDialup(IPMSG_BR_ABSENCE);
 }
 
 void UserManager::sendDirectedUserPacket(const QString &ip, quint16 port,
@@ -813,6 +866,10 @@ QString UserManager::peerCaption(const QString &ip) const
             caption += "\n" + photo;
         }
     }
+    if (peerIsDialup(ip)) {
+        caption += QLatin1Char('\n');
+        caption += tr("Dial-up host");
+    }
     return caption;
 }
 
@@ -922,6 +979,7 @@ void UserManager::loadPersistedPeers()
                                             : QDateTime::currentDateTime(),
                          Qt::UserRole);
         setRowPresence(row, PRESENCE_STALE);
+        applyDialupFlag(row, obj.value(QStringLiteral("dialup")).toBool());
     }
 
     if (m_model->rowCount() > 0) {
@@ -950,6 +1008,9 @@ void UserManager::savePersistedPeers()
         const QString memo = memoForIp(peerIp);
         if (!memo.isEmpty()) {
             obj.insert("memo", memo);
+        }
+        if (peerIsDialup(peerIp)) {
+            obj.insert(QStringLiteral("dialup"), true);
         }
         obj.insert("lastSeen",
                    m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),

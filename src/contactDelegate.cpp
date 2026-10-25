@@ -100,6 +100,18 @@ void ContactDelegate::paint(QPainter *painter,
         painter->setPen(QColor("#FFFFFF"));
         painter->drawText(badge, Qt::AlignCenter, QStringLiteral("\u4eab"));
     }
+    if (index.data(Qt::UserRole + 11).toBool()) {
+        const QRect badge(avatarRect.right() - 14, avatarRect.top(), 16, 16);
+        painter->setBrush(QColor("#D97706"));
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(badge);
+        QFont badgeFont = opt.font;
+        badgeFont.setPixelSize(9);
+        badgeFont.setBold(true);
+        painter->setFont(badgeFont);
+        painter->setPen(QColor("#FFFFFF"));
+        painter->drawText(badge, Qt::AlignCenter, tr("D", "one-letter dial-up badge"));
+    }
 
     QString title = index.data(Qt::UserRole + 6).toString();
     if (title.isEmpty()) {

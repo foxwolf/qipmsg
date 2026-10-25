@@ -29,6 +29,9 @@
 #include "constants.h"
 #include "groupPolicy.h"
 #include "dataBackup.h"
+#include "scheduleDialog.h"
+#include "scheduleStore.h"
+#include "sound_thread.h"
 
 #include <QAction>
 #include <QMenu>
@@ -199,6 +202,9 @@ void Systray::createActions()
     broadcastAction = new QAction(tr("Broadcast to all online..."), 0);
     backupAction = new QAction(tr("Backup private data..."), 0);
     restoreAction = new QAction(tr("Restore private data..."), 0);
+    m_scheduleAction = new QAction(tr("Schedule..."), 0);
+    m_scheduleAction->setToolTip(tr(
+            "Local reminders. They fire only while QIpMsg is running."));
     backupAction->setToolTip(tr(
             "Zip preferences, history, stickers, and other private files. "
             "Received files and screenshots are not included."));
@@ -230,6 +236,7 @@ void Systray::createMenus()
     trayIconMenu->addAction(readMsgLogAction);
     trayIconMenu->addAction(findHistoryAction);
     trayIconMenu->addAction(offlineQueueAction);
+    trayIconMenu->addAction(m_scheduleAction);
     trayIconMenu->addAction(broadcastAction);
     trayIconMenu->addAction(backupAction);
     trayIconMenu->addAction(restoreAction);
@@ -297,6 +304,12 @@ void Systray::createConnections()
             this, SLOT(findInHistory()));
     connect(offlineQueueAction, SIGNAL(triggered()),
             this, SLOT(showOfflineQueue()));
+    connect(m_scheduleAction, SIGNAL(triggered()),
+            this, SLOT(openSchedule()));
+    if (Global::scheduleStore) {
+        connect(Global::scheduleStore, SIGNAL(reminderDue(QString,QString,QString,bool)),
+                this, SLOT(onReminderDue(QString,QString,QString,bool)));
+    }
     connect(broadcastAction, SIGNAL(triggered()),
             this, SLOT(broadcastToOnline()));
     connect(backupAction, SIGNAL(triggered()),
@@ -430,6 +443,37 @@ void Systray::backupPrivateData()
 void Systray::restorePrivateData()
 {
     DataBackup::importInteractive(0);
+}
+
+void Systray::openSchedule()
+{
+    QWidget *parent = mainWindowList.isEmpty() ? 0 : mainWindowList.first();
+    ScheduleDialog dialog(QString(), parent);
+    dialog.exec();
+}
+
+void Systray::onReminderDue(QString text, QString peerIp, QString peerName,
+                            bool notifyPeer)
+{
+    Q_UNUSED(peerName);
+    const QString title = tr("Reminder");
+    QWidget *parent = mainWindowList.isEmpty() ? 0 : mainWindowList.first();
+    if (trayIcon && trayIcon->supportsMessages()) {
+        trayIcon->showMessage(title, text, QSystemTrayIcon::Information,
+                              TRAY_NOTIFY_MS);
+    } else {
+        QMessageBox::information(parent, title, text);
+    }
+    if (Global::soundThread && Global::preferences
+            && !Global::preferences->isNoSoundAlarm
+            && !Global::preferences->noticeSound.isEmpty()) {
+        Global::soundThread->play(Global::preferences->noticeSound);
+    }
+    if (!notifyPeer || peerIp.isEmpty() || !Global::windowManager) {
+        return;
+    }
+    const QString body = tr("Reminder: %1").arg(text);
+    Global::windowManager->queueOrDeliverText(peerIp, body, parent);
 }
 
 void Systray::showOfflineQueue()

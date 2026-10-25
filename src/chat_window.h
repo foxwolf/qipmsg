@@ -101,6 +101,7 @@ private slots:
     void browsePeerShare();
     void browseGroupShare();
     void openDoodle();
+    void showFavorites();
 
 private:
     void createUi();
