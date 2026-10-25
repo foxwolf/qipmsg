@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.30.6 adds a local file-hash index with qipmsg-only instant skip, a qipmsg shared folder (browse and download on the existing file port), and light / dark / system appearance. FeiQ still receives a full file transfer and cannot browse this share: neither hash handshake nor FeiQ share packets were verified. 2.27.5 outbound TCP send cap, zip backup (no Qt Sql), screenshot annotation, and local-only avatars stay. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
+2.36.10 adds a practical chat rich-text subset, window snap while selecting a screenshot region, and a local discussion-group notice. The SENDMSG body stays plain UTF-8/GBK text so FeiQ stays readable. A qipmsg peer may also get private command 126 `RICH:<packet>:<base64 HTML>` when the message is neither encrypted nor sealed. Snap uses top-level window bounds where the platform allows it; hold Alt (Option on macOS) to disable. The notice is a string in `discussions.json` plus the existing multi-send, not a FeiQ multicast room. 2.30.6 adds a local file-hash index with qipmsg-only instant skip, a qipmsg shared folder (browse and download on the existing file port), and light / dark / system appearance. FeiQ still receives a full file transfer and cannot browse this share: neither hash handshake nor FeiQ share packets were verified. 2.27.5 outbound TCP send cap, zip backup (no Qt Sql), screenshot annotation, and local-only avatars stay. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
 
 ## In this line of work (done)
 
@@ -67,6 +67,15 @@
 - [x] Optional RSA text encryption (default off). `GETPUBKEY` / `ANSPUBKEY`, zero IV, PKCS#1 plus AES-256 or Blowfish-128. Attachments and peers without a parsed key stay classic plaintext. FeiQ and official IPMsg packing were not verified
 - [x] Offline queue persists across restart, retries on startup and when a peer is reachable, shows a count, and can hold a shake token. Files stay out
 - [x] Windows NSIS user-level installer from the `windeployqt` folder (`packaging/qipmsg.nsi`)
+- [x] Chat composer bold / italic / underline / size / color. Wire body is plain text. Optional HTML sidecar is qipmsg-only (command 126). No OLE/RTF blob as the message body
+- [x] Screenshot region snap to nearby top-level windows; hold Alt (Option on macOS) to turn snap off. Pen / rect / arrow / text annotation stays after capture
+- [x] Discussion group notice in `discussions.json` (no Qt Sql). Banner when non-empty. Change is a plain SENDMSG to online/away members (`MULTICASTOPT` when more than one). Not a FeiQ room
+
+## How to try 2.36.10
+
+1. In a chat, use the toolbar above the input: **B**, **I**, **U**, size, and color. FeiQ receives only the plain sentence and should display it as before. A second qipmsg shows the same formatting. Pasted HTML is reduced to that subset; RTF and NUL-bearing clipboard data insert as plain text. Encrypted and sealed sends keep formatting on this computer and do not send the HTML sidecar. The offline queue stores plain text only.
+2. Ctrl+Shift+A and drag. The rectangle snaps to nearby window edges (Windows enumerates top-level windows; Linux `dlopen`s `libX11.so.6` and otherwise snaps to the screen only; macOS uses the window list when CoreGraphics returns one). Hold Alt, or Option on macOS, while dragging to disable snap. Enter or double-click still opens the pen / rectangle / arrow / text editor from 2.27.5.
+3. Open a discussion and choose **Group notice**. Saving text shows a banner and sends one plain SENDMSG to each online or away member (`MULTICASTOPT` when there are two or more). Clearing it hides the banner and sends a short clear line. Grey offline members are not queued. If nobody is reachable, the notice stays in `~/.qipmsg/discussions.json` only. This is not a FeiQ multicast room.
 
 ## How to try 2.33.9
 
@@ -78,7 +87,7 @@
 
 1. **FeiQ plugin system**
 2. **FeiQ share-protocol interop** (qipmsg↔qipmsg browse is done; FeiQ's packet format was not verified)
-3. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
+3. **FeiQ multicast group / 群 chat rooms** (shared room membership, full room sync). Local multi-send 讨论组 and the 2.36.10 notice string are not that protocol.
 4. **Voice**
 5. **Extra skins**
    - Light and dark ship with 2.30.6. User-supplied skins remain later

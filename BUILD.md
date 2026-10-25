@@ -35,6 +35,8 @@ cmake ..
 cmake --build -j$(nproc)
 ```
 
+Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, and discussion notice JSON.
+
 Run locally without installing:
 
 ```bash
@@ -93,7 +95,7 @@ C:\Qt\6.x.x\msvc2019_64\bin\windeployqt.exe Release\qipmsg.exe
 User-level NSIS installer (no admin). Copy the `windeployqt` output into one directory, then:
 
 ```cmd
-makensis -DVERSION=2.33.9 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.33.9-setup.exe packaging\qipmsg.nsi
+makensis -DVERSION=2.36.10 -DDEPLOYDIR=C:\path\to\win-deploy -DOUTFILE=qipmsg-2.36.10-setup.exe packaging\qipmsg.nsi
 ```
 
 `VERSION` must match `src/version.h`. The script does not embed a version of its own. `OUTFILE` is optional; when omitted, the installer is written next to `packaging/qipmsg.nsi`. Installs to `%LOCALAPPDATA%\QIpMsg` and adds a Start Menu shortcut. GitHub Actions `windows-latest` installs NSIS with Chocolatey when `makensis` is missing, uploads `qipmsg-<version>-setup.exe` as artifact `qipmsg-windows-setup`, and still uploads the `win-deploy` folder. Every OS job checks that `src/version.h`, `CMakeLists.txt`, and `docs/README.md` carry the same version and that `packaging/qipmsg.nsi` exists.
