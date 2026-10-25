@@ -98,6 +98,7 @@ public:
     bool isAutoRecvFile;
     bool isAutoRecvRename;
     QString autoRecvPath;
+    int sendSpeedLimitKBps;
 
     int udpPort;
     QString bindAddress;

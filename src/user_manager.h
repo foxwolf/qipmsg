@@ -76,6 +76,8 @@ public:
     quint16 sendPortForIp(const QString &ip) const;
 
     Owner ourself() const { return m_ourself; }
+    void suspendPeerPersist();
+    void adoptRestoredPeers();
     void updateOurself();
 
     QString entryMessage() const;
@@ -117,6 +119,7 @@ private:
     QStandardItemModel *m_model;
     QTimer *m_refreshTimer;
     QTimer *m_saveTimer;
+    bool m_suspendPeerPersist;
     QMap<QString, QString> m_memos;
     bool m_presenceSoundArmed;
     QDateTime m_lastPresenceSoundAt;

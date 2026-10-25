@@ -89,6 +89,8 @@ public:
     static QPixmap avatarPixmap(const QString &letter, int size,
                                 const QColor &fill,
                                 const QColor &status = QColor());
+    static QPixmap roundAvatar(const QPixmap &source, int size,
+                               const QColor &status = QColor());
 
 private:
     static void openInternalLogFile();

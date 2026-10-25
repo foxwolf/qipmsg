@@ -128,6 +128,9 @@ public:
 
 private slots:
     void getRecvPath();
+    void updateSpeedHint(int kbps);
+    void backupPrivateData();
+    void restorePrivateData();
 
 private:
     QCheckBox *resumeCheckBox;
@@ -135,6 +138,8 @@ private:
     QCheckBox *autoRenameCheckBox;
     QPushButton *recvPathButton;
     QLabel *recvPathLabel;
+    QSpinBox *speedSpin;
+    QLabel *speedHint;
 };
 
 class NetworkTab : public QWidget

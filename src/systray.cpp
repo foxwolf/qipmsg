@@ -28,6 +28,7 @@
 #include "offline_queue.h"
 #include "constants.h"
 #include "groupPolicy.h"
+#include "dataBackup.h"
 
 #include <QAction>
 #include <QMenu>
@@ -196,6 +197,14 @@ void Systray::createActions()
     findHistoryAction = new QAction(tr("Find in history..."), 0);
     offlineQueueAction = new QAction(tr("Offline message queue"), 0);
     broadcastAction = new QAction(tr("Broadcast to all online..."), 0);
+    backupAction = new QAction(tr("Backup private data..."), 0);
+    restoreAction = new QAction(tr("Restore private data..."), 0);
+    backupAction->setToolTip(tr(
+            "Zip preferences, history, stickers, and other private files. "
+            "Received files and screenshots are not included."));
+    restoreAction->setToolTip(tr(
+            "Replace matching private files from a zip. You will be asked "
+            "before anything is overwritten."));
     doNotDisturbAction = new QAction(tr("Do not disturb (don't pop message windows)"), this);
     doNotDisturbAction->setCheckable(true);
     doNotDisturbAction->setChecked(Global::preferences->isDoNotDisturb);
@@ -222,6 +231,8 @@ void Systray::createMenus()
     trayIconMenu->addAction(findHistoryAction);
     trayIconMenu->addAction(offlineQueueAction);
     trayIconMenu->addAction(broadcastAction);
+    trayIconMenu->addAction(backupAction);
+    trayIconMenu->addAction(restoreAction);
     trayIconMenu->addSeparator();
     trayIconMenu->addAction(aboutQtAction);
 
@@ -288,6 +299,10 @@ void Systray::createConnections()
             this, SLOT(showOfflineQueue()));
     connect(broadcastAction, SIGNAL(triggered()),
             this, SLOT(broadcastToOnline()));
+    connect(backupAction, SIGNAL(triggered()),
+            this, SLOT(backupPrivateData()));
+    connect(restoreAction, SIGNAL(triggered()),
+            this, SLOT(restorePrivateData()));
 
     connect(Global::userManager, SIGNAL(userCountUpdated(int)),
             this, SLOT(updateToolTip(int)));
@@ -405,6 +420,16 @@ void Systray::broadcastToOnline()
     }
     QMessageBox::information(0, tr("Broadcast"),
             tr("Broadcast sent to %n online peer(s).", "", sent));
+}
+
+void Systray::backupPrivateData()
+{
+    DataBackup::exportInteractive(0);
+}
+
+void Systray::restorePrivateData()
+{
+    DataBackup::importInteractive(0);
 }
 
 void Systray::showOfflineQueue()

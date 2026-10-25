@@ -40,6 +40,7 @@ class OfflineQueue;
 class GroupPolicy;
 class StickerStore;
 class RecentStore;
+class AvatarStore;
 
 namespace Global
 {
@@ -58,6 +59,7 @@ namespace Global
     extern GroupPolicy *groupPolicy;
     extern StickerStore *stickerStore;
     extern RecentStore *recentStore;
+    extern AvatarStore *avatarStore;
     extern Systray *systray;
     extern QMap<QString, QIcon *> iconSet;
     extern FileServer *fileServer;

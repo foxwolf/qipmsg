@@ -46,6 +46,7 @@
 #include "groupPolicy.h"
 #include "groupPolicyDialog.h"
 #include "recentStore.h"
+#include "avatarStore.h"
 
 quint32 MainWindow::m_levelOneCount = 0;
 quint32 MainWindow::m_levelTwoCount = 0;
@@ -53,6 +54,7 @@ quint32 MainWindow::m_levelTwoCount = 0;
 MainWindow::MainWindow(QString text, QString ip,
         QWidget *parent)
     : QMainWindow(parent), m_groupSendHint(0), sendToGroupAct(0),
+    setMyPhotoAct(0), setPeerPhotoAct(0), clearPeerPhotoAct(0),
     m_initText(text), m_selectedIp(ip), m_lastSearchDialog(0)
 {
     setAttribute(Qt::WA_DeleteOnClose, true);
@@ -112,6 +114,12 @@ void MainWindow::createConnections()
         connect(Global::recentStore, SIGNAL(contactsChanged()),
                 this, SLOT(rebuildContactTree()));
     }
+    if (Global::avatarStore) {
+        connect(Global::avatarStore, SIGNAL(changed()),
+                this, SLOT(rebuildContactTree()));
+        connect(Global::avatarStore, SIGNAL(changed()),
+                this, SLOT(updateHeader()));
+    }
     if (Global::windowManager) {
         connect(Global::windowManager, SIGNAL(peerTypingChanged(QString,bool)),
                 this, SLOT(onPeerTyping(QString,bool)));
@@ -158,6 +166,12 @@ void MainWindow::createPeerWidget()
 
     avatarLabel = new QLabel;
     avatarLabel->setFixedSize(40, 40);
+    avatarLabel->setCursor(Qt::PointingHandCursor);
+    avatarLabel->setToolTip(tr(
+            "Click to choose a local photo (PNG or JPEG). "
+            "It is stored only on this computer. FeiQ peers still see a "
+            "color block unless they use qipmsg and set the same picture."));
+    avatarLabel->installEventFilter(this);
 
     nickStatusLabel = new QLabel;
     nickStatusLabel->setObjectName("headerName");
@@ -313,6 +327,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     menu.addAction(deleteDiscussionAct);
     menu.addAction(addToDiscussionAct);
     menu.addAction(setMemoAct);
+    menu.addAction(setMyPhotoAct);
+    menu.addAction(setPeerPhotoAct);
+    menu.addAction(clearPeerPhotoAct);
     menu.addSeparator();
     menu.addAction(hideFromGroupAct);
     menu.addAction(muteGroupAct);
@@ -333,6 +350,8 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     }
     blacklistAct->setEnabled(!ips.isEmpty());
     setMemoAct->setEnabled(ips.size() == 1);
+    setPeerPhotoAct->setEnabled(ips.size() == 1);
+    clearPeerPhotoAct->setEnabled(ips.size() == 1);
 
     const QString groupName = groupAtCursor();
     const bool hasGroup = !groupName.isEmpty() && Global::groupPolicy;
@@ -384,6 +403,21 @@ void MainWindow::createActions()
     setMemoAct = new QAction(tr("Set memo..."), this);
     connect(setMemoAct, SIGNAL(triggered()),
             this, SLOT(editPeerMemo()));
+    setMyPhotoAct = new QAction(tr("Set my photo..."), this);
+    setMyPhotoAct->setToolTip(tr(
+            "Local photo for you in the contact list and header. "
+            "Not sent to FeiQ."));
+    connect(setMyPhotoAct, SIGNAL(triggered()),
+            this, SLOT(setMyPhoto()));
+    setPeerPhotoAct = new QAction(tr("Set local photo..."), this);
+    setPeerPhotoAct->setToolTip(tr(
+            "Show a PNG or JPEG for this IP on this computer only. "
+            "The peer still sees your color block."));
+    connect(setPeerPhotoAct, SIGNAL(triggered()),
+            this, SLOT(setPeerPhoto()));
+    clearPeerPhotoAct = new QAction(tr("Clear local photo"), this);
+    connect(clearPeerPhotoAct, SIGNAL(triggered()),
+            this, SLOT(clearPeerPhoto()));
     hideFromGroupAct = new QAction(tr("Hide from this group"), this);
     hideFromGroupAct->setCheckable(true);
     connect(hideFromGroupAct, SIGNAL(triggered()),
@@ -661,13 +695,59 @@ void MainWindow::updateHeader()
     nickStatusLabel->setText(me.name());
     onlineCountLabel->setText(tr("%1 · %n online", "",
                                  Global::userManager->onlineCount()).arg(status));
-    avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40));
+    avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40,
+                                      AvatarStore::selfKey()));
 }
 
-QPixmap MainWindow::peerAvatar(const QString &name, int presence, int size) const
+QPixmap MainWindow::peerAvatar(const QString &name, int presence, int size,
+                               const QString &photoKey) const
 {
+    if (!photoKey.isEmpty() && Global::avatarStore) {
+        const QPixmap photo = Global::avatarStore->rounded(
+                    photoKey, size, Helper::presenceColor(presence));
+        if (!photo.isNull()) {
+            return photo;
+        }
+    }
     return Helper::avatarPixmap(name, size, Helper::avatarColor(name),
                                 Helper::presenceColor(presence));
+}
+
+bool MainWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == avatarLabel && event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent *mouse = static_cast<QMouseEvent *>(event);
+        if (mouse->button() == Qt::LeftButton) {
+            setMyPhoto();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::setMyPhoto()
+{
+    if (Global::avatarStore) {
+        Global::avatarStore->chooseAndSet(AvatarStore::selfKey(), this);
+    }
+}
+
+void MainWindow::setPeerPhoto()
+{
+    const QStringList ips = selectedPeerIps();
+    if (ips.size() != 1 || !Global::avatarStore) {
+        return;
+    }
+    Global::avatarStore->chooseAndSet(ips.first(), this);
+}
+
+void MainWindow::clearPeerPhoto()
+{
+    const QStringList ips = selectedPeerIps();
+    if (ips.size() != 1 || !Global::avatarStore) {
+        return;
+    }
+    Global::avatarStore->clearKey(ips.first());
 }
 
 QTreeWidgetItem *MainWindow::makeGroupItem(const QString &title,
@@ -719,7 +799,7 @@ void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
     if (presence == PRESENCE_STALE) {
         item->setForeground(0, QBrush(QColor(120, 120, 120)));
     }
-    item->setIcon(0, QIcon(peerAvatar(display, presence, 36)));
+    item->setIcon(0, QIcon(peerAvatar(display, presence, 36, ip)));
     item->setToolTip(0, um->peerCaption(ip));
 }
 
@@ -734,7 +814,8 @@ void MainWindow::addSelfItem(QTreeWidgetItem *parent)
                   host.isEmpty() ? tr("This is you") : host);
     item->setData(0, Qt::UserRole + 6, caption);
     item->setFlags(Qt::ItemIsEnabled);
-    item->setIcon(0, QIcon(peerAvatar(me.name(), PRESENCE_ONLINE, 36)));
+    item->setIcon(0, QIcon(peerAvatar(me.name(), PRESENCE_ONLINE, 36,
+                                      AvatarStore::selfKey())));
     item->setToolTip(0, tr("This is you"));
 }
 
@@ -803,7 +884,7 @@ void MainWindow::addRecentItems(QTreeWidgetItem *parent)
         if (presence == PRESENCE_STALE) {
             item->setForeground(0, QBrush(QColor(120, 120, 120)));
         }
-        item->setIcon(0, QIcon(peerAvatar(name, presence, 36)));
+        item->setIcon(0, QIcon(peerAvatar(name, presence, 36, row.ip)));
         item->setToolTip(0, tr("Click to open chat\n%1").arg(subtitle));
     }
     updateGroupTitle(parent, tr("Recent contacts"));

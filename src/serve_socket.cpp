@@ -28,6 +28,7 @@
 #include "send_file_manager.h"
 #include "global.h"
 #include "helper.h"
+#include "sendThrottle.h"
 
 #include <QDir>
 #include <QDateTime>
@@ -344,17 +345,21 @@ bool ServeSocket::tcpWriteBlock(QByteArray &block)
 
   size_t  sent = 0;
   while ( sent < nbytes ) {
+    if (transferCancelled()) {
+      return false;
+    }
+    qint64 wrote = 0;
 #ifdef _WIN32
     int n = send(static_cast<SOCKET>(m_sockfd), buff + sent,
                  static_cast<int>(nbytes - sent), 0);
     if (n == SOCKET_ERROR || n <= 0) {
       return false;
     }
-    sent += static_cast<size_t>(n);
+    wrote = n;
 #else
     ssize_t n = send(m_sockfd, buff+sent, nbytes-sent, 0);
     if ( n > 0 ) {
-      sent += n;
+      wrote = n;
     } else if ( n < 0 ) {
       if ( errno == EINTR ) {
         continue;
@@ -364,8 +369,12 @@ bool ServeSocket::tcpWriteBlock(QByteArray &block)
       return false;
     }
 #endif
+    sent += static_cast<size_t>(wrote);
+    noteProgress(wrote, 0);
+    if (!SendThrottle::pace(wrote, [this]() { return transferCancelled(); })) {
+      return false;
+    }
   }
-  noteProgress(static_cast<qint64>(nbytes), 0);
   return !transferCancelled();
 //    qint32 bytesToWrite = block.size();
 //    forever {

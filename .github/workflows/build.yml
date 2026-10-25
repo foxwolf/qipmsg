@@ -67,16 +67,21 @@ jobs:
       - name: Protocol self-check
         shell: bash
         run: |
-          for p in build/qipmsgP1Check build/qipmsgP1Check.exe \
-                   build/Release/qipmsgP1Check.exe; do
-            if [ -f "$p" ]; then
-              "$p"
-              exit 0
-            fi
-          done
-          echo "qipmsgP1Check not found"
-          find build -name 'qipmsgP1Check*' | head
-          exit 1
+          set -euo pipefail
+          run_one() {
+            local name="$1"
+            for p in "build/${name}" "build/${name}.exe" "build/Release/${name}.exe"; do
+              if [ -f "$p" ]; then
+                "$p"
+                return 0
+              fi
+            done
+            echo "${name} not found"
+            find build -name "${name}*" | head
+            return 1
+          }
+          run_one qipmsgP1Check
+          run_one qipmsgBackupCheck
 
       - name: Locate binary
         shell: bash

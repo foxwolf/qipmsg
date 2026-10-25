@@ -41,7 +41,7 @@ Owner UserManager::m_ourself;
 
 UserManager::UserManager(QObject *parent)
     : QObject(parent), m_refreshTimer(0), m_saveTimer(0),
-      m_presenceSoundArmed(false)
+      m_suspendPeerPersist(false), m_presenceSoundArmed(false)
 {
     updateOurself();
     createModel();
@@ -785,6 +785,25 @@ void UserManager::scheduleSavePeers()
     }
 }
 
+void UserManager::suspendPeerPersist()
+{
+    m_suspendPeerPersist = true;
+    if (m_saveTimer) {
+        m_saveTimer->stop();
+    }
+}
+
+void UserManager::adoptRestoredPeers()
+{
+    if (m_saveTimer) {
+        m_saveTimer->stop();
+    }
+    m_memos.clear();
+    loadPersistedPeers();
+    notifyUsersChanged();
+    emit userCountUpdated(m_model ? m_model->rowCount() : 0);
+}
+
 void UserManager::loadPersistedPeers()
 {
     QFile file(peersFilePath());
@@ -838,6 +857,9 @@ void UserManager::loadPersistedPeers()
 
 void UserManager::savePersistedPeers()
 {
+    if (m_suspendPeerPersist) {
+        return;
+    }
     QJsonArray array;
     QSet<QString> written;
     for (int row = 0; row < m_model->rowCount(); ++row) {

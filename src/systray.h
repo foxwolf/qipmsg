@@ -68,6 +68,8 @@ private slots:
     void showOfflineQueue();
     void refreshOfflineQueueAction();
     void broadcastToOnline();
+    void backupPrivateData();
+    void restorePrivateData();
 
 private:
     void createActions();
@@ -90,6 +92,8 @@ private:
     QAction *findHistoryAction;
     QAction *offlineQueueAction;
     QAction *broadcastAction;
+    QAction *backupAction;
+    QAction *restoreAction;
     QMenu *leaveMenu;
     QAction *quitAction;
 
