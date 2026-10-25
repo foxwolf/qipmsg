@@ -19,6 +19,8 @@
 #include "constants.h"
 #include "helper.h"
 #include "protocolutil.h"
+#include "fileHashIndex.h"
+#include "ipmsg.h"
 
 #include <QStringList>
 #include <QList>
@@ -121,7 +123,35 @@ QString SendFileMap::etaText() const
     return QString("%1 · %2").arg(speed, remain);
 }
 
-QString SendFileMap::packetString() const
+bool SendFileMap::markFileInstant(int fileId, QString *nameOut, QString *pathOut,
+                                  qint64 *sizeOut, QString *hashOut)
+{
+    if (!m_map.contains(fileId)) {
+        return false;
+    }
+    SendFileHandle handle = m_map.value(fileId);
+    if (!handle->isFile() || handle->state() == SendFile::SendOk) {
+        return false;
+    }
+    handle->setState(SendFile::SendOk);
+    addBytesSkipped(handle->size());
+    incrTransferCount();
+    if (nameOut) {
+        *nameOut = handle->fileName();
+    }
+    if (pathOut) {
+        *pathOut = handle->absoluteFilePath();
+    }
+    if (sizeOut) {
+        *sizeOut = handle->size();
+    }
+    if (hashOut) {
+        *hashOut = handle->contentHash();
+    }
+    return true;
+}
+
+QString SendFileMap::packetString(bool withContentHash)
 {
     QList<int> keys = m_map.keys();
     QString fileInfoString;
@@ -151,6 +181,17 @@ QString SendFileMap::packetString() const
         s.append(QString("%1").arg(Helper::dateTimeToSecsSinceEpoch(
                     h->birthTime().isValid() ? h->birthTime() : h->lastModified()), 0, 16));
         s.append(COMMAND_SEPERATOR);
+        if (withContentHash && h->isFile()) {
+            QString sha = h->contentHash();
+            if (sha.isEmpty()) {
+                sha = FileHashIndex::hashFile(h->absoluteFilePath(), 0);
+                h->setContentHash(sha);
+            }
+            if (sha.size() == 64) {
+                s.append(QString("%1=%2").arg(IPMSG_FILE_QIPHASH, 0, 16).arg(sha));
+                s.append(COMMAND_SEPERATOR);
+            }
+        }
         s.append(FILELIST_SEPARATOR);
 
         fileInfoString.append(s);

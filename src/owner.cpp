@@ -16,6 +16,7 @@
 
 #include "owner.h"
 #include "constants.h"
+#include "shareFolder.h"
 
 #include <QStringList>
 
@@ -73,6 +74,10 @@ void Owner::initOwner(QString &packet)
         m_name = additional.section(QChar(EXTEND_INFO_SEPERATOR), 0, 0);
         m_group = additional.section(QChar(EXTEND_INFO_SEPERATOR), 1, 1);
         m_signature = additional.section(QChar(EXTEND_INFO_SEPERATOR), 2, 2);
+        const QString token = additional.section(QChar(EXTEND_INFO_SEPERATOR), 3, 3);
+        if (ShareFolder::tokenIsQipmsg(token)) {
+            m_qipToken = token;
+        }
         if (m_name.isEmpty()) {
             m_name = m_loginName;
         }

@@ -81,6 +81,13 @@
 #define IPMSG_FEIQ_TYPING		121UL
 #define IPMSG_FEIQ_TYPINGSTOP		122UL
 
+/* qipmsg private extension. Not a FeiQ opcode.
+   UDP body "INSTANT:<packet>:<fileId>:<sha256>" finishes a send when the
+   peer already has the file. TCP body on the file port lists or downloads
+   a qipmsg shared folder (see shareFolder). FeiQ ignores unknown modes;
+   we do not send this to peers that did not advertise "qipmsg". */
+#define IPMSG_QIPMSG_EXT		126UL
+
 /*  option for all command  */
 #define IPMSG_ABSENCEOPT		0x00000100UL
 #define IPMSG_SERVEROPT			0x00000200UL
@@ -164,6 +171,10 @@
 #define IPMSG_FILE_ACL			0x00000030UL
 #define IPMSG_FILE_ALIASFNAME	0x00000040UL	// alias fname
 #define IPMSG_FILE_UNICODEFNAME	0x00000041UL	// UNICODE fname
+/* qipmsg-only extend-attr. SHA-256 hex of a regular file. Omitted unless
+   the peer's presence token starts with "qipmsg", so FeiQ file lists stay
+   the same shape they already accept (mtime / createtime). */
+#define IPMSG_FILE_QIPHASH		0x00000071UL
 
 #define FILELIST_SEPARATOR	'\a'
 #define HOSTLIST_SEPARATOR	'\a'

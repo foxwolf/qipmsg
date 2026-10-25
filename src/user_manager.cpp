@@ -19,6 +19,7 @@
 #include "helper.h"
 #include "send_msg.h"
 #include "user_manager.h"
+#include "shareFolder.h"
 #include "preferences.h"
 #include "constants.h"
 #include "msg_thread.h"
@@ -152,6 +153,8 @@ void UserManager::updateUser(const Owner &owner, int row)
                        owner.displayLevel());
     m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
                      owner.signature(), Qt::UserRole + 2);
+    m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
+                     owner.qipToken(), Qt::UserRole + 6);
     if (owner.port() != 0) {
         m_model->setData(m_model->index(row, USER_VIEW_IP_COLUMN),
                          owner.port(), Qt::UserRole + 3);
@@ -386,14 +389,51 @@ void UserManager::broadcastExit() const
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
 
+QString UserManager::localQipToken() const
+{
+    if (!Global::preferences) {
+        return QStringLiteral("qipmsg");
+    }
+    return ShareFolder::localToken(Global::preferences->shareEnabled,
+                                   Global::preferences->sharePath,
+                                   Global::preferences->sharePassword);
+}
+
+QString UserManager::peerQipToken(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    if (row < 0) {
+        return QString();
+    }
+    return m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                         Qt::UserRole + 6).toString();
+}
+
+bool UserManager::peerIsQipmsg(const QString &ip) const
+{
+    return ShareFolder::tokenIsQipmsg(peerQipToken(ip));
+}
+
+bool UserManager::peerHasShare(const QString &ip) const
+{
+    return ShareFolder::tokenHasShare(peerQipToken(ip));
+}
+
+void UserManager::refreshLocalView()
+{
+    notifyUsersChanged();
+}
+
 QString UserManager::entryMessage() const
 {
-    return QString("%1%2%3%4%5%6")
+    return QString("%1%2%3%4%5%6%7%8")
         .arg(m_ourself.name())
         .arg(QChar('\0'))
         .arg(m_ourself.group())
         .arg(QChar('\0'))
         .arg(Global::preferences->personSign)
+        .arg(QChar('\0'))
+        .arg(localQipToken())
         .arg(QChar('\0'));
 }
 

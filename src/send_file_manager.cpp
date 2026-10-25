@@ -15,6 +15,10 @@
 //
 
 #include "send_file_manager.h"
+#include "fileHashIndex.h"
+#include "global.h"
+#include "helper.h"
+#include "window_manager.h"
 
 #include <QMutexLocker>
 
@@ -90,6 +94,42 @@ bool SendFileManager::finishIfCancelled(const QString &key)
     }
     removeTransfer(key);
     return true;
+}
+
+void SendFileManager::markInstant(QString packetField, int fileId, QString sha,
+                                  QString ip)
+{
+    QString key;
+    QString name;
+    QString path;
+    qint64 size = 0;
+    QString cached;
+    {
+        QMutexLocker locker(&m_lock);
+        const QStringList keys = Helper::packetNoLookupKeys(packetField.toLatin1());
+        SendFileMap *map = 0;
+        foreach (const QString &candidate, keys) {
+            map = transferFileMap.value(candidate);
+            if (map) {
+                key = candidate;
+                break;
+            }
+        }
+        if (!map || !map->markFileInstant(fileId, &name, &path, &size, &cached)) {
+            return;
+        }
+        transferFileModel.updateTransfer(key);
+        if (map->isFinished()) {
+            removeTransfer(key);
+        }
+    }
+    const QString digest = cached.isEmpty() ? sha : cached;
+    if (!digest.isEmpty()) {
+        FileHashIndex::note(path, digest, size, QStringLiteral("send"), ip);
+    }
+    if (Global::windowManager) {
+        Global::windowManager->noteInstantSkip(ip, name, false);
+    }
 }
 
 void SendFileManager::removeTransferLocked(QString key)

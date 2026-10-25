@@ -15,6 +15,7 @@
 //
 
 #include "contactDelegate.h"
+#include "helper.h"
 
 #include <QIcon>
 #include <QPainter>
@@ -48,12 +49,13 @@ void ContactDelegate::paint(QPainter *painter,
     const QString groupKey = index.data(Qt::UserRole + 1).toString();
     const bool isGroup = ip.isEmpty() && !groupKey.isEmpty();
 
+    const bool dark = Helper::darkTheme();
     if (selected) {
-        painter->setBrush(QColor("#E8F1FF"));
+        painter->setBrush(dark ? QColor("#1E3A5F") : QColor("#E8F1FF"));
         painter->setPen(Qt::NoPen);
         painter->drawRoundedRect(rect, 8, 8);
     } else if (hover && !isGroup) {
-        painter->setBrush(QColor("#F3F4F6"));
+        painter->setBrush(dark ? QColor("#374151") : QColor("#F3F4F6"));
         painter->setPen(Qt::NoPen);
         painter->drawRoundedRect(rect, 8, 8);
     }
@@ -63,7 +65,7 @@ void ContactDelegate::paint(QPainter *painter,
         font.setBold(true);
         font.setPixelSize(12);
         painter->setFont(font);
-        painter->setPen(QColor("#6B7280"));
+        painter->setPen(dark ? QColor("#9CA3AF") : QColor("#6B7280"));
         painter->drawText(rect.adjusted(8, 0, -8, 0),
                           Qt::AlignVCenter | Qt::AlignLeft,
                           index.data(Qt::DisplayRole).toString());
@@ -86,6 +88,18 @@ void ContactDelegate::paint(QPainter *painter,
         painter->drawPixmap(avatarRect, avatar.scaled(AvatarSize, AvatarSize,
                     Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
+    if (index.data(Qt::UserRole + 10).toBool()) {
+        const QRect badge(avatarRect.right() - 14, avatarRect.bottom() - 14, 16, 16);
+        painter->setBrush(QColor("#059669"));
+        painter->setPen(Qt::NoPen);
+        painter->drawEllipse(badge);
+        QFont badgeFont = opt.font;
+        badgeFont.setPixelSize(9);
+        badgeFont.setBold(true);
+        painter->setFont(badgeFont);
+        painter->setPen(QColor("#FFFFFF"));
+        painter->drawText(badge, Qt::AlignCenter, QStringLiteral("\u4eab"));
+    }
 
     QString title = index.data(Qt::UserRole + 6).toString();
     if (title.isEmpty()) {
@@ -100,7 +114,7 @@ void ContactDelegate::paint(QPainter *painter,
     painter->setFont(nameFont);
     painter->setPen(index.data(Qt::ForegroundRole).isValid()
                     ? index.data(Qt::ForegroundRole).value<QColor>()
-                    : QColor("#111827"));
+                    : (dark ? QColor("#F9FAFB") : QColor("#111827")));
     painter->drawText(textRect, Qt::AlignLeft | Qt::AlignTop,
                       painter->fontMetrics().elidedText(title, Qt::ElideRight,
                                                         textRect.width()));
@@ -116,7 +130,7 @@ void ContactDelegate::paint(QPainter *painter,
         subFont.setBold(false);
         subFont.setPixelSize(11);
         painter->setFont(subFont);
-        painter->setPen(QColor("#8A8F98"));
+        painter->setPen(dark ? QColor("#9CA3AF") : QColor("#8A8F98"));
         painter->drawText(textRect, Qt::AlignLeft | Qt::AlignBottom,
                           painter->fontMetrics().elidedText(subtitle, Qt::ElideRight,
                                                             textRect.width()));

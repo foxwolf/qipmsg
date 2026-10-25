@@ -32,17 +32,25 @@
 #include <QRegularExpression>
 #include <QtGlobal>
 #include <QStyleFactory>
+#include <QPalette>
+#include <QSettings>
+#include <QGuiApplication>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+#include <QStyleHints>
+#endif
 #include <QImageReader>
 #include <QUrl>
 
 #include "helper.h"
 #include "constants.h"
 #include "ipmsg.h"
+#include "themeName.h"
 #include "global.h"
 #include "preferences.h"
 
 QString Helper::m_iniPath;
 QString Helper::m_appPath;
+bool Helper::m_darkTheme = false;
 qint64 Helper::m_packetNo;
 QFile Helper::m_internalLogFile;
 QString Helper::m_internalLogFileName;
@@ -529,14 +537,108 @@ void Helper::shakeWidget(QWidget *widget)
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
+namespace {
+
+bool systemPrefersDark()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    if (QGuiApplication::styleHints()) {
+        const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+        if (scheme == Qt::ColorScheme::Dark) {
+            return true;
+        }
+        if (scheme == Qt::ColorScheme::Light) {
+            return false;
+        }
+    }
+#endif
+    const QColor window = QGuiApplication::palette().color(QPalette::Window);
+    return window.isValid() && window.lightness() < 128;
+}
+
+QString storedThemeName()
+{
+    if (Global::preferences) {
+        return normalizeThemeName(Global::preferences->themeName);
+    }
+    if (Helper::iniPath().isEmpty()) {
+        return QStringLiteral("light");
+    }
+    QSettings settings(Helper::iniPath() + QLatin1String("/qipmsg.ini"),
+                       QSettings::IniFormat);
+    settings.beginGroup(QStringLiteral("Appearance"));
+    return normalizeThemeName(settings.value(QStringLiteral("theme"),
+                                             QStringLiteral("light")).toString());
+}
+
+} // namespace
+
+bool Helper::darkTheme()
+{
+    return m_darkTheme;
+}
+
+QColor Helper::bubbleIncomingBg()
+{
+    return m_darkTheme ? QColor("#1F2937") : QColor("#FFFFFF");
+}
+
+QColor Helper::bubbleIncomingFg()
+{
+    return m_darkTheme ? QColor("#F9FAFB") : QColor("#1F2937");
+}
+
+QColor Helper::bubbleOutgoingBg()
+{
+    return QColor("#2563EB");
+}
+
+QColor Helper::bubbleOutgoingFg()
+{
+    return QColor("#FFFFFF");
+}
+
+QColor Helper::bubbleMetaFg()
+{
+    return m_darkTheme ? QColor("#9CA3AF") : QColor("#8A8F98");
+}
+
 void Helper::applyAppTheme(QApplication *app)
 {
     if (!app) {
         return;
     }
 
+    const QString theme = storedThemeName();
+    if (theme == QLatin1String("dark")) {
+        m_darkTheme = true;
+    } else if (theme == QLatin1String("system")) {
+        m_darkTheme = systemPrefersDark();
+    } else {
+        m_darkTheme = false;
+    }
+
     if (QStyle *fusion = QStyleFactory::create("Fusion")) {
         app->setStyle(fusion);
+    }
+
+    if (m_darkTheme) {
+        QPalette pal;
+        pal.setColor(QPalette::Window, QColor("#111827"));
+        pal.setColor(QPalette::WindowText, QColor("#F9FAFB"));
+        pal.setColor(QPalette::Base, QColor("#1F2937"));
+        pal.setColor(QPalette::AlternateBase, QColor("#111827"));
+        pal.setColor(QPalette::Text, QColor("#F9FAFB"));
+        pal.setColor(QPalette::Button, QColor("#1F2937"));
+        pal.setColor(QPalette::ButtonText, QColor("#F9FAFB"));
+        pal.setColor(QPalette::Highlight, QColor("#2563EB"));
+        pal.setColor(QPalette::HighlightedText, QColor("#FFFFFF"));
+        pal.setColor(QPalette::ToolTipBase, QColor("#374151"));
+        pal.setColor(QPalette::ToolTipText, QColor("#F9FAFB"));
+        pal.setColor(QPalette::PlaceholderText, QColor("#9CA3AF"));
+        app->setPalette(pal);
+    } else if (app->style()) {
+        app->setPalette(app->style()->standardPalette());
     }
 
     QFont font = app->font();
@@ -548,7 +650,8 @@ void Helper::applyAppTheme(QApplication *app)
     font.setPixelSize(13);
     app->setFont(font);
 
-    QFile file(":/theme.qss");
+    QFile file(m_darkTheme ? QStringLiteral(":/themeDark.qss")
+                           : QStringLiteral(":/theme.qss"));
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         app->setStyleSheet(QString::fromUtf8(file.readAll()));
     }

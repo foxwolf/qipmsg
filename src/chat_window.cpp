@@ -15,6 +15,7 @@
 //
 
 #include "chat_window.h"
+#include "shareBrowser.h"
 #include "constants.h"
 #include "emoji_pack.h"
 #include "stickerPicker.h"
@@ -173,7 +174,9 @@ void ChatWindow::createUi()
                                          tr("Send file"), SLOT(addSendFile())));
     toolLayout->addWidget(makeToolButton(tr("Send folder"),
                                          tr("Send folder"), SLOT(addSendDir())));
-    toolLayout->addWidget(makeStubButton(tr("Browse share")));
+    toolLayout->addWidget(makeToolButton(tr("Browse peer share"),
+                                         tr("List a qipmsg shared folder. FeiQ share has no verified packet format."),
+                                         SLOT(browsePeerShare())));
     QToolButton *shot = makeToolButton(tr("Screenshot"),
                                        tr("Screenshot"), 0);
     QMenu *shotMenu = new QMenu(shot);
@@ -474,6 +477,12 @@ void ChatWindow::clearLocalPhoto()
     }
 }
 
+void ChatWindow::browsePeerShare()
+{
+    ShareBrowser dialog(m_peerIp, this);
+    dialog.exec();
+}
+
 void ChatWindow::showTransferMonitor()
 {
     TransferFileWindow *window = new TransferFileWindow;
@@ -532,7 +541,7 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     cursor.insertBlock(metaBlock);
 
     QTextCharFormat metaFmt;
-    metaFmt.setForeground(QColor("#8A8F98"));
+    metaFmt.setForeground(Helper::bubbleMetaFg());
     metaFmt.setFontPointSize(9);
     cursor.insertText(QString("%1  %2").arg(name, timeText), metaFmt);
 
@@ -549,17 +558,18 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     QTextTableCell cell = table->cellAt(0, 0);
     QTextCharFormat cellFmt = cell.format();
     if (incoming) {
-        cellFmt.setBackground(QColor("#FFFFFF"));
-        cellFmt.setForeground(QColor("#1F2937"));
+        cellFmt.setBackground(Helper::bubbleIncomingBg());
+        cellFmt.setForeground(Helper::bubbleIncomingFg());
     } else {
-        cellFmt.setBackground(QColor("#2563EB"));
-        cellFmt.setForeground(QColor("#FFFFFF"));
+        cellFmt.setBackground(Helper::bubbleOutgoingBg());
+        cellFmt.setForeground(Helper::bubbleOutgoingFg());
     }
     cell.setFormat(cellFmt);
 
     QTextCursor cellCursor = cell.firstCursorPosition();
     QTextCharFormat textFmt;
-    textFmt.setForeground(incoming ? QColor("#1F2937") : QColor("#FFFFFF"));
+    textFmt.setForeground(incoming ? Helper::bubbleIncomingFg()
+                                   : Helper::bubbleOutgoingFg());
     textFmt.setFontPointSize(10);
     const QString displayText = EmojiPack::applyAliases(text);
     if (!displayText.isEmpty()) {
@@ -883,7 +893,9 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
         sendFileMap = new SendFileMap;
         flags |= IPMSG_FILEATTACHOPT;
         sendFileMap->addFile(pathList);
-        additionalInfo.append(sendFileMap->packetString());
+        const bool withHash = Global::userManager
+                && Global::userManager->peerIsQipmsg(m_peerIp);
+        additionalInfo.append(sendFileMap->packetString(withHash));
         additionalInfo.append(QChar('\0'));
     }
 

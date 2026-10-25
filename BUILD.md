@@ -173,6 +173,16 @@ make
 
 ## Version
 
+**2.30.7** includes `QStyleHints` so Qt 6.5 follow-system appearance builds on Windows MSVC, on top of **2.30.6**.
+
+**2.30.6** adds a local file-hash index with qipmsg instant skip, qipmsg shared-folder browse and download on the existing file port, and a light / dark / system theme, on top of **2.27.5**.
+
+## Trying 2.30.6 instant skip, share browse, and dark theme
+
+1. Send the same regular file between two qipmsg instances. The first copy uses TCP and is recorded in `~/.qipmsg/filehash.json` (size + SHA-256, cap 2000, missing files pruned). Send it again. If the receive folder already has the same name, size, and hash, or the index has another copy of that content, TCP is skipped and both chats show an instant-send note. Directories are never skipped. The hash extend-attr (`0x71`) and UDP command 126 (`INSTANT:…`) are sent only when the peer's presence token starts with `qipmsg`. FeiQ file lists stay the previous shape and still transfer the whole file. Resume is unchanged. A human FeiQ capture should confirm the file-list shape. `filehash.json` is an exact file in the private-data zip.
+2. Preferences → Detail → File: share one folder and an optional password (stored in `qipmsg.ini`, same as other settings). Saving re-announces presence. A fourth NUL field after the signature is `qipmsg`, plus `,share` when sharing is on and `,lock` when a password is set. Classic readers stop at the signature NUL. The contact row shows a green 享 badge. Chat toolbar **Browse peer share** lists up to 200 names and downloads into the receive folder. The TCP request is command 126 (`LIST` / `GET`) on the existing file port, and only when that peer advertised a qipmsg share. `..`, absolute paths, and symlink escapes outside the share root are rejected. FeiQ's share protocol has no verified packet format here, so the button explains the limit and does not connect.
+3. Preferences → Detail → Appearance: Light, Dark, or Follow system. Light is the 2.4 messenger QSS. Dark is `themeDark.qss` plus palette colors for bubbles and the contact tree. The choice is `[Appearance] theme` = `light` / `dark` / `system`. Follow system uses `QStyleHints::colorScheme` on Qt 6.5+ and otherwise the window lightness at startup. Bubbles already drawn in an open chat keep their old colors until that chat is reopened.
+
 **2.27.5** adds an outbound send cap, uncompressed zip backup/restore of private data, basic screenshot annotation, and local-only avatars, on top of **2.23.4**.
 
 ## Trying 2.27.5 send cap, backup, annotation, and local avatars

@@ -44,6 +44,7 @@ signals:
     void msgReaded(QString name);
     void peerFlagsSeen(QString ip, quint32 flags);
     void peerTyping(QString ip, bool typing);
+    void instantReady(QString packetField, int fileId, QString sha, QString ip);
 
 public slots:
     void processSendMsg();
@@ -67,6 +68,7 @@ private:
     void processEntryMsg(Msg msg);
     void processAbsenceMsg(Msg msg);
     void processGetAbsenceInfo(Msg msg);
+    void processQipExtension(Msg msg);
 
     QList<QHostAddress> m_broadcastAddresses;
     QList<QHostAddress> m_ipAddresses;

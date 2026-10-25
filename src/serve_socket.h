@@ -42,6 +42,8 @@ public:
 private:
     bool canParsePacket(const QByteArray &requestPacket) const;
     bool handleRequest(const QByteArray &requestPacket);
+    bool handleShare(const QByteArray &requestPacket);
+    bool writeRaw(const QByteArray &block, bool pace);
     void parseRequestPacket(const QByteArray&, struct RequsetFile&);
     bool tcpSendFile(QString filePath, qint64 offset);
     bool tcpSendDir(QString filePath);
