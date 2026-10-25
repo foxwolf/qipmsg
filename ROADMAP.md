@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.27.5 adds an outbound TCP send cap, a zip backup of private data (no Qt Sql), basic screenshot annotation, and local-only avatars. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
+2.30.6 adds a local file-hash index with qipmsg-only instant skip, a qipmsg shared folder (browse and download on the existing file port), and light / dark / system appearance. FeiQ still receives a full file transfer and cannot browse this share: neither hash handshake nor FeiQ share packets were verified. 2.27.5 outbound TCP send cap, zip backup (no Qt Sql), screenshot annotation, and local-only avatars stay. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
 
 ## In this line of work (done)
 
@@ -61,21 +61,30 @@
 - [x] Zip backup / restore of private data under `~/.qipmsg` (stored zip, no Qt Sql)
 - [x] Basic screenshot annotation (pen, rectangle, arrow, text, undo) before the existing PNG attach
 - [x] Local PNG/JPEG avatar for self and per-IP override under `avatars/` (not sent on the wire)
+- [x] Local hash index of sent/received regular files (`filehash.json`, size + SHA-256, cap 2000, no Qt Sql). qipmsg peers skip TCP when the content is already local; FeiQ still full transfer
+- [x] qipmsg shared folder (path + optional password) and **Browse peer share** on the file port. Paths stay under the share root. FeiQ share protocol is not implemented
+- [x] Light / dark / follow-system appearance in QSettings, with a dark QSS next to the 2.4 light theme
 
-## Later / out of scope for 2.27.5
+## Later / out of scope for 2.30.6
 
 1. **FeiQ plugin system**
-2. **File-share / public folder server**
+2. **FeiQ share-protocol interop** (qipmsg↔qipmsg browse is done; FeiQ's packet format was not verified)
 3. **FeiQ multicast group / 群 chat rooms** (shared folders, announcements, full room sync). 2.5.2 only has local multi-send 讨论组.
 4. **Voice**
 5. **Message encryption / signatures**
    - IPMSG public key exchange (`GETPUBKEY` / `ANSPUBKEY`)
-6. **Dark theme / extra skins**
-   - 2.4.0 shipped the light messenger theme; dark mode and user skins remain later
+6. **Extra skins**
+   - Light and dark ship with 2.30.6. User-supplied skins remain later
 7. **Modern packaging**
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
+
+## How to try 2.30.6
+
+1. Send one regular file from qipmsg to qipmsg. After it lands, `~/.qipmsg/filehash.json` has its size and SHA-256. Send the same file again into a receive folder that already holds that content: both sides note an instant skip and no file bytes move. A directory is not eligible. A FeiQ peer must still get the old file-list shape (no `0x71` hash) and a full TCP transfer. Check that with a real FeiQ build. Resume of a partial FeiQ transfer is unchanged.
+2. Preferences → Detail → File: enable **Share a folder with qipmsg peers**, pick a directory, optional password. Your own contact row shows 享. The peer must be qipmsg with sharing advertised (`qipmsg,share` in the fourth presence field). **Browse peer share** lists the folder (200 entries) and downloads into the receive directory. A path outside that root is refused. Opening the button against FeiQ shows the limit and does not open TCP.
+3. Preferences → Detail → **Appearance**: Light, Dark, or Follow system. Dark keeps chat bubbles and the contact tree readable. Reopen a chat to restyle bubbles that were already drawn. The value is `[Appearance] theme` in `qipmsg.ini`.
 
 ## How to try 2.27.5
 
