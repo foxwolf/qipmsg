@@ -172,6 +172,15 @@ make
 
 ## Version
 
+**2.23.4** adds department-group send, a recent-contacts panel, FeiQ typing commands 121/122, and in-progress transfer cancel with an ETA, on top of **2.19.3** (per-group hide, mute, sticker groups).
+
+## Trying 2.23.4 group send, recent contacts, typing, and transfer ETA
+
+1. Right-click a department header (the FeiQ group field, not a local 讨论组) and choose **Send to this group**. Only online and away members outside the blacklist are selected. If the composer already has text or files, confirm to send through the existing per-IP path with `IPMSG_MULTICASTOPT` when more than one peer is selected. Grey offline peers are not queued. **Select group** lists the same live departments.
+2. **Recent contacts** at the top of the list is built from the last history line per peer (`recent.json`, no Qt Sql). A single click opens that chat. `history/disc-*` discussion logs are skipped.
+3. Preferences → Send/Receive → **Show my typing status** (on by default) sends command **121** while typing and **122** after about 2 seconds of idle, on clear, or on send. No option bits are OR-ed, and the version field stays `1`. Incoming 121/122 always show **Typing…** on the chat caption and the contact row. Classic IPMSG peers ignore the unknown mode. Captured FeiQ packets use a `1_lbt…` version string; a FeiQ build that only paints typing for that token may not show our hint. That needs a human check. Do not switch the global version to `1_lbt`.
+4. Transfer window → **Cancel transfer**. A row that has not started TCP is removed at once. An active send calls `shutdown` on the socket (the serve thread closes it). Cancelling a receive also sends `IPMSG_RELEASEFILES` with the original packet number so the sender drops the offer. There is no IPMSG “sender cancelled” command; the receiver sees the TCP close. **Remaining** is speed and ETA from bytes written in this session. A folder has no total size, so the column shows speed and “remaining unknown”.
+
 **2.19.3** adds per-department-group hide, per-group message mute, and importable sticker groups on top of **2.15.2** (login autostart, do-not-disturb, presence sounds, read receipts), **2.11.1** (cross-subnet ranges, broadcast-to-online, sealed letters, UTF-8/clipboard bits), and **2.7.0** (FeiQ/IPMSG TCP file interop).
 
 ## Trying 2.19.3 group permissions and stickers

@@ -55,290 +55,304 @@
 <context>
     <name>ChatWindow</name>
     <message>
-        <location filename="../chat_window.cpp" line="167"/>
-        <location filename="../chat_window.cpp" line="168"/>
-        <location filename="../chat_window.cpp" line="853"/>
-        <location filename="../chat_window.cpp" line="859"/>
+        <location filename="../chat_window.cpp" line="171"/>
+        <location filename="../chat_window.cpp" line="172"/>
+        <location filename="../chat_window.cpp" line="932"/>
+        <location filename="../chat_window.cpp" line="938"/>
         <source>Screenshot</source>
         <translation>截图</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="170"/>
+        <location filename="../chat_window.cpp" line="174"/>
         <source>Full screen</source>
         <translation>全屏</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="171"/>
+        <location filename="../chat_window.cpp" line="175"/>
         <source>Region</source>
         <translation>框选</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="180"/>
+        <location filename="../chat_window.cpp" line="184"/>
         <source>Find</source>
         <translation>查找</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="211"/>
+        <location filename="../chat_window.cpp" line="220"/>
         <source>&amp;Send</source>
         <translation>发送(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="126"/>
+        <location filename="../chat_window.cpp" line="130"/>
         <source>Not implemented yet</source>
         <translation>暂未实现</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="159"/>
+        <location filename="../chat_window.cpp" line="163"/>
         <source>Remote assist</source>
         <translation>远程协助</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="160"/>
+        <location filename="../chat_window.cpp" line="164"/>
         <source>Remote control</source>
         <translation>远程控制</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="161"/>
+        <location filename="../chat_window.cpp" line="165"/>
         <source>Voice call</source>
         <translation>语音通话</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="162"/>
-        <location filename="../chat_window.cpp" line="163"/>
-        <location filename="../chat_window.cpp" line="231"/>
+        <location filename="../chat_window.cpp" line="166"/>
+        <location filename="../chat_window.cpp" line="167"/>
+        <location filename="../chat_window.cpp" line="240"/>
         <source>Send file</source>
         <translation>发送文件</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="164"/>
-        <location filename="../chat_window.cpp" line="165"/>
+        <location filename="../chat_window.cpp" line="168"/>
+        <location filename="../chat_window.cpp" line="169"/>
         <source>Send folder</source>
         <translation>发送文件夹</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="166"/>
+        <location filename="../chat_window.cpp" line="170"/>
         <source>Browse share</source>
         <translation>浏览共享</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="175"/>
+        <location filename="../chat_window.cpp" line="179"/>
         <source>Emoji</source>
         <translation>表情</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="178"/>
-        <location filename="../chat_window.cpp" line="179"/>
+        <location filename="../chat_window.cpp" line="182"/>
+        <location filename="../chat_window.cpp" line="183"/>
         <source>Window shake</source>
         <translation>窗口抖动</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="181"/>
+        <location filename="../chat_window.cpp" line="185"/>
         <source>Find in history</source>
         <translation>查找聊天记录</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="183"/>
+        <location filename="../chat_window.cpp" line="187"/>
         <source>Favorites</source>
         <translation>收藏</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="184"/>
+        <location filename="../chat_window.cpp" line="188"/>
         <source>Zone</source>
         <translation>空间</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="232"/>
+        <location filename="../chat_window.cpp" line="241"/>
         <source>Monitor</source>
         <translation>监视</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="233"/>
+        <location filename="../chat_window.cpp" line="242"/>
         <source>Folder</source>
         <translation>文件夹</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="234"/>
+        <location filename="../chat_window.cpp" line="243"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="255"/>
+        <location filename="../chat_window.cpp" line="264"/>
         <source>&amp;Encap</source>
         <translation>封装(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="256"/>
+        <location filename="../chat_window.cpp" line="265"/>
         <source>Send a sealed envelope (hidden until the peer opens it)</source>
         <translation>发送密封信件（对方拆开前不显示正文）</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="277"/>
+        <location filename="../chat_window.cpp" line="286"/>
         <source>Cancel selected</source>
         <translation>取消选中</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="278"/>
+        <location filename="../chat_window.cpp" line="287"/>
         <source>Clear queue</source>
         <translation>清空队列</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="334"/>
+        <location filename="../chat_window.cpp" line="343"/>
         <source>Nickname:</source>
         <translation>昵称:</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="340"/>
+        <location filename="../chat_window.cpp" line="349"/>
         <source>Peer profile</source>
         <translation>对方资料</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="209"/>
+        <location filename="../chat_window.cpp" line="213"/>
         <source>Type a message...</source>
         <translation>输入消息...</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="397"/>
+        <location filename="../chat_window.cpp" line="409"/>
         <source>Offline</source>
         <translation>离线</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="399"/>
+        <location filename="../chat_window.cpp" line="411"/>
         <source>Online</source>
         <translation>在线</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="401"/>
+        <location filename="../chat_window.cpp" line="413"/>
         <source>Away</source>
         <translation>离开</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="407"/>
+        <location filename="../chat_window.cpp" line="422"/>
         <source>No signature</source>
         <translation>暂无签名</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="335"/>
+        <location filename="../chat_window.cpp" line="344"/>
         <source>Host:</source>
         <translation>主机:</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="176"/>
+        <location filename="../chat_window.cpp" line="180"/>
         <source>Emoji and custom stickers</source>
         <translation>表情与自定义表情</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="336"/>
+        <location filename="../chat_window.cpp" line="345"/>
         <source>Login:</source>
         <translation>登录名:</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="337"/>
+        <location filename="../chat_window.cpp" line="346"/>
         <source>Group:</source>
         <translation>组名:</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="338"/>
+        <location filename="../chat_window.cpp" line="347"/>
         <source>IP address:</source>
         <translation>IP地址:</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="640"/>
+        <location filename="../chat_window.cpp" line="395"/>
+        <location filename="../chat_window.cpp" line="416"/>
+        <source>Typing…</source>
+        <translation>正在输入…</translation>
+    </message>
+    <message>
+        <location filename="../chat_window.cpp" line="655"/>
         <source>Sealed letter — click to open</source>
         <translation>密封信件 — 点击拆开</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="665"/>
+        <location filename="../chat_window.cpp" line="680"/>
         <source>Envelope opened</source>
         <translation>已拆开</translation>
     </message>
     <message numerus="yes">
-        <location filename="../chat_window.cpp" line="713"/>
+        <location filename="../chat_window.cpp" line="792"/>
         <source>Offline queue · %n message(s) — send when the peer comes online</source>
         <translation>
             <numerusform>离线队列 · %n 条，对方上线后自动发送</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="740"/>
-        <location filename="../chat_window.cpp" line="814"/>
+        <location filename="../chat_window.cpp" line="819"/>
+        <location filename="../chat_window.cpp" line="893"/>
         <source>Offline queue</source>
         <translation>离线队列</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="741"/>
+        <location filename="../chat_window.cpp" line="820"/>
         <source>File attachments cannot be queued (no transfer server). The text will be queued if present.</source>
         <translation>附件无法加入离线队列（没有中转服务器）。若有文本将排队发送。</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="793"/>
+        <location filename="../chat_window.cpp" line="872"/>
         <source>[File attachment] %1</source>
         <translation>[文件附件] %1</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="815"/>
+        <location filename="../chat_window.cpp" line="894"/>
         <source>Window shake is not queued for offline peers.</source>
         <translation>窗口抖动不会为离线对端排队。</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="830"/>
+        <location filename="../chat_window.cpp" line="909"/>
         <source>[Window shake]</source>
         <translation>[窗口抖动]</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="854"/>
+        <location filename="../chat_window.cpp" line="933"/>
         <source>Could not capture the screen.</source>
         <translation>无法截取屏幕。</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="860"/>
+        <location filename="../chat_window.cpp" line="939"/>
         <source>Could not save the screenshot.</source>
         <translation>无法保存截图。</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="863"/>
+        <location filename="../chat_window.cpp" line="942"/>
         <source>[Screenshot] %1</source>
         <translation>[截图] %1</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="870"/>
+        <location filename="../chat_window.cpp" line="949"/>
         <source>Select files to send</source>
         <translation>选择要发送的文件</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="883"/>
+        <location filename="../chat_window.cpp" line="962"/>
         <source>Select folder to send</source>
         <translation>选择要发送的文件夹</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="909"/>
+        <location filename="../chat_window.cpp" line="988"/>
         <source>Show send file list (%1)</source>
         <translation>显示传送文件列表 (%1)</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="972"/>
+        <location filename="../chat_window.cpp" line="1051"/>
         <source> To: </source>
         <translation> 发往: </translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="993"/>
+        <location filename="../chat_window.cpp" line="1072"/>
         <source> Time: </source>
         <translation> 时间: </translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="1114"/>
+        <location filename="../chat_window.cpp" line="1193"/>
         <source>[Sticker] %1</source>
         <translation>[表情] %1</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="542"/>
-        <location filename="../chat_window.cpp" line="581"/>
+        <location filename="../chat_window.cpp" line="557"/>
+        <location filename="../chat_window.cpp" line="596"/>
         <source>Read</source>
         <translation>已读</translation>
     </message>
     <message>
-        <location filename="../chat_window.cpp" line="545"/>
+        <location filename="../chat_window.cpp" line="560"/>
         <source>Unread</source>
         <translation>未读</translation>
+    </message>
+</context>
+<context>
+    <name>ContactDelegate</name>
+    <message>
+        <location filename="../contactDelegate.cpp" line="109"/>
+        <source>Typing…</source>
+        <translation>正在输入…</translation>
     </message>
 </context>
 <context>
@@ -688,57 +702,57 @@
 <context>
     <name>GroupPolicyDialog</name>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="34"/>
+        <location filename="../groupPolicyDialog.cpp" line="35"/>
         <source>Department group permissions</source>
         <translation>部门组权限</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="38"/>
+        <location filename="../groupPolicyDialog.cpp" line="39"/>
         <source>These are FeiQ department groups (the group name in entry packets), not local discussion groups. Hide skips discovery answers for that group and, while any group is hidden, announces presence by unicast instead of a subnet broadcast. Mute keeps history and the unread count, but does not raise a window, play a sound, or show a tray balloon. IPMSG has no per-group hide bit, so a peer that already cached you may keep showing you until it accepts a unicast leave.</source>
         <translation>这里是飞秋部门分组（入网包里的组名），不是本地讨论组。对某组隐身时，不回复该组的发现请求；只要还有任意一组处于隐身，就改为向已知好友单播在线，而不再向子网广播。屏蔽消息仍写入历史并保留未读数，但不弹窗、不响铃、不显示托盘气泡。IPMSG 没有按组隐身标志，已经记住你的对端要收到单播离开后才会把你从列表去掉。</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="51"/>
+        <location filename="../groupPolicyDialog.cpp" line="52"/>
         <source>Group</source>
         <translation>分组</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="52"/>
+        <location filename="../groupPolicyDialog.cpp" line="53"/>
         <source>Hide from group</source>
         <translation>对该组隐身</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="53"/>
+        <location filename="../groupPolicyDialog.cpp" line="54"/>
         <source>Mute messages</source>
         <translation>屏蔽消息</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="60"/>
+        <location filename="../groupPolicyDialog.cpp" line="61"/>
         <source>Refresh</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="62"/>
+        <location filename="../groupPolicyDialog.cpp" line="63"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="136"/>
+        <location filename="../groupPolicyDialog.cpp" line="138"/>
         <source>Hide</source>
         <translation>隐身</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="137"/>
+        <location filename="../groupPolicyDialog.cpp" line="139"/>
         <source>Mute</source>
         <translation>屏蔽</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="142"/>
+        <location filename="../groupPolicyDialog.cpp" line="144"/>
         <source>Do not announce presence to peers in this group</source>
         <translation>不向该组的好友宣告在线</translation>
     </message>
     <message>
-        <location filename="../groupPolicyDialog.cpp" line="143"/>
+        <location filename="../groupPolicyDialog.cpp" line="145"/>
         <source>Keep history, but do not raise or notify</source>
         <translation>保留历史，但不弹窗、不提醒</translation>
     </message>
@@ -886,231 +900,296 @@ QIpMsg is distributed in the hope that it will be useful,You should have receive
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../main_window.cpp" line="187"/>
+        <location filename="../main_window.cpp" line="198"/>
         <source>&amp;Refresh</source>
         <translation>刷新(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="260"/>
+        <location filename="../main_window.cpp" line="276"/>
         <source>&amp;Send</source>
         <translation>发送(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="264"/>
+        <location filename="../main_window.cpp" line="280"/>
         <source>&amp;Encap</source>
         <translation>封装(&amp;E)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="270"/>
+        <location filename="../main_window.cpp" line="286"/>
         <source>Loc&amp;k</source>
         <translation>上锁(&amp;K)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="313"/>
+        <location filename="../main_window.cpp" line="330"/>
         <source>Remove from blacklist</source>
         <translation>移出黑名单</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="315"/>
-        <location filename="../main_window.cpp" line="359"/>
+        <location filename="../main_window.cpp" line="332"/>
+        <location filename="../main_window.cpp" line="383"/>
         <source>Add to blacklist</source>
         <translation>加入黑名单</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="354"/>
+        <location filename="../main_window.cpp" line="378"/>
         <source>Send folder</source>
         <translation>发送文件夹</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="355"/>
+        <location filename="../main_window.cpp" line="379"/>
         <source>Search user</source>
         <translation>搜索好友</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="360"/>
+        <location filename="../main_window.cpp" line="384"/>
         <source>Set memo...</source>
         <translation>设置备注...</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="478"/>
+        <location filename="../main_window.cpp" line="638"/>
         <source>set level 1 (user %1 / %2)</source>
         <translation>设置 优先级为 1 (用户 %1 / %2)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="480"/>
+        <location filename="../main_window.cpp" line="640"/>
         <source>set level 2 (user %1 / %2)</source>
         <translation>设置 优先级为 3 (用户 %1 / %2)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="72"/>
+        <location filename="../main_window.cpp" line="73"/>
         <source>IP Messenger</source>
         <translation>飞鸽传书</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="156"/>
+        <location filename="../main_window.cpp" line="167"/>
         <source>Enter a personal signature</source>
         <translation>请输入个性签名</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="188"/>
+        <location filename="../main_window.cpp" line="199"/>
         <source>Refresh contacts</source>
         <translation>刷新联系人</translation>
     </message>
     <message numerus="yes">
-        <location filename="../main_window.cpp" line="502"/>
+        <location filename="../main_window.cpp" line="662"/>
         <source>%1 · %n online</source>
         <translation>
             <numerusform>%1 · %n 人在线</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1173"/>
+        <location filename="../main_window.cpp" line="1384"/>
         <source> To: </source>
         <translation> 发往: </translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1195"/>
+        <location filename="../main_window.cpp" line="1406"/>
         <source> Time: </source>
         <translation> 时间: </translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1198"/>
+        <location filename="../main_window.cpp" line="1409"/>
         <source> (Sealed)</source>
         <translation> (封装)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="343"/>
+        <location filename="../main_window.cpp" line="367"/>
         <source>Open chat</source>
         <translation>打开会话</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="184"/>
+        <location filename="../main_window.cpp" line="195"/>
         <source>Search friends / pinyin...</source>
         <translation>搜索好友 / 拼音...</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="353"/>
+        <location filename="../main_window.cpp" line="377"/>
         <source>Send file</source>
         <translation>传送文件</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="356"/>
+        <location filename="../main_window.cpp" line="380"/>
         <source>Find in history...</source>
         <translation>查找聊天记录...</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="375"/>
+        <location filename="../main_window.cpp" line="405"/>
         <source>Set level 1 (user %1 / %2)</source>
         <translation>设置 优先级为 2 (用户 %1 / %2)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="379"/>
+        <location filename="../main_window.cpp" line="409"/>
         <source>Set level 2 (user %1 / %2)</source>
         <translation>设置 优先级为 4 (用户 %1 / %2)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="383"/>
+        <location filename="../main_window.cpp" line="413"/>
         <source>Set display level</source>
         <translation>设置显示优先级</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="387"/>
+        <location filename="../main_window.cpp" line="417"/>
         <source>Select group</source>
         <translation>选择工作组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="491"/>
+        <location filename="../main_window.cpp" line="651"/>
         <source>Stealth</source>
         <translation>隐身</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="494"/>
+        <location filename="../main_window.cpp" line="654"/>
         <source>Away</source>
         <translation>离开</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="488"/>
+        <location filename="../main_window.cpp" line="648"/>
         <source>Online</source>
         <translation>在线</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="262"/>
-        <location filename="../main_window.cpp" line="1076"/>
-        <location filename="../main_window.cpp" line="1082"/>
-        <location filename="../main_window.cpp" line="1086"/>
+        <location filename="../main_window.cpp" line="278"/>
+        <location filename="../main_window.cpp" line="1287"/>
+        <location filename="../main_window.cpp" line="1293"/>
+        <location filename="../main_window.cpp" line="1297"/>
         <source>Broadcast</source>
         <translation>全体广播</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="263"/>
+        <location filename="../main_window.cpp" line="279"/>
         <source>Send to every online peer with the broadcast flag</source>
         <translation>向每个在线好友发送，并带上广播标志</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="325"/>
+        <location filename="../main_window.cpp" line="342"/>
         <source>Hide from group &quot;%1&quot;</source>
         <translation>对组「%1」隐身</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="326"/>
+        <location filename="../main_window.cpp" line="343"/>
         <source>Mute messages from group &quot;%1&quot;</source>
         <translation>屏蔽组「%1」的消息提醒</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../main_window.cpp" line="356"/>
+        <source>Send to &quot;%1&quot; (%n online/away)</source>
+        <translation>
+            <numerusform>发给「%1」（%n 人在线或离开）</numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../main_window.cpp" line="346"/>
+        <location filename="../main_window.cpp" line="370"/>
         <source>Broadcast to all online</source>
         <translation>向所有在线好友广播</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="349"/>
+        <location filename="../main_window.cpp" line="373"/>
         <source>Create discussion group</source>
         <translation>创建讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="350"/>
-        <location filename="../main_window.cpp" line="917"/>
+        <location filename="../main_window.cpp" line="374"/>
+        <location filename="../main_window.cpp" line="1128"/>
         <source>Rename discussion group</source>
         <translation>重命名讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="351"/>
-        <location filename="../main_window.cpp" line="937"/>
+        <location filename="../main_window.cpp" line="375"/>
+        <location filename="../main_window.cpp" line="1148"/>
         <source>Delete discussion group</source>
         <translation>删除讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="352"/>
+        <location filename="../main_window.cpp" line="376"/>
         <source>Add selected contacts to discussion</source>
         <translation>将所选联系人加入讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="363"/>
+        <location filename="../main_window.cpp" line="387"/>
         <source>Hide from this group</source>
         <translation>对该组隐身</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="367"/>
+        <location filename="../main_window.cpp" line="391"/>
         <source>Mute messages from this group</source>
         <translation>屏蔽该组消息</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="371"/>
+        <location filename="../main_window.cpp" line="395"/>
         <source>Group permissions...</source>
         <translation>组权限...</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="499"/>
+        <location filename="../main_window.cpp" line="398"/>
+        <source>Send to this group (online and away)</source>
+        <translation>发给本组（在线与离开）</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="399"/>
+        <source>Multicast the current text to online and away members of this department. Offline peers are not queued.</source>
+        <translation>把当前内容发给该部门里在线和离开的成员。灰色离线不入队。</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="427"/>
+        <source>No department groups</source>
+        <translation>没有部门组</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../main_window.cpp" line="434"/>
+        <source>%1 (%n online/away)</source>
+        <translation>
+            <numerusform>%1（%n 人在线或离开）</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="436"/>
+        <source>Select online and away members. Grey offline peers stay out.</source>
+        <translation>选中在线和离开的成员。灰色离线不选。</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="500"/>
+        <location filename="../main_window.cpp" line="578"/>
+        <source>No online or away members in &quot;%1&quot;.</source>
+        <translation>「%1」里没有在线或离开的成员。</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../main_window.cpp" line="558"/>
+        <source>Group send: &quot;%1&quot; · %n online or away member(s). Offline peers are not included. Press Send.</source>
+        <translation>
+            <numerusform>按组发送：「%1」· %n 人在线或离开。不含离线。请按发送。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="575"/>
+        <location filename="../main_window.cpp" line="589"/>
+        <source>Group send</source>
+        <translation>按组发送</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="576"/>
+        <source>No online or away members in &quot;%1&quot;. Offline peers are not queued.</source>
+        <translation>「%1」里没有在线或离开的成员。离线不会入队。</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../main_window.cpp" line="590"/>
+        <source>Send the current message to %n member(s) of &quot;%1&quot;?</source>
+        <translation>
+            <numerusform>把当前消息发给「%1」的 %n 位成员？</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="659"/>
         <source>%1, hidden from some groups</source>
         <translation>%1，已对部分组隐身</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="573"/>
-        <location filename="../main_window.cpp" line="577"/>
+        <location filename="../main_window.cpp" line="734"/>
+        <location filename="../main_window.cpp" line="738"/>
         <source>This is you</source>
         <translation>这是你自己</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="601"/>
+        <location filename="../main_window.cpp" line="762"/>
         <source>%1
 %2
 Local multi-send (not a FeiQ multicast room)</source>
@@ -1119,145 +1198,163 @@ Local multi-send (not a FeiQ multicast room)</source>
 本地群发（不是飞秋组播聊天室）</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="654"/>
-        <location filename="../main_window.cpp" line="694"/>
+        <location filename="../main_window.cpp" line="789"/>
+        <source>(no text)</source>
+        <translation>（无文字）</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="807"/>
+        <source>Click to open chat
+%1</source>
+        <translation>单击打开会话
+%1</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="809"/>
+        <location filename="../main_window.cpp" line="861"/>
+        <source>Recent contacts</source>
+        <translation>最近联系人</translation>
+    </message>
+    <message>
+        <location filename="../main_window.cpp" line="864"/>
+        <location filename="../main_window.cpp" line="904"/>
         <source>My Friends</source>
         <translation>我的好友</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="655"/>
-        <location filename="../main_window.cpp" line="692"/>
+        <location filename="../main_window.cpp" line="865"/>
+        <location filename="../main_window.cpp" line="902"/>
         <source>Ungrouped friends</source>
         <translation>对方未分组好友</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="660"/>
-        <location filename="../main_window.cpp" line="695"/>
+        <location filename="../main_window.cpp" line="870"/>
+        <location filename="../main_window.cpp" line="905"/>
         <source>Discussions</source>
         <translation>讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="661"/>
-        <location filename="../main_window.cpp" line="696"/>
+        <location filename="../main_window.cpp" line="871"/>
+        <location filename="../main_window.cpp" line="906"/>
         <source>Myself</source>
         <translation>自己</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="662"/>
-        <location filename="../main_window.cpp" line="697"/>
+        <location filename="../main_window.cpp" line="872"/>
+        <location filename="../main_window.cpp" line="907"/>
         <source>Blacklist</source>
         <translation>黑名单</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="708"/>
+        <location filename="../main_window.cpp" line="919"/>
         <source>hidden</source>
         <translation>隐身</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="711"/>
+        <location filename="../main_window.cpp" line="922"/>
         <source>muted</source>
         <translation>屏蔽</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="880"/>
-        <location filename="../main_window.cpp" line="898"/>
+        <location filename="../main_window.cpp" line="1091"/>
+        <location filename="../main_window.cpp" line="1109"/>
         <source>Discussion group</source>
         <translation>讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="881"/>
+        <location filename="../main_window.cpp" line="1092"/>
         <source>Select at least two contacts to create a discussion group.</source>
         <translation>请至少选择两名联系人以创建讨论组。</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="886"/>
+        <location filename="../main_window.cpp" line="1097"/>
         <source>New discussion group</source>
         <translation>新建讨论组</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="886"/>
-        <location filename="../main_window.cpp" line="917"/>
+        <location filename="../main_window.cpp" line="1097"/>
+        <location filename="../main_window.cpp" line="1128"/>
         <source>Name:</source>
         <translation>名称:</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="888"/>
+        <location filename="../main_window.cpp" line="1099"/>
         <source>Discussion (%1)</source>
         <translation>讨论组（%1）</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="899"/>
+        <location filename="../main_window.cpp" line="1110"/>
         <source>Could not create the discussion group.</source>
         <translation>无法创建讨论组。</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="935"/>
+        <location filename="../main_window.cpp" line="1146"/>
         <source>Delete this discussion group? Local history stays on disk.</source>
         <translation>删除此讨论组？本地历史仍保留在磁盘上。</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="936"/>
+        <location filename="../main_window.cpp" line="1147"/>
         <source>Delete the selected discussion groups? Local history stays on disk.</source>
         <translation>删除所选讨论组？本地历史仍保留在磁盘上。</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="975"/>
+        <location filename="../main_window.cpp" line="1186"/>
         <source>Set memo</source>
         <translation>设置备注</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="976"/>
+        <location filename="../main_window.cpp" line="1187"/>
         <source>Local memo for %1:</source>
         <translation>为 %1 设置本地备注:</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1005"/>
-        <location filename="../main_window.cpp" line="1063"/>
+        <location filename="../main_window.cpp" line="1216"/>
+        <location filename="../main_window.cpp" line="1274"/>
         <source>Offline queue</source>
         <translation>离线队列</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1006"/>
+        <location filename="../main_window.cpp" line="1217"/>
         <source>File attachments cannot be queued (no transfer server). Text will be queued for offline peers.</source>
         <translation>附件无法加入离线队列（没有中转服务器）。发给离线对端的文本将排队。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../main_window.cpp" line="1064"/>
+        <location filename="../main_window.cpp" line="1275"/>
         <source>%n message(s) queued and will send when the peer comes online.</source>
         <translation>
             <numerusform>已排队 %n 条，对方上线后自动发送。</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1077"/>
+        <location filename="../main_window.cpp" line="1288"/>
         <source>Type a message, then broadcast it to every online peer.</source>
         <translation>先输入内容，再向每个在线好友广播。</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1083"/>
+        <location filename="../main_window.cpp" line="1294"/>
         <source>No online peers to broadcast to.</source>
         <translation>没有在线好友可广播。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../main_window.cpp" line="1087"/>
+        <location filename="../main_window.cpp" line="1298"/>
         <source>Broadcast sent to %n online peer(s).</source>
         <translation>
             <numerusform>已向 %n 位在线好友广播。</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1102"/>
-        <location filename="../main_window.cpp" line="1136"/>
+        <location filename="../main_window.cpp" line="1313"/>
+        <location filename="../main_window.cpp" line="1347"/>
         <source>Show send file list (%1)</source>
         <translation>显示传送文件列表 (%1)</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1258"/>
+        <location filename="../main_window.cpp" line="1469"/>
         <source>Add Files</source>
         <translation>添加文件</translation>
     </message>
     <message>
-        <location filename="../main_window.cpp" line="1260"/>
+        <location filename="../main_window.cpp" line="1471"/>
         <source>All Files (*)</source>
         <translation>所有文件 (*)</translation>
     </message>
@@ -1283,7 +1380,7 @@ Local multi-send (not a FeiQ multicast room)</source>
 <context>
     <name>MsgServer</name>
     <message>
-        <location filename="../msg_server.cpp" line="275"/>
+        <location filename="../msg_server.cpp" line="284"/>
         <source>I am away from my computer.</source>
         <translation>我现在不在电脑旁。</translation>
     </message>
@@ -1355,7 +1452,7 @@ Local multi-send (not a FeiQ multicast room)</source>
     </message>
     <message>
         <location filename="../msg_window.cpp" line="457"/>
-        <location filename="../msg_window.cpp" line="658"/>
+        <location filename="../msg_window.cpp" line="664"/>
         <source>Preparing to get file... </source>
         <translation>准备传送文件...</translation>
     </message>
@@ -1477,13 +1574,13 @@ Local multi-send (not a FeiQ multicast room)</source>
         <translation>&lt;b&gt;%1&lt;/b&gt;（%2）</translation>
     </message>
     <message>
-        <location filename="../global.cpp" line="149"/>
+        <location filename="../global.cpp" line="154"/>
         <location filename="../helper.cpp" line="226"/>
         <source>%1 file</source>
         <translation>%1 文件</translation>
     </message>
     <message>
-        <location filename="../global.cpp" line="151"/>
+        <location filename="../global.cpp" line="156"/>
         <location filename="../helper.cpp" line="228"/>
         <source>%1 files</source>
         <translation>%1 文件</translation>
@@ -1571,6 +1668,15 @@ Local multi-send (not a FeiQ multicast room)</source>
         <location filename="../recv_file_finish_dialog.cpp" line="71"/>
         <source>Open Folder</source>
         <translation>打开所在的文件夹</translation>
+    </message>
+</context>
+<context>
+    <name>RecvFileTransfer</name>
+    <message>
+        <location filename="../recv_file_transfer.cpp" line="591"/>
+        <location filename="../recv_file_transfer.cpp" line="599"/>
+        <source>Transfer cancelled</source>
+        <translation>传送已取消</translation>
     </message>
 </context>
 <context>
@@ -1698,12 +1804,64 @@ Local multi-send (not a FeiQ multicast room)</source>
 <context>
     <name>SendFileMap</name>
     <message>
-        <location filename="../send_file_map.cpp" line="113"/>
+        <location filename="../send_file_map.cpp" line="83"/>
+        <source>Cancelling…</source>
+        <translation>正在取消…</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="86"/>
+        <location filename="../send_file_map.cpp" line="97"/>
+        <location filename="../send_file_map.cpp" line="107"/>
+        <source>Estimating…</source>
+        <translation>估算中…</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="86"/>
+        <source>Waiting</source>
+        <translation>等待</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="94"/>
+        <source>/s</source>
+        <translation>/秒</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="98"/>
+        <source>%1 · remaining unknown</source>
+        <translation>%1 · 剩余未知</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="105"/>
+        <source>Done</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="108"/>
+        <source>%1 · estimating</source>
+        <translation>%1 · 估算中</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="112"/>
+        <source>%1 s left</source>
+        <translation>剩余 %1 秒</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="114"/>
+        <source>%1 min %2 s left</source>
+        <translation>剩余 %1 分 %2 秒</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="116"/>
+        <source>%1 h %2 min left</source>
+        <translation>剩余 %1 小时 %2 分</translation>
+    </message>
+    <message>
+        <location filename="../send_file_map.cpp" line="195"/>
         <source>Folders</source>
         <translation>目录</translation>
     </message>
     <message>
-        <location filename="../send_file_map.cpp" line="113"/>
+        <location filename="../send_file_map.cpp" line="195"/>
         <source>Folder</source>
         <translation>文件夹</translation>
     </message>
@@ -1792,7 +1950,7 @@ Local multi-send (not a FeiQ multicast room)</source>
 <context>
     <name>SetupWindow</name>
     <message>
-        <location filename="../setup_window.cpp" line="823"/>
+        <location filename="../setup_window.cpp" line="833"/>
         <source>Click right button on send
 window to set display level</source>
         <translation>要设置优先级请
@@ -1825,158 +1983,168 @@ window to set display level</source>
     </message>
     <message>
         <location filename="../setup_window.cpp" line="674"/>
+        <source>Show my typing status</source>
+        <translation>显示我的输入状态</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="675"/>
+        <source>Sends FeiQ typing commands 121 and 122 (no extra option bits, version stays 1). Classic IPMSG peers ignore them. FeiQ builds that only accept a 1_lbt version string may not show the hint. Incoming 121/122 are still displayed.</source>
+        <translation>发送飞秋正在输入命令 121 和 122（不加选项位，版本号仍是 1）。经典 IPMSG 会忽略。只认 1_lbt 版本串的飞秋可能不显示提示。对方发来的 121/122 仍会显示。</translation>
+    </message>
+    <message>
+        <location filename="../setup_window.cpp" line="683"/>
         <source>Send sealed message by default</source>
         <translation>默认为封装发送</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="678"/>
+        <location filename="../setup_window.cpp" line="687"/>
         <source>Quote message by default</source>
         <translation>默认为回复时引用原文</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="682"/>
+        <location filename="../setup_window.cpp" line="691"/>
         <source>Queue messages when peer is offline</source>
         <translation>对方离线时自动排队发送</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="687"/>
+        <location filename="../setup_window.cpp" line="696"/>
         <source>Away</source>
         <translation>离开</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="691"/>
+        <location filename="../setup_window.cpp" line="700"/>
         <source>Stealth / Hide mode (do not answer discovery)</source>
         <translation>隐身 / 隐藏模式（不回应发现）</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="695"/>
+        <location filename="../setup_window.cpp" line="704"/>
         <source>Group permissions...</source>
         <translation>组权限...</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="696"/>
+        <location filename="../setup_window.cpp" line="705"/>
         <source>Hide from a department group, or mute message alerts from it.</source>
         <translation>对某个部门组隐身，或屏蔽该组的消息提醒。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="700"/>
+        <location filename="../setup_window.cpp" line="709"/>
         <source>Enable auto-reply</source>
         <translation>启用自动回复</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="705"/>
+        <location filename="../setup_window.cpp" line="714"/>
         <source>I am away from my computer.</source>
         <translation>我现在不在电脑旁。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="709"/>
+        <location filename="../setup_window.cpp" line="718"/>
         <source> seconds</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="713"/>
+        <location filename="../setup_window.cpp" line="722"/>
         <source>Reply text:</source>
         <translation>回复内容：</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="716"/>
+        <location filename="../setup_window.cpp" line="725"/>
         <source>Reply cooldown:</source>
         <translation>回复冷却：</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="740"/>
+        <location filename="../setup_window.cpp" line="750"/>
         <source>None Local Broadcast Address Settings</source>
         <translation>局域网外广播地址</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="750"/>
+        <location filename="../setup_window.cpp" line="760"/>
         <source>Add Broadcast Address</source>
         <translation>添加要广播的IP地址</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="752"/>
+        <location filename="../setup_window.cpp" line="762"/>
         <source>Broadcast IP, start-end, or CIDR</source>
         <translation>广播地址、起止范围或 CIDR</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="753"/>
+        <location filename="../setup_window.cpp" line="763"/>
         <source>dial up connection</source>
         <translation>拨号连接</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="778"/>
+        <location filename="../setup_window.cpp" line="788"/>
         <source>Cross-subnet peers: add a start-end range or CIDR. Discovery unicasts BR_ENTRY to each address (no server). One entry is limited to %1 hosts and is saved with the broadcast list.</source>
         <translation>跨网段：填写起止 IP 或 CIDR。发现时向每个地址单播入网包（无服务器）。每一项最多探测 %1 个地址，并与广播列表一起保存。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="786"/>
+        <location filename="../setup_window.cpp" line="796"/>
         <source>Start IP</source>
         <translation>起始 IP</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="788"/>
+        <location filename="../setup_window.cpp" line="798"/>
         <source>End IP</source>
         <translation>结束 IP</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="790"/>
+        <location filename="../setup_window.cpp" line="800"/>
         <source>CIDR, e.g. 192.168.2.0/24</source>
         <translation>CIDR，例如 192.168.2.0/24</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="791"/>
+        <location filename="../setup_window.cpp" line="801"/>
         <source>Add range</source>
         <translation>添加网段</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="809"/>
+        <location filename="../setup_window.cpp" line="819"/>
         <source>Ok</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="810"/>
+        <location filename="../setup_window.cpp" line="820"/>
         <source>Apply</source>
         <translation>应用</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="820"/>
+        <location filename="../setup_window.cpp" line="830"/>
         <source>Other Settings</source>
         <translation>其它设置</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="926"/>
+        <location filename="../setup_window.cpp" line="937"/>
         <source>Enter an IPv4 address, a start-end range, or a CIDR prefix.</source>
         <translation>请输入 IPv4 地址、起止范围或 CIDR。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="928"/>
+        <location filename="../setup_window.cpp" line="939"/>
         <source>CIDR prefix must be between 0 and 32.</source>
         <translation>CIDR 前缀必须在 0 到 32 之间。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="930"/>
+        <location filename="../setup_window.cpp" line="941"/>
         <source>That range has more than %1 addresses. Split it into smaller ranges.</source>
         <translation>该范围超过 %1 个地址，请拆成更小的网段。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="933"/>
+        <location filename="../setup_window.cpp" line="944"/>
         <source>Loopback and unspecified addresses are not probed.</source>
         <translation>不探测回环地址和未指定地址。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="935"/>
+        <location filename="../setup_window.cpp" line="946"/>
         <source>That is not a valid IPv4 address or range.</source>
         <translation>不是有效的 IPv4 地址或范围。</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="944"/>
-        <location filename="../setup_window.cpp" line="973"/>
-        <location filename="../setup_window.cpp" line="979"/>
+        <location filename="../setup_window.cpp" line="955"/>
+        <location filename="../setup_window.cpp" line="984"/>
+        <location filename="../setup_window.cpp" line="990"/>
         <source>Broadcast address</source>
         <translation>广播地址</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="974"/>
+        <location filename="../setup_window.cpp" line="985"/>
         <source>Enter both a start and an end address, or a CIDR prefix.</source>
         <translation>请同时填写起始和结束地址，或填写 CIDR。</translation>
     </message>
@@ -1991,17 +2159,17 @@ window to set display level</source>
         <translation>工作组</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="826"/>
+        <location filename="../setup_window.cpp" line="836"/>
         <source>Detail/Log settings</source>
         <translation>详细/记录 设置</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="827"/>
+        <location filename="../setup_window.cpp" line="837"/>
         <source>URL link settings</source>
         <translation>URL 链接设置</translation>
     </message>
     <message>
-        <location filename="../setup_window.cpp" line="829"/>
+        <location filename="../setup_window.cpp" line="839"/>
         <source>Password settings</source>
         <translation>密码设置</translation>
     </message>
@@ -2182,7 +2350,7 @@ Right-click to delete or move</source>
 <context>
     <name>StickerStore</name>
     <message>
-        <location filename="../stickerStore.cpp" line="325"/>
+        <location filename="../stickerStore.cpp" line="343"/>
         <source>My stickers</source>
         <translation>我的表情</translation>
     </message>
@@ -2379,6 +2547,11 @@ Right-click to delete or move</source>
         <source>Packet ID</source>
         <translation>数据包号</translation>
     </message>
+    <message>
+        <location filename="../transfer_file_model.cpp" line="44"/>
+        <source>Remaining</source>
+        <translation>剩余时间</translation>
+    </message>
 </context>
 <context>
     <name>TransferFileWindow</name>
@@ -2403,17 +2576,31 @@ Right-click to delete or move</source>
         <translation>默认用户名</translation>
     </message>
     <message>
-        <location filename="../transfer_file_window.cpp" line="97"/>
-        <source>Delete</source>
-        <translation>删除</translation>
+        <location filename="../transfer_file_window.cpp" line="92"/>
+        <source>12.4MB/s · 00 min 00 s left</source>
+        <translation>12.4MB/秒 · 剩余 00 分 00 秒</translation>
     </message>
     <message>
-        <location filename="../transfer_file_window.cpp" line="98"/>
+        <location filename="../transfer_file_window.cpp" line="99"/>
+        <source>Cancel transfer</source>
+        <translation>取消传送</translation>
+    </message>
+    <message>
+        <location filename="../transfer_file_window.cpp" line="100"/>
+        <source>Stop the selected transfer. An active TCP send is closed so the peer stops reading. A transfer that has not started is removed.</source>
+        <translation>停止所选传送。正在进行的 TCP 发送会被关掉，对方无法继续读。尚未开始的传送会直接移除。</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="vanished">删除</translation>
+    </message>
+    <message>
+        <location filename="../transfer_file_window.cpp" line="103"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../transfer_file_window.cpp" line="99"/>
+        <location filename="../transfer_file_window.cpp" line="104"/>
         <source>Stop transfer if file changed</source>
         <translation>若目标文件已经改变，则不允许传送</translation>
     </message>
@@ -2505,40 +2692,40 @@ Right-click to delete or move</source>
 <context>
     <name>WindowManager</name>
     <message>
-        <location filename="../window_manager.cpp" line="144"/>
-        <location filename="../window_manager.cpp" line="174"/>
+        <location filename="../window_manager.cpp" line="185"/>
+        <location filename="../window_manager.cpp" line="215"/>
         <source>[Window shake]</source>
         <translation>[窗口抖动]</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="149"/>
-        <location filename="../window_manager.cpp" line="185"/>
-        <location filename="../window_manager.cpp" line="328"/>
+        <location filename="../window_manager.cpp" line="190"/>
+        <location filename="../window_manager.cpp" line="226"/>
+        <location filename="../window_manager.cpp" line="369"/>
         <source>[Broadcast] %1</source>
         <translation>[广播] %1</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="191"/>
+        <location filename="../window_manager.cpp" line="232"/>
         <source>[File attachment]</source>
         <translation>[文件附件]</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="208"/>
+        <location filename="../window_manager.cpp" line="249"/>
         <source>(Sealed message)</source>
         <translation>（密信）</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="362"/>
+        <location filename="../window_manager.cpp" line="403"/>
         <source>Peer offline</source>
         <translation>对方离线</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="363"/>
+        <location filename="../window_manager.cpp" line="404"/>
         <source>%1 is offline. Queue this message and send when they come online?</source>
         <translation>%1 当前离线。将这条消息加入队列，等对方上线后再发送？</translation>
     </message>
     <message>
-        <location filename="../window_manager.cpp" line="467"/>
+        <location filename="../window_manager.cpp" line="508"/>
         <source>I am away from my computer.</source>
         <translation>我现在不在电脑旁。</translation>
     </message>
