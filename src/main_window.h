@@ -62,6 +62,7 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event);
     void closeEvent(QCloseEvent *event);
     void keyPressEvent(QKeyEvent *event);
+    bool eventFilter(QObject *watched, QEvent *event);
 
 protected slots:
     virtual void dragEnterEvent(QDragEnterEvent *);
@@ -97,6 +98,9 @@ private slots:
     void sendToDepartment();
     void onPeerTyping(QString ip, bool typing);
     void onRecentClicked(QTreeWidgetItem *item, int column);
+    void setMyPhoto();
+    void setPeerPhoto();
+    void clearPeerPhoto();
 
 signals:
     void messageReplyed();
@@ -127,7 +131,8 @@ private:
     QList<QTreeWidgetItem *> allPeerItems() const;
     bool isBlacklisted(const QString &ip) const;
     void applyFilterToItem(QTreeWidgetItem *item, const QString &needle);
-    QPixmap peerAvatar(const QString &name, int presence, int size) const;
+    QPixmap peerAvatar(const QString &name, int presence, int size,
+                       const QString &photoKey = QString()) const;
 
     bool hasSendFile();
     QString constructFileInfoStr();
@@ -170,6 +175,9 @@ private:
     QAction *muteGroupAct;
     QAction *groupPolicyAct;
     QAction *sendToGroupAct;
+    QAction *setMyPhotoAct;
+    QAction *setPeerPhotoAct;
+    QAction *clearPeerPhotoAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;

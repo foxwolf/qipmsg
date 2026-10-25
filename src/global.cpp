@@ -40,6 +40,7 @@
 #include "groupPolicy.h"
 #include "stickerStore.h"
 #include "recentStore.h"
+#include "avatarStore.h"
 
 SendFileManager *Global::sendFileManager = 0;
 QSettings *Global::settings = 0;
@@ -54,6 +55,7 @@ OfflineQueue *Global::offlineQueue = 0;
 GroupPolicy *Global::groupPolicy = 0;
 StickerStore *Global::stickerStore = 0;
 RecentStore *Global::recentStore = 0;
+AvatarStore *Global::avatarStore = 0;
 Systray *Global::systray = 0;
 QMap<QString, QIcon *> Global::iconSet;
 FileServer *Global::fileServer = 0;
@@ -94,6 +96,7 @@ void Global::globalInit(QString path)
     offlineQueue = new OfflineQueue;
     groupPolicy = new GroupPolicy;
     stickerStore = new StickerStore;
+    avatarStore = new AvatarStore;
 
     fileServer = new FileServer;
 
@@ -119,6 +122,7 @@ void Global::globalEnd()
     delete discussionStore;
     delete groupPolicy;
     delete stickerStore;
+    delete avatarStore;
 
     delete msgThread;
     delete soundThread;

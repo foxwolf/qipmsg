@@ -1,6 +1,6 @@
 # QIpMsg Roadmap — toward a Feiqiu-like LAN messenger
 
-2.23.4 adds department-group multicast (online and away only), a recent-contacts panel (`recent.json`), FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA. 2.19.3 group hide / mute / stickers, 2.15.2 tray/settings items, 2.11.1 protocol gaps, 2.7.0 file interop, 2.6.0 images, and 2.5.x groups / offline queue / memo stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode.
+2.27.5 adds an outbound TCP send cap, a zip backup of private data (no Qt Sql), basic screenshot annotation, and local-only avatars. 2.23.4 department-group multicast, recent contacts, FeiQ typing commands 121/122 (version stays `1`), and transfer cancel plus ETA stay. Light discussion groups are **not** FeiQ multicast chatroom. Per-group hide is best-effort IPMSG, not a FeiQ private extension. Typing is the captured FeiQ 121/122 mode, not a new private opcode. Avatars are not a FeiQ photo protocol.
 
 ## In this line of work (done)
 
@@ -57,8 +57,12 @@
 - [x] Typing status via FeiQ commands 121 / 122 (no option bits, version stays `1`); preference defaults on
 - [x] Cancel an in-progress TCP file send; receiver cancel also sends `IPMSG_RELEASEFILES`
 - [x] Transfer window ETA from observed throughput (folders: speed only)
+- [x] Outbound TCP file send cap in KB/s (0 = unlimited), stored in QSettings
+- [x] Zip backup / restore of private data under `~/.qipmsg` (stored zip, no Qt Sql)
+- [x] Basic screenshot annotation (pen, rectangle, arrow, text, undo) before the existing PNG attach
+- [x] Local PNG/JPEG avatar for self and per-IP override under `avatars/` (not sent on the wire)
 
-## Later / out of scope for 2.23.4
+## Later / out of scope for 2.27.5
 
 1. **FeiQ plugin system**
 2. **File-share / public folder server**
@@ -72,6 +76,13 @@
    - NSIS installer for Windows
    - `.app` bundle + DMG for macOS
    - Flatpak / AppImage / DEB / RPM for Linux
+
+## How to try 2.27.5
+
+1. Preferences → Detail → File, or the transfer window: set **Send speed limit** to 256 KB/s. `0` is unlimited. 1024 KB/s is 1 MB/s. The value is `sendSpeedLimitKBps` in `qipmsg.ini`. Outbound TCP file sends share that cap. Cancel still closes the socket.
+2. Tray **Backup private data...** writes an uncompressed zip of preferences, `peers.json`, history, stickers, `group_policy.json`, `recent.json`, `resume.json`, discussions, the offline queue, and `avatars/`. `recv/` and `screenshots/` are omitted. **Restore private data...** asks before overwrite and then asks to restart. Re-zip with a compressor and the restore will refuse it.
+3. Ctrl+Shift+S / Ctrl+Shift+A still capture. The annotation window (pen, rectangle, arrow, text, undo) runs before the PNG is attached. Esc cancels and does not send.
+4. Click the header avatar to set your photo (`avatars/self.png`). Right-click a peer for a local photo keyed by IP. FeiQ, and qipmsg peers who have not set the same file, still see a color block. Nothing is added to the IPMSG packet.
 
 ## How to try 2.23.4
 

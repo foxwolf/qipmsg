@@ -22,6 +22,8 @@
 #include "transfer_file_model.h"
 #include "constants.h"
 #include "helper.h"
+#include "preferences.h"
+#include "sendThrottle.h"
 
 #include <QtCore>
 #include <QtGui>
@@ -36,6 +38,11 @@ TransferFileWindow::TransferFileWindow(QWidget *parent)
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(transferFileView);
+    QHBoxLayout *limitLayout = new QHBoxLayout;
+    limitLayout->addWidget(new QLabel(tr("Send limit")));
+    limitLayout->addWidget(speedSpin);
+    limitLayout->addWidget(limitLabel, 1);
+    mainLayout->addLayout(limitLayout);
     mainLayout->addLayout(buttonLayout);
 
     setLayout(mainLayout);
@@ -96,6 +103,16 @@ void TransferFileWindow::createButtonLayout()
 {
     buttonLayout = new QHBoxLayout;
 
+    speedSpin = new QSpinBox;
+    speedSpin->setRange(0, 102400);
+    speedSpin->setSingleStep(64);
+    speedSpin->setSuffix(tr(" KB/s"));
+    speedSpin->setSpecialValueText(tr("Unlimited"));
+    speedSpin->setValue(Global::preferences
+                        ? Global::preferences->sendSpeedLimitKBps : 0);
+    limitLabel = new QLabel;
+    onSpeedChanged(speedSpin->value());
+
     delButton = new QPushButton(tr("Cancel transfer"));
     delButton->setToolTip(tr(
             "Stop the selected transfer. An active TCP send is closed so the "
@@ -118,6 +135,30 @@ void TransferFileWindow::createConnections()
             this, SLOT(close()));
     connect(delButton, SIGNAL(clicked()),
             this, SLOT(deleteTransfer()));
+    connect(speedSpin, SIGNAL(valueChanged(int)),
+            this, SLOT(onSpeedChanged(int)));
+    connect(speedSpin, SIGNAL(editingFinished()),
+            this, SLOT(commitSpeed()));
+}
+
+void TransferFileWindow::onSpeedChanged(int kbps)
+{
+    if (Global::preferences) {
+        Global::preferences->sendSpeedLimitKBps = kbps;
+    }
+    SendThrottle::setLimitKBps(kbps);
+    if (limitLabel) {
+        limitLabel->setText(tr("Outbound TCP: %1. 1024 KB/s = 1 MB/s.")
+                            .arg(SendThrottle::formatLimit(kbps)));
+    }
+}
+
+void TransferFileWindow::commitSpeed()
+{
+    if (Global::preferences) {
+        Global::preferences->sendSpeedLimitKBps = speedSpin->value();
+        Global::preferences->save();
+    }
 }
 
 void TransferFileWindow::deleteTransfer()

@@ -13,6 +13,8 @@ RESOURCES = icons.qrc
 HEADERS += \
 	about_dialog.h \
 	autostart.h \
+	avatarStore.h \
+	dataBackup.h \
 	msg_server.h \
 	constants.h \
 	version.h \
@@ -37,6 +39,8 @@ HEADERS += \
         resume_store.h \
         screen_capture.h \
         search_user_dialog.h \
+        sendThrottle.h \
+        shotEditor.h \
         msg.h \
 	msg_base.h \
 	send_msg.h \
@@ -84,6 +88,9 @@ HEADERS += \
 SOURCES += \
 	about_dialog.cpp \
 	autostart.cpp \
+	avatarStore.cpp \
+	dataBackup.cpp \
+	dataBackupUi.cpp \
 	msg_server.cpp \
 	dir_dialog.cpp \
 	recv_file_finish_dialog.cpp \
@@ -106,6 +113,8 @@ SOURCES += \
         resume_store.cpp \
         screen_capture.cpp \
         search_user_dialog.cpp \
+        sendThrottle.cpp \
+        shotEditor.cpp \
         msg.cpp \
 	msg_base.cpp \
 	send_msg.cpp \

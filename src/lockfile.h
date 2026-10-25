@@ -34,6 +34,7 @@ public:
     void setLockFile(QString name);
 
     bool lock();
+    void unlock();
 
 private:
     QString fileName;

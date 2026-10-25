@@ -27,6 +27,8 @@
 #include "msg_thread.h"
 #include "preferences.h"
 #include "screen_capture.h"
+#include "shotEditor.h"
+#include "avatarStore.h"
 #include "send_file_manager.h"
 #include "send_file_map.h"
 #include "send_file_window.h"
@@ -100,6 +102,10 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
     if (Global::offlineQueue) {
         connect(Global::offlineQueue, SIGNAL(queueChanged()),
                 this, SLOT(refreshQueuePanel()));
+    }
+    if (Global::avatarStore) {
+        connect(Global::avatarStore, &AvatarStore::changed,
+                this, &ChatWindow::refreshPeerCaption);
     }
     setWindowIcon(*Global::iconSet.value("normal"));
 }
@@ -356,6 +362,17 @@ void ChatWindow::createUi()
     profileLayout->addWidget(profileTitle);
     profileLayout->addSpacing(8);
     profileLayout->addWidget(m_profileAvatar, 0, Qt::AlignHCenter);
+    m_localPhotoButton = new QPushButton(tr("Local photo..."));
+    m_localPhotoButton->setToolTip(tr(
+            "PNG or JPEG shown for this IP on this computer only. "
+            "FeiQ peers still see a color block."));
+    m_clearPhotoButton = new QPushButton(tr("Clear local photo"));
+    connect(m_localPhotoButton, SIGNAL(clicked()),
+            this, SLOT(setLocalPhoto()));
+    connect(m_clearPhotoButton, SIGNAL(clicked()),
+            this, SLOT(clearLocalPhoto()));
+    profileLayout->addWidget(m_localPhotoButton);
+    profileLayout->addWidget(m_clearPhotoButton);
     profileLayout->addWidget(m_profileName);
     profileLayout->addWidget(m_profileStatus);
     profileLayout->addWidget(m_profileSign);
@@ -432,8 +449,29 @@ void ChatWindow::refreshProfile()
 
 QPixmap ChatWindow::peerAvatar(const QString &name, int size) const
 {
-    return Helper::avatarPixmap(name, size, Helper::avatarColor(name),
-            Helper::presenceColor(Global::userManager->presenceForIp(m_peerIp)));
+    const QColor status = Helper::presenceColor(
+                Global::userManager->presenceForIp(m_peerIp));
+    if (Global::avatarStore) {
+        const QPixmap photo = Global::avatarStore->rounded(m_peerIp, size, status);
+        if (!photo.isNull()) {
+            return photo;
+        }
+    }
+    return Helper::avatarPixmap(name, size, Helper::avatarColor(name), status);
+}
+
+void ChatWindow::setLocalPhoto()
+{
+    if (Global::avatarStore) {
+        Global::avatarStore->chooseAndSet(m_peerIp, this);
+    }
+}
+
+void ChatWindow::clearLocalPhoto()
+{
+    if (Global::avatarStore) {
+        Global::avatarStore->clearKey(m_peerIp);
+    }
 }
 
 void ChatWindow::showTransferMonitor()
@@ -933,7 +971,17 @@ void ChatWindow::sendScreenshot(const QPixmap &pixmap, const QString &prefix)
                 tr("Could not capture the screen."));
         return;
     }
-    const QString path = ScreenCapture::savePixmap(pixmap, prefix);
+    bool cancelled = false;
+    const QPixmap edited = ShotEditor::edit(pixmap, &cancelled, this);
+    if (cancelled) {
+        return;
+    }
+    if (edited.isNull()) {
+        QMessageBox::information(this, tr("Screenshot"),
+                tr("Could not capture the screen."));
+        return;
+    }
+    const QString path = ScreenCapture::savePixmap(edited, prefix);
     if (path.isEmpty()) {
         QMessageBox::information(this, tr("Screenshot"),
                 tr("Could not save the screenshot."));

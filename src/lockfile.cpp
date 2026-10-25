@@ -51,6 +51,13 @@ bool LockFile::lock()
     return true;
 }
 
+void LockFile::unlock()
+{
+    if (m_lockFile) {
+        m_lockFile->unlock();
+    }
+}
+
 void LockFile::setLockFile(QString name)
 {
     fileName = name;

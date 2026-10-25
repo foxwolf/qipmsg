@@ -25,6 +25,7 @@
 #include "global.h"
 #include "helper.h"
 #include "ipmsg.h"
+#include "sendThrottle.h"
 
 Preferences::Preferences()
 {
@@ -105,6 +106,7 @@ void Preferences::reset()
     isAutoRecvFile = false;
     isAutoRecvRename = true;
     autoRecvPath = Helper::defaultRecvPath();
+    sendSpeedLimitKBps = 0;
 
     udpPort = IPMSG_DEFAULT_PORT;
     bindAddress.clear();
@@ -232,7 +234,10 @@ void Preferences::load()
     isAutoRecvRename = set->value("isAutoRecvRename",
                                   isAutoRecvRename).toBool();
     autoRecvPath = set->value("autoRecvPath", autoRecvPath).toString();
+    sendSpeedLimitKBps = SendThrottle::clampKBps(
+                set->value("sendSpeedLimitKBps", sendSpeedLimitKBps).toInt());
     set->endGroup();
+    SendThrottle::setLimitKBps(sendSpeedLimitKBps);
 
     set->beginGroup("Network");
     udpPort = set->value("udpPort", udpPort).toInt();
@@ -348,6 +353,8 @@ void Preferences::save()
     set->setValue("isAutoRecvFile", isAutoRecvFile);
     set->setValue("isAutoRecvRename", isAutoRecvRename);
     set->setValue("autoRecvPath", autoRecvPath);
+    set->setValue("sendSpeedLimitKBps",
+                  SendThrottle::clampKBps(sendSpeedLimitKBps));
     set->endGroup();
 
     set->beginGroup("Network");

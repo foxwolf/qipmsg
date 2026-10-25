@@ -22,7 +22,9 @@
 
 class TransferFileModel;
 class QSortFilterProxyModel;
+class QLabel;
 class QPushButton;
+class QSpinBox;
 class QHBoxLayout;
 class QVBoxLayout;
 
@@ -40,6 +42,8 @@ public:
 
 private slots:
     void deleteTransfer();
+    void onSpeedChanged(int kbps);
+    void commitSpeed();
 
 private:
     void createTransferFileView();
@@ -51,6 +55,8 @@ private:
 
     QPushButton *delButton;
     QPushButton *closeButton;
+    QSpinBox *speedSpin;
+    QLabel *limitLabel;
 
     QHBoxLayout *buttonLayout;
 };

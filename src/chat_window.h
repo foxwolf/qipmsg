@@ -93,6 +93,8 @@ private slots:
     void clearQueued();
     void composerChanged();
     void typingIdle();
+    void setLocalPhoto();
+    void clearLocalPhoto();
 
 private:
     void createUi();
@@ -131,6 +133,8 @@ private:
     QLabel *m_profileLogin;
     QLabel *m_profileGroup;
     QLabel *m_profileIp;
+    QPushButton *m_localPhotoButton;
+    QPushButton *m_clearPhotoButton;
     QTextBrowser *m_historyEdit;
     QWidget *m_queuePanel;
     QLabel *m_queueBanner;

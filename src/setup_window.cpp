@@ -24,6 +24,8 @@
 #include "autostart.h"
 #include "systray.h"
 #include "groupPolicyDialog.h"
+#include "dataBackup.h"
+#include "sendThrottle.h"
 
 #include <QtGui>
 #include <QtCore>
@@ -276,6 +278,26 @@ FileTab::FileTab(QWidget *parent)
     recvPathLabel->setFrameStyle(QFrame::Sunken | QFrame::Panel);
     connect(recvPathButton, SIGNAL(clicked()), this, SLOT(getRecvPath()));
 
+    speedSpin = new QSpinBox;
+    speedSpin->setRange(0, 102400);
+    speedSpin->setSingleStep(64);
+    speedSpin->setSuffix(tr(" KB/s"));
+    speedSpin->setSpecialValueText(tr("Unlimited"));
+    speedSpin->setValue(Global::preferences
+                        ? Global::preferences->sendSpeedLimitKBps : 0);
+    speedHint = new QLabel;
+    speedHint->setWordWrap(true);
+    connect(speedSpin, SIGNAL(valueChanged(int)),
+            this, SLOT(updateSpeedHint(int)));
+    updateSpeedHint(speedSpin->value());
+
+    QPushButton *backupButton = new QPushButton(tr("Backup..."));
+    QPushButton *restoreButton = new QPushButton(tr("Restore..."));
+    backupButton->setToolTip(tr("Save preferences, history, stickers, and other private files to a zip."));
+    restoreButton->setToolTip(tr("Replace matching private files from a zip. You will be asked before overwrite."));
+    connect(backupButton, SIGNAL(clicked()), this, SLOT(backupPrivateData()));
+    connect(restoreButton, SIGNAL(clicked()), this, SLOT(restorePrivateData()));
+
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addWidget(resumeCheckBox);
     mainLayout->addWidget(autoRecvCheckBox);
@@ -284,8 +306,35 @@ FileTab::FileTab(QWidget *parent)
     pathLayout->addWidget(recvPathButton);
     pathLayout->addWidget(recvPathLabel, 1);
     mainLayout->addLayout(pathLayout);
+    QHBoxLayout *speedLayout = new QHBoxLayout;
+    speedLayout->addWidget(new QLabel(tr("Send speed limit")));
+    speedLayout->addWidget(speedSpin);
+    speedLayout->addStretch();
+    mainLayout->addLayout(speedLayout);
+    mainLayout->addWidget(speedHint);
+    QHBoxLayout *backupLayout = new QHBoxLayout;
+    backupLayout->addWidget(backupButton);
+    backupLayout->addWidget(restoreButton);
+    backupLayout->addStretch();
+    mainLayout->addLayout(backupLayout);
     mainLayout->addStretch();
     setLayout(mainLayout);
+}
+
+void FileTab::updateSpeedHint(int kbps)
+{
+    speedHint->setText(tr("Outbound TCP file sends use this cap. 0 is unlimited. 1024 KB/s is 1 MB/s. Current: %1.")
+                       .arg(SendThrottle::formatLimit(kbps)));
+}
+
+void FileTab::backupPrivateData()
+{
+    DataBackup::exportInteractive(this);
+}
+
+void FileTab::restorePrivateData()
+{
+    DataBackup::importInteractive(this);
 }
 
 void FileTab::getRecvPath()
@@ -306,6 +355,8 @@ void FileTab::save()
     if (!recvPathLabel->text().isEmpty()) {
         Global::preferences->autoRecvPath = recvPathLabel->text();
     }
+    Global::preferences->sendSpeedLimitKBps = speedSpin->value();
+    SendThrottle::setLimitKBps(speedSpin->value());
 }
 
 NetworkTab::NetworkTab(QWidget *parent)

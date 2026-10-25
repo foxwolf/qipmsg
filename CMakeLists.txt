@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.23.4 LANGUAGES CXX)
+project(qipmsg VERSION 2.27.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,8 +20,11 @@ endif()
 set(SOURCES
     src/about_dialog.cpp
     src/autostart.cpp
+    src/avatarStore.cpp
     src/chat_window.cpp
     src/contactDelegate.cpp
+    src/dataBackup.cpp
+    src/dataBackupUi.cpp
     src/dir_dialog.cpp
     src/discussion_store.cpp
     src/discussion_window.cpp
@@ -64,6 +67,7 @@ set(SOURCES
     src/retry_recv_file_dialog.cpp
     src/screen_capture.cpp
     src/search_user_dialog.cpp
+    src/sendThrottle.cpp
     src/send_file.cpp
     src/send_file_handle.cpp
     src/send_file_manager.cpp
@@ -74,6 +78,7 @@ set(SOURCES
     src/send_msg.cpp
     src/serve_socket.cpp
     src/setup_window.cpp
+    src/shotEditor.cpp
     src/sizecolumndelegate.cpp
     src/sound_thread.cpp
     src/stickerPicker.cpp
@@ -90,9 +95,11 @@ set(SOURCES
 set(HEADERS
     src/about_dialog.h
     src/autostart.h
+    src/avatarStore.h
     src/chat_window.h
     src/contactDelegate.h
     src/constants.h
+    src/dataBackup.h
     src/dir_dialog.h
     src/discussion_store.h
     src/discussion_window.h
@@ -135,6 +142,7 @@ set(HEADERS
     src/recv_msg.h
     src/retry_recv_file_dialog.h
     src/search_user_dialog.h
+    src/sendThrottle.h
     src/send_file.h
     src/send_file_handle.h
     src/send_file_manager.h
@@ -145,6 +153,7 @@ set(HEADERS
     src/send_msg.h
     src/serve_socket.h
     src/setup_window.h
+    src/shotEditor.h
     src/sizecolumndelegate.h
     src/sound_thread.h
     src/stickerPicker.h
@@ -173,6 +182,13 @@ add_executable(qipmsg ${SOURCES} ${HEADERS} ${RESOURCES} ${QM_FILES})
 add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp)
 target_include_directories(qipmsgP1Check PRIVATE src)
 
+add_executable(qipmsgBackupCheck
+    test/backupcheck/main.cpp
+    src/dataBackup.cpp
+    src/sendThrottle.cpp
+)
+target_include_directories(qipmsgBackupCheck PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -184,6 +200,7 @@ if (Qt6_FOUND)
         Qt6::Multimedia
     )
     target_link_libraries(qipmsgP1Check PRIVATE Qt6::Core Qt6::Network)
+    target_link_libraries(qipmsgBackupCheck PRIVATE Qt6::Core)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -192,6 +209,7 @@ else()
         Qt5::Multimedia
     )
     target_link_libraries(qipmsgP1Check PRIVATE Qt5::Core Qt5::Network)
+    target_link_libraries(qipmsgBackupCheck PRIVATE Qt5::Core)
 endif()
 
 if (WIN32)

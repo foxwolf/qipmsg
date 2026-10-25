@@ -22,6 +22,7 @@
 #include <QDir>
 #include <QFont>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPropertyAnimation>
 #include <QWidget>
 #include <QProcess>
@@ -581,6 +582,24 @@ QColor Helper::presenceColor(int presence)
     }
 }
 
+namespace {
+
+void paintStatusDot(QPainter &painter, int size, const QColor &status)
+{
+    if (!status.isValid()) {
+        return;
+    }
+    const int dot = qMax(8, size / 4);
+    const QRect dotRect(size - dot - 1, size - dot - 1, dot, dot);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::white);
+    painter.drawEllipse(dotRect.adjusted(-1, -1, 1, 1));
+    painter.setBrush(status);
+    painter.drawEllipse(dotRect);
+}
+
+} // namespace
+
 QPixmap Helper::avatarPixmap(const QString &letter, int size,
                              const QColor &fill, const QColor &status)
 {
@@ -605,15 +624,35 @@ QPixmap Helper::avatarPixmap(const QString &letter, int size,
     QString ch = letter.trimmed();
     ch = ch.isEmpty() ? QString("?") : ch.left(1);
     p.drawText(pix.rect(), Qt::AlignCenter, ch);
+    paintStatusDot(p, size, status);
+    return pix;
+}
 
-    if (status.isValid()) {
-        const int dot = qMax(8, size / 4);
-        const QRect dotRect(size - dot - 1, size - dot - 1, dot, dot);
-        p.setBrush(Qt::white);
-        p.drawEllipse(dotRect.adjusted(-1, -1, 1, 1));
-        p.setBrush(status);
-        p.drawEllipse(dotRect);
+QPixmap Helper::roundAvatar(const QPixmap &source, int size, const QColor &status)
+{
+    if (source.isNull()) {
+        return QPixmap();
     }
+    if (size < 16) {
+        size = 16;
+    }
+
+    QPixmap pix(size, size);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing);
+    QPainterPath clip;
+    const int inset = 1;
+    clip.addEllipse(inset, inset, size - inset * 2, size - inset * 2);
+    painter.setClipPath(clip);
+
+    const QPixmap scaled = source.scaled(size, size, Qt::KeepAspectRatioByExpanding,
+                                          Qt::SmoothTransformation);
+    const int x = qMax(0, (scaled.width() - size) / 2);
+    const int y = qMax(0, (scaled.height() - size) / 2);
+    painter.drawPixmap(QRect(0, 0, size, size), scaled, QRect(x, y, size, size));
+    painter.setClipping(false);
+    paintStatusDot(painter, size, status);
     return pix;
 }
 
