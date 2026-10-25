@@ -52,7 +52,9 @@ public:
                        const QString &packetNo = QString(),
                        bool expectRead = false,
                        bool readReceipt = false,
-                       bool encrypted = false);
+                       bool encrypted = false,
+                       const QString &richHtml = QString());
+    void applyRichHtml(const QString &packetNo, const QString &html);
     bool markPacketRead(const QString &packetNo);
     void appendSealedLetter(const QString &packetNo, const QString &name);
     void markSealedOpened(const QString &packetNo);
@@ -106,7 +108,11 @@ private:
     QString localName() const;
     void logOutgoing(const QString &text);
     bool hasSendFile() const;
-    void sendPayload(const QString &text, const QStringList &pathList);
+    void sendPayload(const QString &text, const QStringList &pathList,
+                     const QString &richHtml = QString());
+    void attachPastedPixmap(const QPixmap &pixmap);
+    void attachPastedImageFiles(const QStringList &paths);
+    QString composerRichHtml() const;
     void sendScreenshot(const QPixmap &pixmap, const QString &prefix);
     void addDroppedUrls(const QList<QUrl> &urls);
     void clearSendFiles();

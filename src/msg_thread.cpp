@@ -59,6 +59,8 @@ void MsgThread::run()
             Global::windowManager, SLOT(notePeerTyping(QString,bool)));
     connect(m_msgServer, SIGNAL(instantReady(QString,int,QString,QString)),
             Global::sendFileManager, SLOT(markInstant(QString,int,QString,QString)));
+    connect(m_msgServer, SIGNAL(richHtmlReady(QString,QString,QString)),
+            Global::windowManager, SLOT(noteRichHtml(QString,QString,QString)));
 
     connect(m_msgServer, SIGNAL(error(QAbstractSocket::SocketError, QString)),
             this, SLOT(handleError(QAbstractSocket::SocketError, QString)));

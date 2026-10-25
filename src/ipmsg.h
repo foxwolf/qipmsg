@@ -83,9 +83,12 @@
 
 /* qipmsg private extension. Not a FeiQ opcode.
    UDP body "INSTANT:<packet>:<fileId>:<sha256>" finishes a send when the
-   peer already has the file. TCP body on the file port lists or downloads
-   a qipmsg shared folder (see shareFolder). FeiQ ignores unknown modes;
-   we do not send this to peers that did not advertise "qipmsg". */
+   peer already has the file. UDP body "RICH:<packet>:<base64 utf-8 html>"
+   is an optional formatting sidecar for the plain SENDMSG with that packet
+   number. The SENDMSG body stays plain text so FeiQ still displays it.
+   TCP body on the file port lists or downloads a qipmsg shared folder
+   (see shareFolder). FeiQ ignores unknown modes; we do not send this to
+   peers that did not advertise "qipmsg". */
 #define IPMSG_QIPMSG_EXT		126UL
 
 /*  option for all command  */

@@ -22,6 +22,7 @@
 #include "ipmsg.h"
 #include "mention_highlighter.h"
 #include "message_store.h"
+#include "richText.h"
 #include "msg.h"
 #include "msg_thread.h"
 #include "send_msg.h"
@@ -29,6 +30,10 @@
 #include "window_manager.h"
 
 #include <QCloseEvent>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QCursor>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -49,8 +54,8 @@
 #include <QVBoxLayout>
 
 DiscussionWindow::DiscussionWindow(const QString &groupId, QWidget *parent)
-    : QWidget(parent), m_groupId(groupId), m_composerHighlight(0),
-      m_historyLoaded(false)
+    : QWidget(parent), m_groupId(groupId), m_noticeBanner(0), m_noticeButton(0),
+      m_composerHighlight(0), m_historyLoaded(false)
 {
     createUi();
     refreshCaption();
@@ -76,11 +81,24 @@ void DiscussionWindow::createUi()
     m_metaLabel->setObjectName("chatPeerMeta");
     m_metaLabel->setWordWrap(true);
 
+    m_noticeButton = new QPushButton(tr("Group notice"));
+    m_noticeButton->setToolTip(tr("Set, edit, or clear the notice for this discussion"));
+    connect(m_noticeButton, SIGNAL(clicked()), this, SLOT(editNotice()));
+
+    m_noticeBanner = new QLabel;
+    m_noticeBanner->setObjectName(QStringLiteral("groupNoticeBanner"));
+    m_noticeBanner->setWordWrap(true);
+    m_noticeBanner->hide();
+
     QWidget *header = new QWidget;
     header->setObjectName("chatHeader");
     QVBoxLayout *headerLayout = new QVBoxLayout(header);
     headerLayout->setContentsMargins(14, 10, 14, 10);
-    headerLayout->addWidget(m_titleLabel);
+    QHBoxLayout *titleRow = new QHBoxLayout;
+    titleRow->addWidget(m_titleLabel, 1);
+    titleRow->addWidget(m_noticeButton);
+    headerLayout->addLayout(titleRow);
+    headerLayout->addWidget(m_noticeBanner);
     headerLayout->addWidget(m_metaLabel);
 
     m_historyEdit = new QTextEdit;
@@ -89,12 +107,15 @@ void DiscussionWindow::createUi()
     m_historyEdit->setAcceptRichText(true);
     m_historyEdit->setFrameShape(QFrame::NoFrame);
 
-    m_inputEdit = new QTextEdit;
+    m_inputEdit = new RichComposer;
     m_inputEdit->setObjectName("composerEdit");
-    m_inputEdit->setAcceptRichText(false);
-    m_inputEdit->setMaximumHeight(120);
+    m_inputEdit->setMaximumHeight(140);
     m_inputEdit->setPlaceholderText(tr("Message the discussion…  @name to mention"));
     m_composerHighlight = new MentionHighlighter(m_inputEdit->document());
+    connect(static_cast<RichComposer *>(m_inputEdit), &RichComposer::imagePasted,
+            this, [this](const QPixmap &) {
+        m_inputEdit->insertPlainText(tr("[image — send it from a private chat]"));
+    });
 
     m_sendButton = new QPushButton(tr("&Send"));
     m_sendButton->setObjectName("primaryButton");
@@ -115,6 +136,7 @@ void DiscussionWindow::createUi()
     buttons->addWidget(mentionButton);
     buttons->addStretch();
     buttons->addWidget(m_sendButton);
+    composerLayout->addWidget(new RichComposerBar(m_inputEdit, composer));
     composerLayout->addWidget(m_inputEdit);
     composerLayout->addLayout(buttons);
 
@@ -172,6 +194,16 @@ void DiscussionWindow::refreshCaption()
     m_metaLabel->setText(tr("%n member(s) · same text is sent to each peer",
                             "", m_group.members.size()));
     setWindowTitle(tr("Discussion: %1").arg(title));
+    if (m_noticeBanner) {
+        const QString notice = m_group.notice.trimmed();
+        if (notice.isEmpty()) {
+            m_noticeBanner->clear();
+            m_noticeBanner->hide();
+        } else {
+            m_noticeBanner->setText(tr("Notice: %1").arg(notice));
+            m_noticeBanner->show();
+        }
+    }
     refreshMembers();
     QStringList names = mentionNames();
     const QString me = localName();
@@ -218,13 +250,14 @@ void DiscussionWindow::loadHistory()
         const bool incoming = (record.direction != QLatin1String("out"));
         const QString name = incoming ? record.peerName : localName();
         appendMessage(record.timestamp, name, record.text, incoming,
-                      record.encrypted);
+                      record.encrypted, record.richHtml);
     }
 }
 
 void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
                                      const QString &text, bool incoming,
-                                     bool encrypted)
+                                     bool encrypted,
+                                     const QString &richHtml)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -277,10 +310,18 @@ void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
             cellCursor.insertText(QStringLiteral("\n"), textFmt);
         }
     }
-    MentionHighlighter::insertHighlighted(cellCursor, text, textFmt,
-                                          mentionNames(),
-                                          incoming ? QColor("#1D4ED8")
-                                                   : QColor("#FDE68A"));
+    if (!richHtml.isEmpty() && RichText::coversPlain(richHtml, text)) {
+        RichText::insertFormatted(cellCursor, richHtml, textFmt);
+        const QString body = RichText::plainFromHtml(richHtml);
+        if (text.size() > body.size()) {
+            cellCursor.insertText(text.mid(body.size()), textFmt);
+        }
+    } else {
+        MentionHighlighter::insertHighlighted(cellCursor, text, textFmt,
+                                              mentionNames(),
+                                              incoming ? QColor("#1D4ED8")
+                                                       : QColor("#FDE68A"));
+    }
 
     cursor.movePosition(QTextCursor::End);
     m_historyEdit->setTextCursor(cursor);
@@ -292,6 +333,11 @@ void DiscussionWindow::sendMessage()
     const QString text = m_inputEdit->toPlainText();
     if (text.trimmed().isEmpty()) {
         return;
+    }
+    QString richHtml = RichText::canonicalFromDocument(m_inputEdit->document());
+    if (!RichText::hasFormatting(richHtml)
+            || !RichText::samePlain(RichText::plainFromHtml(richHtml), text)) {
+        richHtml.clear();
     }
 
     const QStringList ips = m_group.memberIps();
@@ -315,10 +361,15 @@ void DiscussionWindow::sendMessage()
         if (encrypted) {
             ++sealedCount;
         }
+        if (!richHtml.isEmpty() && !encrypted && Global::windowManager) {
+            Global::windowManager->sendRichSidecar(
+                        ip, sendMsg.packetNoString(), richHtml);
+        }
         if (Global::windowManager) {
             Global::windowManager->recordOutgoing(ip,
                     Global::userManager->displayNameForIp(ip), text,
-                    QStringList(), sendMsg.packetNoString(), false, encrypted);
+                    QStringList(), sendMsg.packetNoString(), false, encrypted,
+                    richHtml);
         }
     }
 
@@ -329,12 +380,108 @@ void DiscussionWindow::sendMessage()
     record.peerName = m_group.name;
     record.direction = "out";
     record.text = text;
+    record.richHtml = richHtml;
     record.encrypted = allSealed;
     Global::messageStore->append(record);
-    appendMessage(record.timestamp, localName(), text, false, allSealed);
+    appendMessage(record.timestamp, localName(), text, false, allSealed, richHtml);
 
     m_inputEdit->clear();
     m_inputEdit->setFocus();
+}
+
+void DiscussionWindow::editNotice()
+{
+    if (!Global::discussionStore) {
+        return;
+    }
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Group notice"));
+    QVBoxLayout *layout = new QVBoxLayout(&dialog);
+    QLabel *hint = new QLabel(tr(
+            "Shown at the top of this discussion. Online members receive a "
+            "plain text copy. Leave it empty to clear."));
+    hint->setWordWrap(true);
+    QPlainTextEdit *edit = new QPlainTextEdit;
+    edit->setPlainText(m_group.notice);
+    edit->setPlaceholderText(tr("Notice"));
+    layout->addWidget(hint);
+    layout->addWidget(edit);
+    QDialogButtonBox *box = new QDialogButtonBox(
+            QDialogButtonBox::Save | QDialogButtonBox::Cancel);
+    QPushButton *clearButton = box->addButton(tr("Clear"), QDialogButtonBox::ResetRole);
+    layout->addWidget(box);
+    connect(box, SIGNAL(accepted()), &dialog, SLOT(accept()));
+    connect(box, SIGNAL(rejected()), &dialog, SLOT(reject()));
+    connect(clearButton, SIGNAL(clicked()), edit, SLOT(clear()));
+    dialog.resize(420, 240);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    const QString before = m_group.notice;
+    if (!Global::discussionStore->setNotice(m_groupId, edit->toPlainText())) {
+        return;
+    }
+    m_group = Global::discussionStore->groupById(m_groupId);
+    if (m_group.id.isEmpty() || m_group.notice == before) {
+        return;
+    }
+    publishNotice(m_group.notice);
+}
+
+void DiscussionWindow::publishNotice(const QString &notice)
+{
+    const QString body = notice.isEmpty()
+            ? tr("[Group notice cleared] %1").arg(m_group.name)
+            : tr("[Group notice] %1\n%2").arg(m_group.name, notice);
+
+    QStringList reachable;
+    if (Global::userManager) {
+        foreach (const QString &ip, m_group.memberIps()) {
+            if (Global::userManager->isReachable(ip)) {
+                reachable << ip;
+            }
+        }
+    }
+
+    quint32 baseFlags = IPMSG_SENDMSG | IPMSG_SENDCHECKOPT;
+    if (reachable.size() > 1) {
+        baseFlags |= IPMSG_MULTICASTOPT;
+    }
+    foreach (const QString &ip, reachable) {
+        if (!Global::msgThread || !Global::userManager) {
+            break;
+        }
+        quint32 flags = Global::userManager->sendFlagsForIp(ip, baseFlags);
+        QString additionalInfo = body;
+        additionalInfo.append(QChar('\0'));
+        const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
+        SendMsg sendMsg(QHostAddress(ip),
+                        Global::userManager->sendPortForIp(ip),
+                        additionalInfo, QString(), flags);
+        Global::msgThread->addSendMsg(Msg(sendMsg));
+        if (Global::windowManager) {
+            Global::windowManager->recordOutgoing(
+                    ip, Global::userManager->displayNameForIp(ip), body,
+                    QStringList(), sendMsg.packetNoString(), false, encrypted);
+        }
+    }
+
+    ChatRecord record;
+    record.timestamp = QDateTime::currentDateTime();
+    record.peerIp = DiscussionStore::historyKey(m_groupId);
+    record.peerName = m_group.name;
+    record.direction = "out";
+    record.text = body;
+    if (Global::messageStore) {
+        Global::messageStore->append(record);
+    }
+    appendMessage(record.timestamp, localName(), body, false, false);
+
+    if (reachable.isEmpty()) {
+        QMessageBox::information(
+                this, tr("Group notice"),
+                tr("Saved on this computer. No online member received it."));
+    }
 }
 
 void DiscussionWindow::insertMention()
@@ -363,4 +510,27 @@ void DiscussionWindow::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
     loadHistory();
+}
+
+DiscussionMember DiscussionStore::memberFromIp(const QString &ip)
+{
+    DiscussionMember member;
+    member.ip = ip;
+    if (!Global::userManager) {
+        member.name = ip;
+        return member;
+    }
+    const int row = Global::userManager->ipToRow(ip);
+    member.name = Global::userManager->displayNameForIp(ip);
+    if (row != -1) {
+        member.login = Global::userManager->loginName(row);
+        member.host = Global::userManager->host(row);
+        if (member.name.isEmpty()) {
+            member.name = Global::userManager->name(row);
+        }
+    }
+    if (member.name.isEmpty()) {
+        member.name = ip;
+    }
+    return member;
 }

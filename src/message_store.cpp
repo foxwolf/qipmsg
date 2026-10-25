@@ -18,6 +18,7 @@
 #include "global.h"
 #include "helper.h"
 #include "recentStore.h"
+#include "richText.h"
 
 #include <QDir>
 #include <QFile>
@@ -109,6 +110,9 @@ bool MessageStore::append(const ChatRecord &record)
     obj.insert("n", record.peerName);
     obj.insert("ip", record.peerIp);
     obj.insert("x", record.text);
+    if (!record.richHtml.isEmpty()) {
+        obj.insert("rh", record.richHtml);
+    }
     if (!record.imagePaths.isEmpty()) {
         QJsonArray images;
         foreach (const QString &path, record.imagePaths) {
@@ -199,6 +203,81 @@ bool MessageStore::markRead(const QString &peerIp, const QString &packetNo)
     return out.commit();
 }
 
+int MessageStore::attachRich(const QString &peerIp, const QString &packetNo,
+                             const QString &html)
+{
+    if (packetNo.isEmpty() || html.isEmpty()) {
+        return -1;
+    }
+
+    QMutexLocker locker(&m_lock);
+    QFile file(filePathForIp(peerIp));
+    if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return 0;
+    }
+
+    QStringList lines;
+    bool found = false;
+    bool matched = false;
+    bool changed = false;
+    QTextStream input(&file);
+    while (!input.atEnd()) {
+        const QString line = input.readLine();
+        const QString trimmed = line.trimmed();
+        if (trimmed.isEmpty()) {
+            lines << line;
+            continue;
+        }
+        QJsonParseError error;
+        const QJsonDocument doc = QJsonDocument::fromJson(trimmed.toUtf8(), &error);
+        if (error.error != QJsonParseError::NoError || !doc.isObject()) {
+            lines << line;
+            continue;
+        }
+        QJsonObject obj = doc.object();
+        if (obj.value("pkt").toString() != packetNo) {
+            lines << line;
+            continue;
+        }
+        found = true;
+        if (!RichText::coversPlain(html, obj.value("x").toString())) {
+            lines << line;
+            continue;
+        }
+        matched = true;
+        if (obj.value("rh").toString() == html) {
+            lines << line;
+            continue;
+        }
+        obj.insert("rh", html);
+        lines << QString::fromUtf8(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        changed = true;
+    }
+    file.close();
+    if (!found) {
+        return 0;
+    }
+    if (!matched) {
+        return -1;
+    }
+    if (!changed) {
+        return 1;
+    }
+
+    QSaveFile out(file.fileName());
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return -1;
+    }
+    {
+        QTextStream output(&out);
+        for (int i = 0; i < lines.size(); ++i) {
+            output << lines.at(i) << '\n';
+        }
+        output.flush();
+    }
+    return out.commit() ? 1 : -1;
+}
+
 QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
                                             int limit) const
 {
@@ -237,6 +316,7 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
         record.peerName = obj.value("n").toString();
         record.direction = obj.value("d").toString();
         record.text = obj.value("x").toString();
+        record.richHtml = obj.value("rh").toString();
         record.imagePaths = imagePathsFromJson(obj.value("img"));
         record.packetNo = obj.value("pkt").toString();
         record.expectRead = obj.value("er").toBool();

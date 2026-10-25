@@ -21,6 +21,7 @@
 #include <QPoint>
 #include <QRect>
 #include <QString>
+#include <QVector>
 #include <QWidget>
 
 class ScreenCapture : public QWidget
@@ -42,18 +43,24 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *event);
     void keyPressEvent(QKeyEvent *event);
+    void keyReleaseEvent(QKeyEvent *event);
 
     void finish(bool accepted);
 
 private:
     explicit ScreenCapture(const QPixmap &desktop, QWidget *parent = 0);
     QPixmap selectedPixmap() const;
+    void updateSelection(const QPoint &pos, Qt::KeyboardModifiers mods);
+    bool snapDisabled(Qt::KeyboardModifiers mods) const;
 
     QPixmap m_desktop;
     QPoint m_origin;
+    QPoint m_cursor;
     QRect m_rect;
+    QVector<QRect> m_snapTargets;
     bool m_dragging;
     bool m_accepted;
+    bool m_snapOff;
 };
 
 #endif // !SCREEN_CAPTURE_H

@@ -15,9 +15,7 @@
 //
 
 #include "discussion_store.h"
-#include "global.h"
 #include "helper.h"
-#include "user_manager.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -83,9 +81,26 @@ DiscussionStore::DiscussionStore(QObject *parent)
     load();
 }
 
+namespace {
+
+QString &storageDirOverride()
+{
+    static QString dir;
+    return dir;
+}
+
+} // namespace
+
+void DiscussionStore::setStorageDirForTest(const QString &dir)
+{
+    storageDirOverride() = dir;
+}
+
 QString DiscussionStore::filePath() const
 {
-    return Helper::appHomePath() + "/discussions.json";
+    const QString base = storageDirOverride().isEmpty()
+            ? Helper::appHomePath() : storageDirOverride();
+    return base + "/discussions.json";
 }
 
 QString DiscussionStore::historyKey(const QString &id)
@@ -113,6 +128,7 @@ void DiscussionStore::load()
         DiscussionGroup group;
         group.id = obj.value("id").toString();
         group.name = obj.value("name").toString();
+        group.notice = obj.value("notice").toString();
         const QJsonArray mems = obj.value("members").toArray();
         for (int m = 0; m < mems.size(); ++m) {
             const QJsonObject mo = mems.at(m).toObject();
@@ -144,6 +160,9 @@ void DiscussionStore::persist() const
         QJsonObject obj;
         obj.insert("id", group.id);
         obj.insert("name", group.name);
+        if (!group.notice.isEmpty()) {
+            obj.insert("notice", group.notice);
+        }
         QJsonArray mems;
         foreach (const DiscussionMember &member, group.members) {
             QJsonObject mo;
@@ -286,31 +305,33 @@ bool DiscussionStore::addMembers(const QString &id,
     return changed;
 }
 
+bool DiscussionStore::setNotice(const QString &id, const QString &notice)
+{
+    QString trimmed = notice;
+    trimmed.replace(QChar('\0'), QString());
+    trimmed = trimmed.trimmed();
+    if (trimmed.size() > 400) {
+        trimmed = trimmed.left(400);
+    }
+    {
+        QMutexLocker locker(&m_lock);
+        const int i = indexOfId(id);
+        if (i < 0) {
+            return false;
+        }
+        if (m_groups[i].notice == trimmed) {
+            return false;
+        }
+        m_groups[i].notice = trimmed;
+        persist();
+    }
+    emit groupsChanged();
+    return true;
+}
+
 int DiscussionStore::count() const
 {
     QMutexLocker locker(&m_lock);
     return m_groups.size();
 }
 
-DiscussionMember DiscussionStore::memberFromIp(const QString &ip)
-{
-    DiscussionMember member;
-    member.ip = ip;
-    if (!Global::userManager) {
-        member.name = ip;
-        return member;
-    }
-    const int row = Global::userManager->ipToRow(ip);
-    member.name = Global::userManager->displayNameForIp(ip);
-    if (row != -1) {
-        member.login = Global::userManager->loginName(row);
-        member.host = Global::userManager->host(row);
-        if (member.name.isEmpty()) {
-            member.name = Global::userManager->name(row);
-        }
-    }
-    if (member.name.isEmpty()) {
-        member.name = ip;
-    }
-    return member;
-}

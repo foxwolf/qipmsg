@@ -45,6 +45,7 @@ signals:
     void peerFlagsSeen(QString ip, quint32 flags);
     void peerTyping(QString ip, bool typing);
     void instantReady(QString packetField, int fileId, QString sha, QString ip);
+    void richHtmlReady(QString ip, QString packetNo, QString html);
 
 public slots:
     void processSendMsg();

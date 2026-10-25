@@ -34,6 +34,7 @@
 #include "protocolutil.h"
 #include "groupPolicy.h"
 #include "msgCrypto.h"
+#include "richText.h"
 
 #include <QHostAddress>
 #include <QMessageBox>
@@ -195,7 +196,8 @@ bool WindowManager::openSealedLetter(const QString &ip, const QString &packetNo)
             if (letter.broadcast) {
                 shown = tr("[Broadcast] %1").arg(letter.text);
             }
-            recordIncomingText(letter.ip, peerName, shown, false);
+            recordIncomingText(letter.ip, peerName, shown, false, QStringList(),
+                               false, letter.packetNo);
         }
     }
 
@@ -235,7 +237,7 @@ void WindowManager::handleIncomingSendMsg(Msg msg)
         }
         if (!shown.isEmpty()) {
             recordIncomingText(msg->ip(), name, shown, notify, QStringList(),
-                               encrypted);
+                               encrypted, msg->packetNoString());
         } else if (attach) {
             recordIncomingText(msg->ip(), name,
                                tr("[File attachment]"), notify, QStringList(),
@@ -334,23 +336,37 @@ void WindowManager::recordIncomingText(const QString &ip,
                                        const QString &text,
                                        bool notifyUser,
                                        const QStringList &imagePaths,
-                                       bool encrypted)
+                                       bool encrypted,
+                                       const QString &packetNo,
+                                       const QString &richHtml)
 {
+    QString html = richHtml;
+    if (html.isEmpty() && !packetNo.isEmpty()) {
+        const QString key = sealedStorageKey(ip, packetNo);
+        const QString pending = m_pendingRich.value(key);
+        if (!pending.isEmpty() && RichText::coversPlain(pending, text)) {
+            html = pending;
+            m_pendingRich.remove(key);
+        }
+    }
+
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
     record.peerIp = ip;
     record.peerName = peerName;
     record.direction = "in";
     record.text = text;
+    record.richHtml = html;
     record.imagePaths = imagePaths;
+    record.packetNo = packetNo;
     record.encrypted = encrypted;
     Global::messageStore->append(record);
 
     ChatWindow *w = m_chatWindows.value(ip, 0);
     if (w) {
         w->appendMessage(record.timestamp, peerName, text, true,
-                         record.imagePaths, QString(), false, false,
-                         encrypted);
+                         record.imagePaths, packetNo, false, false,
+                         encrypted, html);
         if (!w->isVisible()) {
             addUnread(ip);
         }
@@ -585,19 +601,69 @@ void WindowManager::flushOfflineQueue()
     m_flushing = false;
 }
 
+void WindowManager::sendRichSidecar(const QString &ip, const QString &packetNo,
+                                    const QString &html)
+{
+    if (ip.isEmpty() || packetNo.isEmpty() || html.isEmpty()) {
+        return;
+    }
+    if (!Global::msgThread || !Global::userManager
+            || !Global::userManager->peerIsQipmsg(ip)) {
+        return;
+    }
+    const QString body = RichText::sidecarBody(packetNo, html);
+    if (body.isEmpty()) {
+        return;
+    }
+    const quint32 flags = Global::userManager->sendFlagsForIp(ip, IPMSG_QIPMSG_EXT);
+    SendMsg sendMsg(QHostAddress(ip), Global::userManager->sendPortForIp(ip),
+                    body, QString(), flags);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
+void WindowManager::noteRichHtml(QString ip, QString packetNo, QString html)
+{
+    if (ip.isEmpty() || packetNo.isEmpty() || html.isEmpty() || !Global::messageStore) {
+        return;
+    }
+    if (!Global::userManager || !Global::userManager->peerIsQipmsg(ip)) {
+        return;
+    }
+    const int attached = Global::messageStore->attachRich(ip, packetNo, html);
+    if (attached == 0) {
+        if (m_pendingRich.size() >= 64) {
+            m_pendingRich.erase(m_pendingRich.begin());
+        }
+        m_pendingRich.insert(sealedStorageKey(ip, packetNo), html);
+        return;
+    }
+    if (attached > 0) {
+        ChatWindow *chat = m_chatWindows.value(ip, 0);
+        if (chat) {
+            chat->applyRichHtml(packetNo, html);
+        }
+    }
+}
+
 void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
                                    const QString &text,
                                    const QStringList &imagePaths,
                                    const QString &packetNo,
                                    bool expectRead,
-                                   bool encrypted)
+                                   bool encrypted,
+                                   const QString &richHtml)
 {
+    QString html = richHtml;
+    if (!html.isEmpty() && !RichText::coversPlain(html, text)) {
+        html.clear();
+    }
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
     record.peerIp = ip;
     record.peerName = peerName;
     record.direction = "out";
     record.text = text;
+    record.richHtml = html;
     record.imagePaths = imagePaths;
     record.packetNo = packetNo;
     record.expectRead = expectRead;
@@ -609,7 +675,7 @@ void WindowManager::recordOutgoing(const QString &ip, const QString &peerName,
     if (w) {
         w->appendMessage(record.timestamp, Global::userManager->ourself().name(),
                          text, false, record.imagePaths, packetNo, expectRead,
-                         false, encrypted);
+                         false, encrypted, html);
     }
 }
 

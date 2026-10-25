@@ -40,6 +40,7 @@ class DiscussionGroup
 public:
     QString id;
     QString name;
+    QString notice;
     QList<DiscussionMember> members;
 
     QStringList memberIps() const;
@@ -60,7 +61,10 @@ public:
     bool renameGroup(const QString &id, const QString &name);
     bool removeGroup(const QString &id);
     bool addMembers(const QString &id, const QList<DiscussionMember> &members);
+    bool setNotice(const QString &id, const QString &notice);
     int count() const;
+
+    static void setStorageDirForTest(const QString &dir);
 
     static DiscussionMember memberFromIp(const QString &ip);
     static QString historyKey(const QString &id);

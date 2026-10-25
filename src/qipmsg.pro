@@ -42,6 +42,7 @@ HEADERS += \
         history_search_window.h \
         recentStore.h \
         resume_store.h \
+        richText.h \
         screen_capture.h \
         search_user_dialog.h \
         sendThrottle.h \
@@ -88,7 +89,8 @@ HEADERS += \
 	user_manager.h \
 	transfer_file_window.h \
 	transfer_file_model.h \
-	window_manager.h
+	window_manager.h \
+	windowSnap.h
 
 SOURCES += \
 	about_dialog.cpp \
@@ -121,6 +123,7 @@ SOURCES += \
         history_search_window.cpp \
         recentStore.cpp \
         resume_store.cpp \
+        richText.cpp \
         screen_capture.cpp \
         search_user_dialog.cpp \
         sendThrottle.cpp \
@@ -167,7 +170,16 @@ SOURCES += \
 	user_manager.cpp \
 	transfer_file_window.cpp \
 	transfer_file_model.cpp \
-	window_manager.cpp
+	window_manager.cpp \
+	windowSnap.cpp
+
+unix:!macx {
+    LIBS += -ldl
+}
+
+macx {
+    LIBS += -framework CoreGraphics
+}
 
 TRANSLATIONS = translations/qipmsg_zh_CN.ts
 

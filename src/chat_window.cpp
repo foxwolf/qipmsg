@@ -36,6 +36,7 @@
 #include "send_msg.h"
 #include "offline_queue.h"
 #include "msgCrypto.h"
+#include "richText.h"
 #include "user_manager.h"
 #include "window_manager.h"
 
@@ -214,13 +215,16 @@ void ChatWindow::createUi()
     connect(m_historyEdit, SIGNAL(anchorClicked(QUrl)),
             this, SLOT(openChatLink(QUrl)));
 
-    m_inputEdit = new QTextEdit;
+    m_inputEdit = new RichComposer;
     m_inputEdit->setObjectName("composerEdit");
-    m_inputEdit->setAcceptRichText(false);
     m_inputEdit->setTabChangesFocus(true);
-    m_inputEdit->setMaximumHeight(120);
-    m_inputEdit->setAcceptDrops(false);
+    m_inputEdit->setMaximumHeight(140);
     m_inputEdit->setPlaceholderText(tr("Type a message..."));
+    RichComposer *composerEdit = static_cast<RichComposer *>(m_inputEdit);
+    connect(composerEdit, &RichComposer::imagePasted,
+            this, [this](const QPixmap &pixmap) { attachPastedPixmap(pixmap); });
+    connect(composerEdit, &RichComposer::imageFilesPasted,
+            this, [this](const QStringList &paths) { attachPastedImageFiles(paths); });
     connect(m_inputEdit, SIGNAL(textChanged()),
             this, SLOT(composerChanged()));
     m_typingIdle = new QTimer(this);
@@ -283,6 +287,7 @@ void ChatWindow::createUi()
     buttonLayout->addWidget(m_sendButton);
 
     composerLayout->addLayout(stripLayout);
+    composerLayout->addWidget(new RichComposerBar(m_inputEdit, composer));
     composerLayout->addWidget(m_inputEdit);
     composerLayout->addLayout(buttonLayout);
 
@@ -514,7 +519,7 @@ void ChatWindow::loadHistory()
         const QString name = incoming ? record.peerName : localName();
         appendMessage(record.timestamp, name, record.text, incoming,
                       record.imagePaths, record.packetNo, record.expectRead,
-                      record.readReceipt, record.encrypted);
+                      record.readReceipt, record.encrypted, record.richHtml);
     }
 }
 
@@ -534,7 +539,8 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
                                const QString &packetNo,
                                bool expectRead,
                                bool readReceipt,
-                               bool encrypted)
+                               bool encrypted,
+                               const QString &richHtml)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -587,9 +593,23 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
             cellCursor.insertText(QStringLiteral("\n"), textFmt);
         }
     }
-    const QString displayText = EmojiPack::applyAliases(text);
-    if (!displayText.isEmpty()) {
-        cellCursor.insertText(displayText, textFmt);
+    QTextCharFormat tagged = textFmt;
+    if (!packetNo.isEmpty()) {
+        tagged.setProperty(RichText::packetProperty(), packetNo);
+    }
+    const bool useRich = !richHtml.isEmpty() && RichText::coversPlain(richHtml, text);
+    if (useRich) {
+        const QString body = RichText::plainFromHtml(richHtml);
+        const QString full = text;
+        RichText::insertFormatted(cellCursor, richHtml, tagged);
+        if (full.size() > body.size()) {
+            cellCursor.insertText(full.mid(body.size()), tagged);
+        }
+    } else {
+        const QString displayText = EmojiPack::applyAliases(text);
+        if (!displayText.isEmpty()) {
+            cellCursor.insertText(displayText, tagged);
+        }
     }
 
     QStringList paths = existingImagePaths(imagePaths);
@@ -597,7 +617,7 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
         paths = imagePathsFromText(text);
     }
     if (!paths.isEmpty()) {
-        if (!displayText.isEmpty()) {
+        if (!text.isEmpty()) {
             cellCursor.insertBlock();
         }
         insertBubbleImages(cellCursor, paths);
@@ -820,6 +840,20 @@ void ChatWindow::publishTyping(bool active)
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
 
+QString ChatWindow::composerRichHtml() const
+{
+    if (!m_inputEdit || !m_inputEdit->document()) {
+        return QString();
+    }
+    const QString plain = m_inputEdit->toPlainText();
+    const QString html = RichText::canonicalFromDocument(m_inputEdit->document());
+    if (!RichText::hasFormatting(html)
+            || !RichText::samePlain(RichText::plainFromHtml(html), plain)) {
+        return QString();
+    }
+    return html;
+}
+
 void ChatWindow::sendMessage()
 {
     stopLocalTyping();
@@ -828,7 +862,7 @@ void ChatWindow::sendMessage()
         return;
     }
 
-    sendPayload(text, m_sendFileModel.pathList());
+    sendPayload(text, m_sendFileModel.pathList(), composerRichHtml());
     m_inputEdit->clear();
     clearSendFiles();
     m_inputEdit->setFocus();
@@ -877,7 +911,8 @@ void ChatWindow::clearQueued()
     Global::offlineQueue->removeForIp(m_peerIp);
 }
 
-void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
+void ChatWindow::sendPayload(const QString &text, const QStringList &pathList,
+                             const QString &richHtml)
 {
     if (!Global::userManager->isReachable(m_peerIp)) {
         if (!pathList.isEmpty()) {
@@ -953,10 +988,14 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
     }
 
     if (!recorded.isEmpty()) {
+        if (!richHtml.isEmpty() && !encrypted && !expectRead && Global::windowManager) {
+            Global::windowManager->sendRichSidecar(
+                        m_peerIp, sendMsg.packetNoString(), richHtml);
+        }
         Global::windowManager->recordOutgoing(m_peerIp,
                 Global::userManager->displayNameForIp(m_peerIp), recorded,
                 imagePathsFromFiles(pathList),
-                sendMsg.packetNoString(), expectRead, encrypted);
+                sendMsg.packetNoString(), expectRead, encrypted, richHtml);
     }
 }
 
@@ -1299,6 +1338,33 @@ void ChatWindow::showEmojiPicker()
     picker.exec();
 }
 
+void ChatWindow::attachPastedPixmap(const QPixmap &pixmap)
+{
+    if (pixmap.isNull()) {
+        return;
+    }
+    const QString path = ScreenCapture::savePixmap(pixmap, "paste");
+    if (path.isEmpty()) {
+        return;
+    }
+    m_sendFileModel.addFile(path);
+    updateFileCount();
+}
+
+void ChatWindow::attachPastedImageFiles(const QStringList &paths)
+{
+    bool added = false;
+    foreach (const QString &path, paths) {
+        if (!path.isEmpty() && Helper::isImageFile(path) && QFileInfo::exists(path)) {
+            m_sendFileModel.addFile(path);
+            added = true;
+        }
+    }
+    if (added) {
+        updateFileCount();
+    }
+}
+
 bool ChatWindow::pasteClipboardImage()
 {
     const QMimeData *mime = QApplication::clipboard()->mimeData();
@@ -1311,32 +1377,72 @@ bool ChatWindow::pasteClipboardImage()
         if (pixmap.isNull()) {
             return false;
         }
-        const QString path = ScreenCapture::savePixmap(pixmap, "paste");
-        if (path.isEmpty()) {
-            return false;
-        }
-        m_sendFileModel.addFile(path);
-        updateFileCount();
+        attachPastedPixmap(pixmap);
         return true;
     }
 
     if (mime->hasUrls()) {
-        bool added = false;
+        QStringList images;
         foreach (const QUrl &url, mime->urls()) {
             const QString path = url.toLocalFile();
             if (!path.isEmpty() && Helper::isImageFile(path)
                     && QFileInfo::exists(path)) {
-                m_sendFileModel.addFile(path);
-                added = true;
+                images << path;
             }
         }
-        if (added) {
-            updateFileCount();
+        if (!images.isEmpty()) {
+            attachPastedImageFiles(images);
             return true;
         }
     }
 
     return false;
+}
+
+void ChatWindow::applyRichHtml(const QString &packetNo, const QString &html)
+{
+    if (packetNo.isEmpty() || html.isEmpty() || !m_historyEdit) {
+        return;
+    }
+    QTextDocument *doc = m_historyEdit->document();
+    int start = -1;
+    int end = -1;
+    QTextCharFormat baseFmt;
+    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next()) {
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            if (!frag.isValid()) {
+                continue;
+            }
+            if (frag.charFormat().property(RichText::packetProperty()).toString()
+                    != packetNo) {
+                continue;
+            }
+            if (start < 0) {
+                start = frag.position();
+                baseFmt = frag.charFormat();
+            }
+            end = frag.position() + frag.length();
+        }
+    }
+    if (start < 0 || end <= start) {
+        return;
+    }
+    QTextCursor edit(doc);
+    edit.setPosition(start);
+    edit.setPosition(end, QTextCursor::KeepAnchor);
+    QString existing = edit.selectedText();
+    existing.replace(QChar(0x2029), QLatin1Char('\n'));
+    if (!RichText::coversPlain(html, existing)) {
+        return;
+    }
+    const QString body = RichText::plainFromHtml(html);
+    const QString full = existing;
+    edit.removeSelectedText();
+    RichText::insertFormatted(edit, html, baseFmt);
+    if (full.size() > body.size()) {
+        edit.insertText(full.mid(body.size()), baseFmt);
+    }
 }
 
 bool ChatWindow::eventFilter(QObject *watched, QEvent *event)
