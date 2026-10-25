@@ -24,7 +24,19 @@
 #include <QObject>
 #include <QString>
 
+class QLabel;
+
 class QTreeWidget;
+
+class OfflinePeerHint
+{
+public:
+    QString ip;
+    QString login;
+    QString host;
+    bool reachable;
+    OfflinePeerHint() : reachable(false) {}
+};
 
 class OfflineItem
 {
@@ -32,6 +44,9 @@ public:
     QString id;
     QString ip;
     QString text;
+    QString kind;
+    QString login;
+    QString host;
     QDateTime created;
 };
 
@@ -42,7 +57,17 @@ class OfflineQueue : public QObject
 public:
     OfflineQueue(QObject *parent = 0);
 
-    QString enqueue(const QString &ip, const QString &text);
+    static void setFilePathForTest(const QString &path);
+    static QString matchReachableIp(const QString &login, const QString &host,
+                                    const QList<OfflinePeerHint> &peers);
+    static QString previewText(const OfflineItem &item);
+
+    QString enqueue(const QString &ip, const QString &text,
+                    const QString &kind = QString(),
+                    const QString &login = QString(),
+                    const QString &host = QString());
+    bool assignIp(const QString &id, const QString &newIp);
+    void restore(const QList<OfflineItem> &items);
     QList<OfflineItem> items() const;
     QList<OfflineItem> itemsForIp(const QString &ip) const;
     QList<OfflineItem> takeForIp(const QString &ip);
@@ -78,6 +103,7 @@ private slots:
 
 private:
     QTreeWidget *m_tree;
+    QLabel *m_countLabel;
 };
 
 #endif // !OFFLINE_QUEUE_H

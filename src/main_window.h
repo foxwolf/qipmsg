@@ -101,6 +101,7 @@ private slots:
     void setMyPhoto();
     void setPeerPhoto();
     void clearPeerPhoto();
+    void updateHeader();
 
 signals:
     void messageReplyed();
@@ -114,7 +115,6 @@ private:
     void createConnections();
     void selectUser();
     void logSendMsg(QString s, const QString &ip);
-    void updateHeader();
     void updateGroupTitle(QTreeWidgetItem *group, const QString &title);
     QTreeWidgetItem *makeGroupItem(const QString &title, const QString &key);
     void addPeerItem(QTreeWidgetItem *parent, int row);

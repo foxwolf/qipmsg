@@ -844,7 +844,8 @@ void ChatWindow::refreshQueuePanel()
     foreach (const OfflineItem &item, items) {
         QListWidgetItem *row = new QListWidgetItem(
                     QString("%1  %2")
-                    .arg(item.created.toString("hh:mm:ss"), item.text));
+                    .arg(item.created.toString("hh:mm:ss"),
+                         OfflineQueue::previewText(item)));
         row->setData(Qt::UserRole, item.id);
         row->setToolTip(item.text);
         m_queueList->addItem(row);
@@ -880,9 +881,13 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 {
     if (!Global::userManager->isReachable(m_peerIp)) {
         if (!pathList.isEmpty()) {
+            const bool hasText = !text.trimmed().isEmpty();
             QMessageBox::information(this, tr("Offline queue"),
-                    tr("File attachments cannot be queued (no transfer server). "
-                       "The text will be queued if present."));
+                    hasText
+                    ? tr("Files stay out of the offline queue because there is no "
+                         "transfer server to resume them. Only the text can be queued.")
+                    : tr("Files stay out of the offline queue because there is no "
+                         "transfer server to resume them. Nothing was queued."));
         }
         const QString body = text;
         if (body.trimmed().isEmpty()) {
@@ -958,8 +963,11 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
 void ChatWindow::sendShake()
 {
     if (!Global::userManager->isReachable(m_peerIp)) {
-        QMessageBox::information(this, tr("Offline queue"),
-                tr("Window shake is not queued for offline peers."));
+        if (!Global::windowManager->queueOrDeliverShake(m_peerIp, this)) {
+            return;
+        }
+        refreshQueuePanel();
+        shakeWindow();
         return;
     }
     quint32 flags = Global::userManager->sendFlagsForIp(

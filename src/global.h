@@ -66,6 +66,7 @@ namespace Global
 
     void globalInit(QString path);
     void globalEnd();
+    QString peerLabelForIp(const QString &ip);
 
     QString fileCountString(int i);
     QPoint randomNearMiddlePoint();

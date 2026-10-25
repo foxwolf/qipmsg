@@ -125,6 +125,10 @@ void MainWindow::createConnections()
         connect(Global::windowManager, SIGNAL(peerTypingChanged(QString,bool)),
                 this, SLOT(onPeerTyping(QString,bool)));
     }
+    if (Global::offlineQueue) {
+        connect(Global::offlineQueue, SIGNAL(queueChanged()),
+                this, SLOT(updateHeader()));
+    }
     connect(refreshButton, SIGNAL(clicked()),
             this, SLOT(refreshUserList()));
 
@@ -694,8 +698,13 @@ void MainWindow::updateHeader()
         status = tr("%1, hidden from some groups").arg(status);
     }
     nickStatusLabel->setText(me.name());
-    onlineCountLabel->setText(tr("%1 · %n online", "",
-                                 Global::userManager->onlineCount()).arg(status));
+    QString presenceLine = tr("%1 · %n online", "",
+                              Global::userManager->onlineCount()).arg(status);
+    if (Global::offlineQueue && Global::offlineQueue->count() > 0) {
+        presenceLine += tr(" · %n offline queued", "",
+                           Global::offlineQueue->count());
+    }
+    onlineCountLabel->setText(presenceLine);
     avatarLabel->setPixmap(peerAvatar(me.name(), presence, 40,
                                       AvatarStore::selfKey()));
 }
@@ -1307,9 +1316,13 @@ void MainWindow::sendMessage()
     foreach (const QString &ip, ips) {
         if (!Global::userManager->isReachable(ip)) {
             if (hasSendFile() && !warnedFiles) {
+                const bool hasText = !inputEdit->toPlainText().trimmed().isEmpty();
                 QMessageBox::information(this, tr("Offline queue"),
-                        tr("File attachments cannot be queued (no transfer server). "
-                           "Text will be queued for offline peers."));
+                        hasText
+                        ? tr("Files stay out of the offline queue because there is no "
+                             "transfer server to resume them. Only the text can be queued.")
+                        : tr("Files stay out of the offline queue because there is no "
+                             "transfer server to resume them. Nothing was queued."));
                 warnedFiles = true;
             }
             const QString body = inputEdit->toPlainText();

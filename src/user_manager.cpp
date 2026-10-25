@@ -752,6 +752,15 @@ QString UserManager::realNameForIp(const QString &ip) const
     return ip;
 }
 
+QString Global::peerLabelForIp(const QString &ip)
+{
+    if (!userManager || ip.isEmpty()) {
+        return ip;
+    }
+    const QString name = userManager->displayNameForIp(ip);
+    return name.isEmpty() ? ip : name;
+}
+
 QString UserManager::displayNameForIp(const QString &ip) const
 {
     const QString memo = memoForIp(ip);

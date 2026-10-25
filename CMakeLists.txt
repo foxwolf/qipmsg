@@ -212,6 +212,13 @@ add_executable(qipmsgCryptoCheck
 )
 target_include_directories(qipmsgCryptoCheck PRIVATE src)
 
+add_executable(qipmsgQueueCheck
+    test/queuecheck/main.cpp
+    test/queuecheck/stubs.cpp
+    src/offline_queue.cpp
+)
+target_include_directories(qipmsgQueueCheck PRIVATE src)
+
 target_include_directories(qipmsg PRIVATE src)
 
 if (Qt6_FOUND)
@@ -226,6 +233,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
 else()
     target_link_libraries(qipmsg PRIVATE
         Qt5::Core
@@ -237,6 +245,7 @@ else()
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
 endif()
 
 if (WIN32)
