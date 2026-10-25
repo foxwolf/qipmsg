@@ -33,7 +33,7 @@ public:
 
     void setLockFile(QString name);
 
-    bool lock();
+    bool lock(bool warnOnFail = true);
     void unlock();
 
 private:

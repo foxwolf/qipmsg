@@ -114,7 +114,9 @@ bool isAllowedTree(const QString &rel)
             || rel == QLatin1String("avatars")
             || rel.startsWith(QLatin1String("avatars/"))
             || rel == QLatin1String("grouplog")
-            || rel.startsWith(QLatin1String("grouplog/"));
+            || rel.startsWith(QLatin1String("grouplog/"))
+            || rel == QLatin1String("zone")
+            || rel.startsWith(QLatin1String("zone/"));
 }
 
 bool isAllowedFile(const QString &rel)
@@ -189,7 +191,8 @@ void collectFiles(const QString &root, const QString &rel, QStringList *out,
                 if (child == QLatin1String("history")
                         || child == QLatin1String("stickers")
                         || child == QLatin1String("avatars")
-                        || child == QLatin1String("grouplog")) {
+                        || child == QLatin1String("grouplog")
+                        || child == QLatin1String("zone")) {
                     collectFiles(root, child, out, error);
                 }
             } else if (isAllowedTree(child)) {

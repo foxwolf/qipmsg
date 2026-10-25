@@ -101,6 +101,7 @@ private slots:
     void setMyPhoto();
     void setPeerPhoto();
     void clearPeerPhoto();
+    void openNetworkNeighborhood();
     void updateHeader();
     void openSchedule();
 
@@ -139,6 +140,7 @@ private:
     QString constructFileInfoStr();
 
     void updateSelectGroupMenu();
+    void updateShareAction(const QStringList &ips);
 
     QWidget *peerWidget;
     QWidget *inputWidget;
@@ -180,6 +182,7 @@ private:
     QAction *setMyPhotoAct;
     QAction *setPeerPhotoAct;
     QAction *clearPeerPhotoAct;
+    QAction *openShareAct;
     QAction *setLevelOneAct;
     QAction *setLevelTwoAct;
     QMenu *setDisplayLevelMenu;

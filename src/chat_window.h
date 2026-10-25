@@ -102,6 +102,8 @@ private slots:
     void browseGroupShare();
     void openDoodle();
     void showFavorites();
+    void showZone();
+    void openNetworkNeighborhood();
 
 private:
     void createUi();
@@ -147,6 +149,7 @@ private:
     QLabel *m_photoStatus;
     QPushButton *m_localPhotoButton;
     QPushButton *m_clearPhotoButton;
+    QPushButton *m_shareButton;
     QTextBrowser *m_historyEdit;
     QWidget *m_queuePanel;
     QLabel *m_queueBanner;

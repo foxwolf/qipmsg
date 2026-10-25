@@ -584,6 +584,34 @@
         <source>Unread</source>
         <translation>未读</translation>
     </message>
+    <message>
+        <source>Open local notes under the zone folder. This is not a FeiQ zone database.</source>
+        <translation>打开本机空间目录里的笔记。这不是飞秋的空间数据库。</translation>
+    </message>
+    <message>
+        <source>Log</source>
+        <translation>日志</translation>
+    </message>
+    <message>
+        <source>Open the same local note folder. This is not a FeiQ zone log and not the message log file.</source>
+        <translation>打开同一个本机笔记目录。这不是飞秋空间日志，也不是消息日志文件。</translation>
+    </message>
+    <message>
+        <source>Network neighborhood</source>
+        <translation>网上邻居</translation>
+    </message>
+    <message>
+        <source>Windows network neighborhood is only available on Windows.</source>
+        <translation>网上邻居只在 Windows 上可用。</translation>
+    </message>
+    <message>
+        <source>The address is not a plain IPv4 address.</source>
+        <translation>这个地址不是普通的 IPv4 地址。</translation>
+    </message>
+    <message>
+        <source>Open \\%1\ in Explorer. Windows asks for a password if one is required. This program does not ask for share credentials.</source>
+        <translation>在资源管理器中打开 \\%1\。如果共享需要密码，由 Windows 询问。本程序不收集共享凭据。</translation>
+    </message>
 </context>
 <context>
     <name>ContactDelegate</name>
@@ -2459,6 +2487,34 @@ Local multi-send (not a FeiQ multicast room)</source>
         <location filename="../main_window.cpp" line="1633"/>
         <source>All Files (*)</source>
         <translation>所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Open network neighborhood</source>
+        <translation>打开网上邻居</translation>
+    </message>
+    <message>
+        <source>Open \\IP\ in Explorer on Windows. Windows asks for a password if one is required.</source>
+        <translation>在 Windows 资源管理器中打开 \\IP\。如果共享需要密码，由 Windows 询问。</translation>
+    </message>
+    <message>
+        <source>Open network neighborhood (Windows only)</source>
+        <translation>打开网上邻居（仅 Windows）</translation>
+    </message>
+    <message>
+        <source>Windows network neighborhood is only available on Windows.</source>
+        <translation>网上邻居只在 Windows 上可用。</translation>
+    </message>
+    <message>
+        <source>Open \\%1\ in Explorer. Windows asks for a password if one is required. This program does not ask for share credentials.</source>
+        <translation>在资源管理器中打开 \\%1\。如果共享需要密码，由 Windows 询问。本程序不收集共享凭据。</translation>
+    </message>
+    <message>
+        <source>Select one peer with an IPv4 address.</source>
+        <translation>请选择一个有 IPv4 地址的好友。</translation>
+    </message>
+    <message>
+        <source>Network neighborhood</source>
+        <translation>网上邻居</translation>
     </message>
 </context>
 <context>
@@ -4447,6 +4503,135 @@ Right-click to delete or move</source>
         <location filename="../window_manager.cpp" line="726"/>
         <source>I am away from my computer.</source>
         <translation>我现在不在电脑旁。</translation>
+    </message>
+</context>
+<context>
+    <name>ZoneBrowser</name>
+    <message>
+        <source>Local notes</source>
+        <translation>本地笔记</translation>
+    </message>
+    <message>
+        <source>Notes in %1. Markdown and text only. They stay on this computer. This is not a FeiQ zone database and nothing here is sent to peers.</source>
+        <translation>%1 里的笔记，仅限 Markdown 和文本。它们只留在这台电脑上。这不是飞秋空间数据库，也不会发给对方。</translation>
+    </message>
+    <message>
+        <source>Select a note, or create one.</source>
+        <translation>选择一条笔记，或新建一条。</translation>
+    </message>
+    <message>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>保存</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <source>Open folder</source>
+        <translation>打开文件夹</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Title</source>
+        <translation>标题</translation>
+    </message>
+    <message>
+        <source>Could not create the note.</source>
+        <translation>无法新建笔记。</translation>
+    </message>
+    <message>
+        <source>Could not save the note.</source>
+        <translation>无法保存笔记。</translation>
+    </message>
+    <message>
+        <source>Delete %1? This only removes the file on this computer.</source>
+        <translation>删除 %1？这只会删掉这台电脑上的文件。</translation>
+    </message>
+    <message>
+        <source>Could not delete the note.</source>
+        <translation>无法删除笔记。</translation>
+    </message>
+    <message>
+        <source>Save changes to %1?</source>
+        <translation>保存对 %1 的修改？</translation>
+    </message>
+</context>
+<context>
+    <name>ZoneStore</name>
+    <message>
+        <source>Could not create the local note folder.</source>
+        <translation>无法创建本地笔记目录。</translation>
+    </message>
+    <message>
+        <source>That note name is not allowed.</source>
+        <translation>这个笔记名称不允许使用。</translation>
+    </message>
+    <message>
+        <source>That note is outside the local folder.</source>
+        <translation>这条笔记不在本地目录里。</translation>
+    </message>
+    <message>
+        <source>Enter a title.</source>
+        <translation>请输入标题。</translation>
+    </message>
+    <message>
+        <source>Could not choose a file name.</source>
+        <translation>无法选定文件名。</translation>
+    </message>
+    <message>
+        <source>That note is not a regular file.</source>
+        <translation>这条笔记不是普通文件。</translation>
+    </message>
+    <message>
+        <source>That note is missing.</source>
+        <translation>找不到这条笔记。</translation>
+    </message>
+    <message>
+        <source>That note is too large to open here.</source>
+        <translation>这条笔记太大，这里打不开。</translation>
+    </message>
+    <message>
+        <source>Could not read the note.</source>
+        <translation>无法读取笔记。</translation>
+    </message>
+    <message>
+        <source>That note is too large.</source>
+        <translation>这条笔记太大。</translation>
+    </message>
+    <message>
+        <source>Could not write the note.</source>
+        <translation>无法写入笔记。</translation>
+    </message>
+    <message>
+        <source>Could not delete the note.</source>
+        <translation>无法删除笔记。</translation>
+    </message>
+</context>
+<context>
+    <name>WinShare</name>
+    <message>
+        <source>The address is not a plain IPv4 address.</source>
+        <translation>这个地址不是普通的 IPv4 地址。</translation>
+    </message>
+    <message>
+        <source>Windows network neighborhood is only available on Windows.</source>
+        <translation>网上邻居只在 Windows 上可用。</translation>
+    </message>
+    <message>
+        <source>Windows could not open %1 (code %2). If the share needs a password, Windows asks for it. This program does not collect share credentials.</source>
+        <translation>Windows 无法打开 %1（代码 %2）。如果共享需要密码，由 Windows 询问。本程序不收集共享凭据。</translation>
+    </message>
+    <message>
+        <source>The share could not be opened.</source>
+        <translation>无法打开该共享。</translation>
     </message>
 </context>
 </TS>

@@ -35,7 +35,7 @@ cmake ..
 cmake --build -j$(nproc)
 ```
 
-Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, discussion notice JSON, user-skin loading, and NIC selection. `qipmsgShareCheck` also covers discussion-folder `GLIST` / `GGET`. `qipmsgP3Check` covers schedule and favorite JSON plus the `IPMSG_DIALUPOPT` bit.
+Region-capture snap on Linux loads `libX11.so.6` at runtime (`dlopen`). The package is not a link dependency. Without it, the selection only snaps to the screen edges. `qipmsgP2Check` covers the rich-text subset, snap math, discussion notice JSON, user-skin loading, and NIC selection. `qipmsgShareCheck` also covers discussion-folder `GLIST` / `GGET`. `qipmsgP3Check` covers schedule and favorite JSON, the `IPMSG_DIALUPOPT` bit, the Windows share address filter, the local `--msg` plan, and zone note files.
 
 Run locally without installing:
 
@@ -181,6 +181,29 @@ make
 - Custom stickers are files, not Unicode. Import copies PNG / GIF / WebP / JPEG / BMP into `stickers/` (max 8 MB, 400 files, 40 named groups). A click sends `[Sticker] …` plus `IPMSG_FILEATTACHOPT`, the same image-attach path as paste and screenshot. GIF animation is the file itself; the picker shows the first frame (WebP needs Qt's imageformats plugin for a thumbnail, but the file is still sent). FeiQ receives an ordinary image attachment, not a private face-id. Offline queue still refuses attachments.
 - UI language defaults to **Simplified Chinese**. `qipmsg_zh_CN.qm` is embedded in `icons.qrc` (`:/translations`) and also copied next to the executable as `translations/qipmsg_zh_CN.qm`. Chinese system locales (`zh_*`) try that locale first, then `zh_CN`. Other locales load `zh_CN` as the product default. Qt `qt`/`qtbase` catalogs are loaded from the same search path plus Qt’s own translations directory when present (so standard OK/Cancel buttons are Chinese when those files exist).
 - To refresh the catalog after editing `tr()` strings: `lupdate src -ts src/translations/qipmsg_zh_CN.ts` then `lrelease src/translations/qipmsg_zh_CN.ts -qm src/translations/qipmsg_zh_CN.qm`.
+
+## Network neighborhood, local send, and notes (2.48.14)
+
+No Qt Sql. No plugin API. Remote assist, remote control, and voice stay disabled.
+
+### Windows shares
+
+On Windows, the contact menu **Open network neighborhood** and the chat profile button **Network neighborhood** call `ShellExecuteW` on `\\<ipv4>\`. The address must be four decimal octets with no leading zeros, not `0.0.0.0`, and not class D or E. Explorer asks for SMB credentials. qipmsg does not collect them. On Linux and macOS the action stays visible and disabled, with a tooltip that it is Windows-only. `qipmsgP3Check` checks the address filter and does not launch Explorer.
+
+### Local command
+
+While qipmsg is running it listens on a per-user local socket (a named pipe on Windows). Access is limited to the current user. The name is `qipmsg-msg-` plus 12 hex digits of the SHA-256 of `~/.qipmsg`. It is not a TCP port.
+
+```
+qipmsg --msg 192.168.1.20 --text "hello"
+qipmsg --msg login@host --text "hello"
+```
+
+`login@host` matches one known peer, case-insensitive. An IPv4 that is not in the contact list is sent to port 2425, or to that peer's port when it is known. A known offline peer is queued only when the offline-queue preference is on; otherwise the command prints `ERR offline`. Success prints `OK sent <ip>` or `OK queued <ip>`. Exit 2 is a bad command line. Exit 3 means qipmsg is not running; this process does not open a window. The text is a normal `SENDMSG`, including the encrypt preference. The limit is 4000 characters and 12000 UTF-8 bytes. This is not a plugin marketplace.
+
+### Local notes
+
+The chat toolbar **Zone** and **Log** buttons open the same browser for `~/.qipmsg/zone/` (created if missing). Create, edit, and delete `.md`, `.txt`, and `.markdown` files there. Nothing is sent to peers. This is not FeiQ's `zone/*.db` blog. The private-data zip includes `zone/`.
 
 ## Schedule, favorites, and dial-up hosts (2.45.13)
 
