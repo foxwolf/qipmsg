@@ -35,6 +35,7 @@
 #include "send_file_window.h"
 #include "send_msg.h"
 #include "offline_queue.h"
+#include "msgCrypto.h"
 #include "user_manager.h"
 #include "window_manager.h"
 
@@ -414,6 +415,10 @@ void ChatWindow::refreshPeerCaption()
     if (m_peerTyping) {
         meta += QString(" · %1").arg(tr("Typing…"));
     }
+    if (Global::preferences && Global::preferences->isEncryptMsg
+            && MsgCrypto::hasPeerKey(m_peerIp)) {
+        meta += QString(" · %1").arg(tr("Key ready"));
+    }
     m_peerMeta->setText(meta);
     m_headerAvatar->setPixmap(peerAvatar(name, 36));
     setWindowTitle(header);
@@ -509,7 +514,7 @@ void ChatWindow::loadHistory()
         const QString name = incoming ? record.peerName : localName();
         appendMessage(record.timestamp, name, record.text, incoming,
                       record.imagePaths, record.packetNo, record.expectRead,
-                      record.readReceipt);
+                      record.readReceipt, record.encrypted);
     }
 }
 
@@ -528,7 +533,8 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
                                const QStringList &imagePaths,
                                const QString &packetNo,
                                bool expectRead,
-                               bool readReceipt)
+                               bool readReceipt,
+                               bool encrypted)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -571,6 +577,16 @@ void ChatWindow::appendMessage(const QDateTime &when, const QString &name,
     textFmt.setForeground(incoming ? Helper::bubbleIncomingFg()
                                    : Helper::bubbleOutgoingFg());
     textFmt.setFontPointSize(10);
+    if (encrypted) {
+        QTextCharFormat lockFmt = textFmt;
+        lockFmt.setFontPointSize(8);
+        lockFmt.setFontWeight(QFont::Bold);
+        lockFmt.setForeground(QColor("#0F766E"));
+        cellCursor.insertText(tr("Encrypted"), lockFmt);
+        if (!text.isEmpty()) {
+            cellCursor.insertText(QStringLiteral("\n"), textFmt);
+        }
+    }
     const QString displayText = EmojiPack::applyAliases(text);
     if (!displayText.isEmpty()) {
         cellCursor.insertText(displayText, textFmt);
@@ -899,6 +915,8 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
         additionalInfo.append(QChar('\0'));
     }
 
+    const bool encrypted = MsgCrypto::prepareOutgoing(m_peerIp, &additionalInfo, &flags);
+
     SendMsg sendMsg(QHostAddress(m_peerIp),
                     Global::userManager->sendPortForIp(m_peerIp),
                     additionalInfo, ""/* extendedInfo */, flags);
@@ -933,7 +951,7 @@ void ChatWindow::sendPayload(const QString &text, const QStringList &pathList)
         Global::windowManager->recordOutgoing(m_peerIp,
                 Global::userManager->displayNameForIp(m_peerIp), recorded,
                 imagePathsFromFiles(pathList),
-                sendMsg.packetNoString(), expectRead);
+                sendMsg.packetNoString(), expectRead, encrypted);
     }
 }
 
@@ -944,10 +962,11 @@ void ChatWindow::sendShake()
                 tr("Window shake is not queued for offline peers."));
         return;
     }
-    const quint32 flags = Global::userManager->sendFlagsForIp(
+    quint32 flags = Global::userManager->sendFlagsForIp(
                 m_peerIp, IPMSG_SENDMSG | IPMSG_SENDCHECKOPT);
     QString additionalInfo = Helper::shakeToken();
     additionalInfo.append(QChar('\0'));
+    const bool encrypted = MsgCrypto::prepareOutgoing(m_peerIp, &additionalInfo, &flags);
 
     SendMsg sendMsg(QHostAddress(m_peerIp),
                     Global::userManager->sendPortForIp(m_peerIp),
@@ -957,7 +976,7 @@ void ChatWindow::sendShake()
     Global::windowManager->recordOutgoing(m_peerIp,
             Global::userManager->displayNameForIp(m_peerIp),
             tr("[Window shake]"), QStringList(), sendMsg.packetNoString(),
-            false);
+            false, encrypted);
     shakeWindow();
 }
 

@@ -25,6 +25,7 @@
 #include <QSet>
 
 #include "main_window.h"
+#include "msgCrypto.h"
 #include "helper.h"
 #include "user_manager.h"
 #include "msg_thread.h"
@@ -1339,6 +1340,8 @@ void MainWindow::sendMessage()
             additionalInfo.append(QChar('\0'));
         }
 
+        const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
+
         if (Global::preferences->isLogMsg) {
             logSendMsg(inputEdit->toPlainText(), ip);
         }
@@ -1351,7 +1354,7 @@ void MainWindow::sendMessage()
         Global::windowManager->recordOutgoing(
                     ip, recvUser, inputEdit->toPlainText(), QStringList(),
                     sendMsg.packetNoString(),
-                    (baseFlags & IPMSG_READCHECKOPT) != 0);
+                    (baseFlags & IPMSG_READCHECKOPT) != 0, encrypted);
 
         if (hasSendFile()) {
             m_sendFileMap->setRecvUser(recvUser);

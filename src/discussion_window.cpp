@@ -15,6 +15,7 @@
 //
 
 #include "discussion_window.h"
+#include "msgCrypto.h"
 #include "constants.h"
 #include "global.h"
 #include "helper.h"
@@ -216,12 +217,14 @@ void DiscussionWindow::loadHistory()
     foreach (const ChatRecord &record, records) {
         const bool incoming = (record.direction != QLatin1String("out"));
         const QString name = incoming ? record.peerName : localName();
-        appendMessage(record.timestamp, name, record.text, incoming);
+        appendMessage(record.timestamp, name, record.text, incoming,
+                      record.encrypted);
     }
 }
 
 void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
-                                     const QString &text, bool incoming)
+                                     const QString &text, bool incoming,
+                                     bool encrypted)
 {
     const QString timeText = when.toString("yyyy-MM-dd hh:mm");
     QTextCursor cursor(m_historyEdit->document());
@@ -264,6 +267,16 @@ void DiscussionWindow::appendMessage(const QDateTime &when, const QString &name,
     textFmt.setForeground(incoming ? Helper::bubbleIncomingFg()
                                    : Helper::bubbleOutgoingFg());
     textFmt.setFontPointSize(10);
+    if (encrypted) {
+        QTextCharFormat lockFmt = textFmt;
+        lockFmt.setFontPointSize(8);
+        lockFmt.setFontWeight(QFont::Bold);
+        lockFmt.setForeground(QColor("#0F766E"));
+        cellCursor.insertText(tr("Encrypted"), lockFmt);
+        if (!text.isEmpty()) {
+            cellCursor.insertText(QStringLiteral("\n"), textFmt);
+        }
+    }
     MentionHighlighter::insertHighlighted(cellCursor, text, textFmt,
                                           mentionNames(),
                                           incoming ? QColor("#1D4ED8")
@@ -287,29 +300,38 @@ void DiscussionWindow::sendMessage()
         baseFlags |= IPMSG_MULTICASTOPT;
     }
 
+    int sealedCount = 0;
+    int sentCount = 0;
     foreach (const QString &ip, ips) {
-        const quint32 flags = Global::userManager->sendFlagsForIp(ip, baseFlags);
+        quint32 flags = Global::userManager->sendFlagsForIp(ip, baseFlags);
         QString additionalInfo = text;
         additionalInfo.append(QChar('\0'));
+        const bool encrypted = MsgCrypto::prepareOutgoing(ip, &additionalInfo, &flags);
         SendMsg sendMsg(QHostAddress(ip),
                         Global::userManager->sendPortForIp(ip),
                         additionalInfo, ""/* extendedInfo */, flags);
         Global::msgThread->addSendMsg(Msg(sendMsg));
+        ++sentCount;
+        if (encrypted) {
+            ++sealedCount;
+        }
         if (Global::windowManager) {
             Global::windowManager->recordOutgoing(ip,
                     Global::userManager->displayNameForIp(ip), text,
-                    QStringList(), sendMsg.packetNoString(), false);
+                    QStringList(), sendMsg.packetNoString(), false, encrypted);
         }
     }
 
+    const bool allSealed = sentCount > 0 && sealedCount == sentCount;
     ChatRecord record;
     record.timestamp = QDateTime::currentDateTime();
     record.peerIp = DiscussionStore::historyKey(m_groupId);
     record.peerName = m_group.name;
     record.direction = "out";
     record.text = text;
+    record.encrypted = allSealed;
     Global::messageStore->append(record);
-    appendMessage(record.timestamp, localName(), text, false);
+    appendMessage(record.timestamp, localName(), text, false, allSealed);
 
     m_inputEdit->clear();
     m_inputEdit->setFocus();

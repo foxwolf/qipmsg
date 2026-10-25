@@ -96,6 +96,7 @@ void Preferences::reset()
 
     isTrayNotify = true;
     isOfflineQueue = true;
+    isEncryptMsg = false;
     isDoNotDisturb = false;
     isShareTyping = true;
     isPresenceSound = false;
@@ -210,6 +211,7 @@ void Preferences::load()
                                          staleMissedRefreshCount).toInt();
     isTrayNotify = set->value("isTrayNotify", isTrayNotify).toBool();
     isOfflineQueue = set->value("isOfflineQueue", isOfflineQueue).toBool();
+    isEncryptMsg = set->value("isEncryptMsg", isEncryptMsg).toBool();
     isPresenceSound = set->value("isPresenceSound", isPresenceSound).toBool();
     set->endGroup();
 
@@ -340,6 +342,7 @@ void Preferences::save()
     set->setValue("staleMissedRefreshCount", staleMissedRefreshCount);
     set->setValue("isTrayNotify", isTrayNotify);
     set->setValue("isOfflineQueue", isOfflineQueue);
+    set->setValue("isEncryptMsg", isEncryptMsg);
     set->setValue("isPresenceSound", isPresenceSound);
     set->endGroup();
 

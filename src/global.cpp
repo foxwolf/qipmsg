@@ -41,6 +41,7 @@
 #include "stickerStore.h"
 #include "recentStore.h"
 #include "avatarStore.h"
+#include "msgCrypto.h"
 
 SendFileManager *Global::sendFileManager = 0;
 QSettings *Global::settings = 0;
@@ -85,6 +86,10 @@ void Global::globalInit(QString path)
     }
 
     preferences = new Preferences;
+
+    if (preferences->isEncryptMsg) {
+        MsgCrypto::ensureLocalKey();
+    }
 
     transferCodec = new TransferCodec;
 

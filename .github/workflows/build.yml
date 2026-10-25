@@ -83,6 +83,7 @@ jobs:
           run_one qipmsgP1Check
           run_one qipmsgBackupCheck
           run_one qipmsgShareCheck
+          run_one qipmsgCryptoCheck
 
       - name: Locate binary
         shell: bash

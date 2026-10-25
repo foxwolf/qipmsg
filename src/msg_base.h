@@ -56,6 +56,11 @@ public:
 
     virtual QString additionalInfo() const { return m_additionalInfo; }
     virtual QString extendedInfo() const { return m_extendedInfo; }
+    void setAdditionalInfo(const QString &text) { m_additionalInfo = text; }
+    void setExtendedInfo(const QString &text) { m_extendedInfo = text; }
+    void setFlags(quint32 flags) { m_flags = flags; }
+    bool transportEncrypted() const { return m_transportEncrypted; }
+    void setTransportEncrypted(bool value) { m_transportEncrypted = value; }
 
     // We set all these methods to empty
     // XXX NOTE: only send msg use these functions
@@ -77,6 +82,7 @@ private:
     quint32 m_flags;
     QHostAddress m_ipAddress;
     quint16 m_port;
+    bool m_transportEncrypted = false;
 };
 
 #endif // !MSG_BASE_H

@@ -248,6 +248,7 @@ private:
     QCheckBox *sealedSend;
     QCheckBox *quoteMsg;
     QCheckBox *offlineQueueCheck;
+    QCheckBox *encryptMsgCheck;
     QCheckBox *awayCheck;
     QCheckBox *stealthCheck;
     QPushButton *groupPolicyButton;

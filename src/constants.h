@@ -98,7 +98,8 @@
 // Announced on BR_ENTRY / BR_ABSENCE / BR_EXIT / ANSENTRY.
 // CAPUTF8OPT: we can receive UTF-8 (UTF8OPT on that datagram).
 // CLIPBOARDOPT: clipboard-image peers may send a file attachment.
-// ENCRYPTOPT stays off; there is no pubkey exchange in this build.
+// ENCRYPTOPT is not part of this mask. It is added only while the
+// encrypt preference is on, so a default install still matches 2.30.x.
 #define QIPMSG_CAPACITY         (IPMSG_FILEATTACHOPT | IPMSG_CAPUTF8OPT | IPMSG_CLIPBOARDOPT)
 
 // Response file packet

@@ -57,15 +57,17 @@ public:
                         const QString &text,
                         const QStringList &imagePaths = QStringList(),
                         const QString &packetNo = QString(),
-                        bool expectRead = false);
-    void deliverText(const QString &ip, const QString &text);
+                        bool expectRead = false,
+                        bool encrypted = false);
+    bool deliverText(const QString &ip, const QString &text);
     int broadcastTextToOnline(const QString &text);
     bool openSealedLetter(const QString &ip, const QString &packetNo);
     bool queueOrDeliverText(const QString &ip, const QString &text,
                             QWidget *askParent = 0);
     void recordIncomingText(const QString &ip, const QString &peerName,
                             const QString &text, bool notifyUser,
-                            const QStringList &imagePaths = QStringList());
+                            const QStringList &imagePaths = QStringList(),
+                            bool encrypted = false);
 
     void removeMsgWindow(MsgWindow *w) {
         m_msgWindowList.removeAll(w);

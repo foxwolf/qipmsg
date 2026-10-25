@@ -98,7 +98,7 @@ void DataBackup::exportInteractive(QWidget *parent)
                 DataBackup::tr("Saved %1 files to %2.\n\n"
                          "Included: preferences, peers, history, stickers, "
                          "group policy, recent contacts, resume data, "
-                         "discussions, the offline queue, and local avatars. "
+                         "discussions, the offline queue, RSA keys, and local avatars. "
                          "Received files and screenshots are not included.")
                 .arg(count)
                 .arg(zipPath));

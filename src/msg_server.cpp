@@ -22,6 +22,7 @@
 #endif
 
 #include "msg_server.h"
+#include "msgCrypto.h"
 #include "protocolutil.h"
 #include "send_msg.h"
 #include "global.h"
@@ -29,6 +30,7 @@
 #include "helper.h"
 #include "transfer_codec.h"
 #include "user_manager.h"
+#include "window_manager.h"
 #include "msg_thread.h"
 #include "preferences.h"
 #include "send_file_manager.h"
@@ -191,6 +193,14 @@ void MsgServer::processRecvMsg(Msg msg)
         processGetAbsenceInfo(msg);
         break;
 
+    case IPMSG_GETPUBKEY:
+        processGetPubKey(msg);
+        return;
+
+    case IPMSG_ANSPUBKEY:
+        processAnsPubKey(msg);
+        return;
+
     case IPMSG_SENDMSG:
         processRecvSendMsg(msg);
         break;
@@ -330,8 +340,50 @@ void MsgServer::processRecvReadMsg(Msg msg)
     Global::msgThread->addSendMsg(Msg(sendMsg));
 }
 
+void MsgServer::processGetPubKey(Msg msg)
+{
+    if (!Global::preferences || !Global::preferences->isEncryptMsg) {
+        return;
+    }
+    if (!MsgCrypto::hasLocalKey()) {
+        return;
+    }
+    const QString body = MsgCrypto::localAnswerBody();
+    if (body.isEmpty() || !Global::msgThread) {
+        return;
+    }
+    SendMsg sendMsg(msg->ipAddress(), msg->port(), body, QString(),
+                    IPMSG_ANSPUBKEY);
+    Global::msgThread->addSendMsg(Msg(sendMsg));
+}
+
+void MsgServer::processAnsPubKey(Msg msg)
+{
+    if (!MsgCrypto::rememberPeerAnswer(msg->ip(), msg->additionalInfo())) {
+        return;
+    }
+    if (Global::windowManager) {
+        QMetaObject::invokeMethod(Global::windowManager, "refreshChatCaptions",
+                                  Qt::QueuedConnection);
+    }
+}
+
 void MsgServer::processRecvSendMsg(Msg msg)
 {
+    if ((msg->flags() & IPMSG_ENCRYPTOPT) != 0) {
+        QString body = msg->additionalInfo();
+        QString extra = msg->extendedInfo();
+        msg->setTransportEncrypted(true);
+        if (!MsgCrypto::unwrapIncoming(msg->flags(), &body, &extra)) {
+            body = tr("Encrypted message (cannot decrypt). "
+                      "FeiQ and official IPMsg may pack RSA differently from qipmsg.");
+            extra.clear();
+            msg->setFlags(msg->flags() & ~quint32(IPMSG_FILEATTACHOPT));
+        }
+        msg->setAdditionalInfo(body);
+        msg->setExtendedInfo(extra);
+    }
+
     if (GET_OPT(msg->flags()) & IPMSG_SENDCHECKOPT) {
         SendMsg sendMsg(msg->ipAddress(), msg->port(), msg->packetNoString(),
                 ""/* extendedInfo */, IPMSG_RECVMSG);
@@ -397,6 +449,8 @@ void MsgServer::handleMsg(Msg &msg)
         case IPMSG_FEIQ_TYPING:
         case IPMSG_FEIQ_TYPINGSTOP:
         case IPMSG_QIPMSG_EXT:
+        case IPMSG_GETPUBKEY:
+        case IPMSG_ANSPUBKEY:
             broadcastMsg(msg);
             Global::msgThread->removeSendMsgNotLock(msg->packetNoString());
             break;

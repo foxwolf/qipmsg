@@ -125,6 +125,9 @@ bool MessageStore::append(const ChatRecord &record)
     if (record.readReceipt) {
         obj.insert("rd", true);
     }
+    if (record.encrypted) {
+        obj.insert("enc", true);
+    }
 
     QTextStream ts(&file);
     ts << QJsonDocument(obj).toJson(QJsonDocument::Compact) << '\n';
@@ -238,6 +241,7 @@ QList<ChatRecord> MessageStore::loadHistory(const QString &peerIp,
         record.packetNo = obj.value("pkt").toString();
         record.expectRead = obj.value("er").toBool();
         record.readReceipt = obj.value("rd").toBool();
+        record.encrypted = obj.value("enc").toBool();
         records.append(record);
     }
 
