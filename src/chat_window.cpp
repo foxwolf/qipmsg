@@ -56,13 +56,17 @@
 #include <QList>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
 #include <QFormLayout>
 #include <QGridLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QHostAddress>
+#include <QIcon>
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
@@ -71,10 +75,16 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QResizeEvent>
+#include <QScreen>
+#include <QSettings>
 #include <QShortcut>
 #include <QShowEvent>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QTextBlockFormat>
 #include <QCursor>
@@ -97,13 +107,160 @@
 #include <QVBoxLayout>
 #include <QWidgetAction>
 
+namespace {
+
+enum ToolGlyph {
+    toolGlyphFile = 1,
+    toolGlyphFolder,
+    toolGlyphShot,
+    toolGlyphEmoji,
+    toolGlyphShake,
+    toolGlyphFind,
+    toolGlyphMore,
+    toolGlyphProfile
+};
+
+const int kChatMinWidth = 560;
+const int kChatMinHeight = 400;
+const int kProfilePaneWidth = 220;
+
+QIcon toolGlyphIcon(ToolGlyph glyph, const QColor &ink)
+{
+    QPixmap pix(16, 16);
+    pix.fill(Qt::transparent);
+    QPainter painter(&pix);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    QPen pen(ink, 1.4, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    switch (glyph) {
+    case toolGlyphFile:
+        painter.drawRoundedRect(QRectF(3.5, 2.2, 9, 11.6), 1.2, 1.2);
+        painter.drawLine(QPointF(5.6, 6), QPointF(10.4, 6));
+        painter.drawLine(QPointF(5.6, 8.4), QPointF(10.4, 8.4));
+        painter.drawLine(QPointF(5.6, 10.8), QPointF(9, 10.8));
+        break;
+    case toolGlyphFolder: {
+        QPainterPath path;
+        path.moveTo(2.2, 6);
+        path.lineTo(2.2, 13);
+        path.lineTo(13.8, 13);
+        path.lineTo(13.8, 5.2);
+        path.lineTo(8, 5.2);
+        path.lineTo(6.6, 3.2);
+        path.lineTo(2.2, 3.2);
+        path.closeSubpath();
+        painter.drawPath(path);
+        break;
+    }
+    case toolGlyphShot:
+        painter.drawRoundedRect(QRectF(2.2, 4.2, 11.6, 8.2), 1.3, 1.3);
+        painter.drawLine(QPointF(5, 4.2), QPointF(6.6, 2.6));
+        painter.drawLine(QPointF(6.6, 2.6), QPointF(9.4, 2.6));
+        painter.drawLine(QPointF(9.4, 2.6), QPointF(11, 4.2));
+        painter.drawEllipse(QPointF(8, 8.3), 2.1, 2.1);
+        break;
+    case toolGlyphEmoji:
+        painter.drawEllipse(QRectF(2.4, 2.4, 11.2, 11.2));
+        painter.setBrush(ink);
+        painter.drawEllipse(QPointF(6.2, 7.1), 0.7, 0.7);
+        painter.drawEllipse(QPointF(9.8, 7.1), 0.7, 0.7);
+        painter.setBrush(Qt::NoBrush);
+        painter.drawArc(QRectF(5, 7.4, 6, 4.2), 210 * 16, 120 * 16);
+        break;
+    case toolGlyphShake:
+        painter.drawLine(QPointF(3, 11), QPointF(6, 4));
+        painter.drawLine(QPointF(6, 4), QPointF(8, 10));
+        painter.drawLine(QPointF(8, 10), QPointF(11, 3));
+        painter.drawLine(QPointF(11, 3), QPointF(13.2, 8));
+        break;
+    case toolGlyphFind:
+        painter.drawEllipse(QRectF(2.4, 2.4, 7.6, 7.6));
+        painter.drawLine(QPointF(9.2, 9.2), QPointF(13.2, 13.2));
+        break;
+    case toolGlyphMore:
+        painter.setBrush(ink);
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(QPointF(3.4, 8), 1.15, 1.15);
+        painter.drawEllipse(QPointF(8, 8), 1.15, 1.15);
+        painter.drawEllipse(QPointF(12.6, 8), 1.15, 1.15);
+        break;
+    case toolGlyphProfile:
+        painter.drawEllipse(QRectF(5.4, 2.2, 5.2, 5.2));
+        painter.drawArc(QRectF(3.2, 8.2, 9.6, 8), 15 * 16, 150 * 16);
+        break;
+    default:
+        break;
+    }
+    painter.end();
+    return QIcon(pix);
+}
+
+void attachGlyph(QToolButton *button, ToolGlyph glyph)
+{
+    button->setProperty("toolGlyph", int(glyph));
+    button->setIconSize(QSize(16, 16));
+    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+}
+
+QWidget *toolSeparator()
+{
+    QFrame *line = new QFrame;
+    line->setObjectName(QStringLiteral("chatToolSep"));
+    line->setFixedWidth(1);
+    line->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+    return line;
+}
+
+QLabel *toolGroupLabel(const QString &text)
+{
+    QLabel *label = new QLabel(text);
+    label->setObjectName(QStringLiteral("chatToolGroup"));
+    label->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    return label;
+}
+
+void addMenuCaption(QMenu *menu, const QString &text)
+{
+    QLabel *label = new QLabel(text, menu);
+    label->setObjectName(QStringLiteral("menuCaption"));
+    label->setAttribute(Qt::WA_TransparentForMouseEvents);
+    QWidgetAction *action = new QWidgetAction(menu);
+    action->setDefaultWidget(label);
+    menu->addAction(action);
+}
+
+QSize chatSizeWithinScreen(const QSize &want)
+{
+    QSize out = want;
+    QScreen *screen = QGuiApplication::primaryScreen();
+    if (!screen) {
+        return out;
+    }
+    const QSize avail = screen->availableGeometry().size();
+    if (avail.width() > 0) {
+        const int lower = qMin(kChatMinWidth, avail.width());
+        out.setWidth(qBound(lower, out.width(), avail.width()));
+    }
+    if (avail.height() > 0) {
+        const int lower = qMin(kChatMinHeight, avail.height());
+        out.setHeight(qBound(lower, out.height(), avail.height()));
+    }
+    return out;
+}
+
+} // namespace
+
 ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
-    : QWidget(parent), m_peerIp(ip), m_historyLoaded(false),
-      m_peerTyping(false), m_localTyping(false), m_lastTypingSentMs(0),
-      m_typingIdle(0)
+    : QWidget(parent), m_peerIp(ip), m_toolbar(0), m_profilePanel(0),
+      m_profileToggle(0), m_splitter(0), m_historyLoaded(false),
+      m_peerTyping(false), m_localTyping(false), m_layoutReady(false),
+      m_applyingLayout(false), m_lastTypingSentMs(0), m_typingIdle(0)
 {
     setAcceptDrops(true);
     createUi();
+    restoreChatLayout();
     m_inputEdit->installEventFilter(this);
     refreshPeerCaption();
     refreshQueuePanel();
@@ -118,9 +275,20 @@ ChatWindow::ChatWindow(const QString &ip, QWidget *parent)
     setWindowIcon(*Global::iconSet.value("normal"));
 }
 
+ChatWindow::~ChatWindow()
+{
+    saveChatLayout();
+    if (Global::settings && m_layoutReady) {
+        Global::settings->sync();
+    }
+}
+
 QSize ChatWindow::sizeHint() const
 {
-    return QSize(920, 600);
+    if (m_profilePanel && m_profilePanel->isVisible()) {
+        return QSize(900, 520);
+    }
+    return QSize(680, 520);
 }
 
 QToolButton *ChatWindow::makeToolButton(const QString &text, const QString &tip,
@@ -133,15 +301,12 @@ QToolButton *ChatWindow::makeToolButton(const QString &text, const QString &tip,
     button->setToolButtonStyle(Qt::ToolButtonTextOnly);
     button->setAutoRaise(true);
     button->setEnabled(enabled);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     if (enabled && slot) {
         connect(button, SIGNAL(clicked()), this, slot);
     }
     return button;
-}
-
-QToolButton *ChatWindow::makeStubButton(const QString &text)
-{
-    return makeToolButton(text, tr("Not implemented yet"), 0, false);
 }
 
 void ChatWindow::createUi()
@@ -164,57 +329,109 @@ void ChatWindow::createUi()
     QWidget *header = new QWidget;
     header->setObjectName("chatHeader");
     QHBoxLayout *headerLayout = new QHBoxLayout(header);
-    headerLayout->setContentsMargins(14, 10, 14, 10);
+    headerLayout->setContentsMargins(14, 8, 10, 8);
     headerLayout->setSpacing(10);
     headerLayout->addWidget(m_headerAvatar);
     headerLayout->addLayout(headerText, 1);
+    m_profileToggle = new QToolButton;
+    m_profileToggle->setObjectName(QStringLiteral("profileToggle"));
+    m_profileToggle->setText(tr("Profile"));
+    m_profileToggle->setToolTip(tr("Show or hide the peer profile"));
+    m_profileToggle->setCheckable(true);
+    m_profileToggle->setChecked(true);
+    m_profileToggle->setAutoRaise(true);
+    m_profileToggle->setFocusPolicy(Qt::NoFocus);
+    attachGlyph(m_profileToggle, toolGlyphProfile);
+    connect(m_profileToggle, SIGNAL(toggled(bool)),
+            this, SLOT(toggleProfile(bool)));
+    headerLayout->addWidget(m_profileToggle);
 
-    QWidget *toolbar = new QWidget;
-    toolbar->setObjectName("chatToolbar");
-    QHBoxLayout *toolLayout = new QHBoxLayout(toolbar);
-    toolLayout->setContentsMargins(8, 4, 8, 4);
-    toolLayout->setSpacing(2);
-    toolLayout->addWidget(makeStubButton(tr("Remote assist")));
-    toolLayout->addWidget(makeStubButton(tr("Remote control")));
-    toolLayout->addWidget(makeStubButton(tr("Voice call")));
-    toolLayout->addWidget(makeToolButton(tr("Send file"),
-                                         tr("Send file"), SLOT(addSendFile())));
-    toolLayout->addWidget(makeToolButton(tr("Send folder"),
-                                         tr("Send folder"), SLOT(addSendDir())));
-    toolLayout->addWidget(makeToolButton(tr("Browse peer share"),
-                                         tr("List a qipmsg shared folder. FeiQ share has no verified packet format."),
-                                         SLOT(browsePeerShare())));
-    toolLayout->addWidget(makeToolButton(tr("Group folder"),
-                                         tr("Request files from a discussion folder this peer published."),
-                                         SLOT(browseGroupShare())));
+    m_toolbar = new QWidget;
+    m_toolbar->setObjectName(QStringLiteral("chatToolbar"));
+    QHBoxLayout *toolLayout = new QHBoxLayout(m_toolbar);
+    toolLayout->setContentsMargins(6, 2, 6, 2);
+    toolLayout->setSpacing(1);
+    toolLayout->addWidget(toolGroupLabel(tr("Transfer")));
+    QToolButton *fileButton = makeToolButton(tr("Send file"),
+                                             tr("Send file"),
+                                             SLOT(addSendFile()));
+    attachGlyph(fileButton, toolGlyphFile);
+    toolLayout->addWidget(fileButton);
+    QToolButton *folderButton = makeToolButton(tr("Send folder"),
+                                               tr("Send folder"),
+                                               SLOT(addSendDir()));
+    attachGlyph(folderButton, toolGlyphFolder);
+    toolLayout->addWidget(folderButton);
+    toolLayout->addWidget(toolSeparator());
+    toolLayout->addWidget(toolGroupLabel(tr("Chat")));
     QToolButton *shot = makeToolButton(tr("Screenshot"),
-                                       tr("Screenshot"), 0);
+                                       tr("Full screen or a region"), 0);
     QMenu *shotMenu = new QMenu(shot);
+    shotMenu->setToolTipsVisible(true);
     shotMenu->addAction(tr("Full screen"), this, SLOT(captureFullScreen()));
     shotMenu->addAction(tr("Region"), this, SLOT(captureRegion()));
     shot->setMenu(shotMenu);
     shot->setPopupMode(QToolButton::InstantPopup);
+    attachGlyph(shot, toolGlyphShot);
     toolLayout->addWidget(shot);
-    toolLayout->addWidget(makeToolButton(tr("Doodle"),
-                                         tr("Draw a picture and send it as an image attachment."),
-                                         SLOT(openDoodle())));
-    toolLayout->addWidget(makeToolButton(tr("Emoji"),
-                                         tr("Emoji and custom stickers"),
-                                         SLOT(showEmojiPicker())));
-    toolLayout->addWidget(makeToolButton(tr("Window shake"),
-                                         tr("Window shake"), SLOT(sendShake())));
-    toolLayout->addWidget(makeToolButton(tr("Find"),
-                                         tr("Find in history"),
-                                         SLOT(findInHistory())));
-    toolLayout->addWidget(makeToolButton(tr("Favorites"),
-                                         tr("Save chat text, a file path, or a note about this peer on this computer."),
-                                         SLOT(showFavorites())));
-    toolLayout->addWidget(makeToolButton(tr("Zone"),
-                                         tr("Open local notes under the zone folder. This is not a FeiQ zone database."),
-                                         SLOT(showZone())));
-    toolLayout->addWidget(makeToolButton(tr("Log"),
-                                         tr("Open the same local note folder. This is not a FeiQ zone log and not the message log file."),
-                                         SLOT(showZone())));
+    QToolButton *emojiButton = makeToolButton(tr("Emoji"),
+                                              tr("Emoji and custom stickers"),
+                                              SLOT(showEmojiPicker()));
+    attachGlyph(emojiButton, toolGlyphEmoji);
+    toolLayout->addWidget(emojiButton);
+    QToolButton *shakeButton = makeToolButton(tr("Shake"),
+                                              tr("Window shake"),
+                                              SLOT(sendShake()));
+    attachGlyph(shakeButton, toolGlyphShake);
+    toolLayout->addWidget(shakeButton);
+    QToolButton *findButton = makeToolButton(tr("Find"),
+                                             tr("Find in history"),
+                                             SLOT(findInHistory()));
+    attachGlyph(findButton, toolGlyphFind);
+    toolLayout->addWidget(findButton);
+    toolLayout->addWidget(toolSeparator());
+
+    QToolButton *moreButton = makeToolButton(tr("More"),
+                                             tr("More actions"), 0);
+    QMenu *moreMenu = new QMenu(moreButton);
+    moreMenu->setObjectName(QStringLiteral("chatMoreMenu"));
+    moreMenu->setToolTipsVisible(true);
+    addMenuCaption(moreMenu, tr("Transfer"));
+    QAction *browseShare = moreMenu->addAction(tr("Browse peer share"),
+                                               this, SLOT(browsePeerShare()));
+    browseShare->setToolTip(tr(
+            "List a qipmsg shared folder. FeiQ share has no verified packet format."));
+    QAction *groupFolder = moreMenu->addAction(tr("Group folder"),
+                                               this, SLOT(browseGroupShare()));
+    groupFolder->setToolTip(tr(
+            "Request files from a discussion folder this peer published."));
+    addMenuCaption(moreMenu, tr("Chat extras"));
+    QAction *doodle = moreMenu->addAction(tr("Doodle"), this, SLOT(openDoodle()));
+    doodle->setToolTip(tr("Draw a picture and send it as an image attachment."));
+    QAction *favorites = moreMenu->addAction(tr("Favorites"),
+                                             this, SLOT(showFavorites()));
+    favorites->setToolTip(tr(
+            "Save chat text, a file path, or a note about this peer on this computer."));
+    QAction *zone = moreMenu->addAction(tr("Zone"), this, SLOT(showZone()));
+    zone->setToolTip(tr(
+            "Open local notes under the zone folder. This is not a FeiQ zone database."));
+    QAction *logAction = moreMenu->addAction(tr("Log"), this, SLOT(showZone()));
+    logAction->setToolTip(tr(
+            "Open the same local note folder. This is not a FeiQ zone log and not the message log file."));
+    addMenuCaption(moreMenu, tr("Not implemented yet"));
+    QAction *remoteAssist = moreMenu->addAction(tr("Remote assist"));
+    QAction *remoteControl = moreMenu->addAction(tr("Remote control"));
+    QAction *voiceCall = moreMenu->addAction(tr("Voice call"));
+    remoteAssist->setEnabled(false);
+    remoteControl->setEnabled(false);
+    voiceCall->setEnabled(false);
+    remoteAssist->setToolTip(tr("Not implemented yet"));
+    remoteControl->setToolTip(tr("Not implemented yet"));
+    voiceCall->setToolTip(tr("Not implemented yet"));
+    moreButton->setMenu(moreMenu);
+    moreButton->setPopupMode(QToolButton::InstantPopup);
+    attachGlyph(moreButton, toolGlyphMore);
+    toolLayout->addWidget(moreButton);
     toolLayout->addStretch();
 
     m_fileListButton = new QPushButton;
@@ -340,14 +557,14 @@ void ChatWindow::createUi()
     chatLayout->setContentsMargins(0, 0, 0, 0);
     chatLayout->setSpacing(0);
     chatLayout->addWidget(header);
-    chatLayout->addWidget(toolbar);
+    chatLayout->addWidget(m_toolbar);
     chatLayout->addWidget(m_historyEdit, 3);
     chatLayout->addWidget(m_queuePanel);
     chatLayout->addWidget(composer);
 
-    QWidget *profilePanel = new QWidget;
-    profilePanel->setObjectName("profilePanel");
-    profilePanel->setMinimumWidth(240);
+    m_profilePanel = new QWidget;
+    m_profilePanel->setObjectName("profilePanel");
+    m_profilePanel->setMinimumWidth(0);
     m_profileAvatar = new QLabel;
     m_profileAvatar->setFixedSize(64, 64);
     m_profileAvatar->setAlignment(Qt::AlignCenter);
@@ -366,11 +583,16 @@ void ChatWindow::createUi()
     m_profileLogin = new QLabel;
     m_profileGroup = new QLabel;
     m_profileIp = new QLabel;
+    m_profileNick = new QLabel;
+    m_profileHost->setWordWrap(true);
+    m_profileLogin->setWordWrap(true);
+    m_profileGroup->setWordWrap(true);
+    m_profileIp->setWordWrap(true);
+    m_profileNick->setWordWrap(true);
 
     QWidget *profileForm = new QWidget;
     profileForm->setObjectName("profileForm");
     QFormLayout *form = new QFormLayout(profileForm);
-    m_profileNick = new QLabel;
     form->setContentsMargins(8, 8, 8, 8);
     form->setLabelAlignment(Qt::AlignLeft);
     form->addRow(tr("Nickname:"), m_profileNick);
@@ -383,9 +605,9 @@ void ChatWindow::createUi()
     profileTitle->setObjectName("profileName");
     profileTitle->setAlignment(Qt::AlignLeft);
 
-    QVBoxLayout *profileLayout = new QVBoxLayout(profilePanel);
-    profileLayout->setContentsMargins(16, 16, 16, 16);
-    profileLayout->setSpacing(8);
+    QVBoxLayout *profileLayout = new QVBoxLayout(m_profilePanel);
+    profileLayout->setContentsMargins(12, 12, 12, 12);
+    profileLayout->setSpacing(6);
     profileLayout->addWidget(profileTitle);
     profileLayout->addSpacing(8);
     profileLayout->addWidget(m_profileAvatar, 0, Qt::AlignHCenter);
@@ -420,20 +642,176 @@ void ChatWindow::createUi()
     profileLayout->addWidget(profileForm);
     profileLayout->addStretch();
 
-    QSplitter *splitter = new QSplitter(Qt::Horizontal);
-    splitter->addWidget(chatPane);
-    splitter->addWidget(profilePanel);
-    splitter->setStretchFactor(0, 3);
-    splitter->setStretchFactor(1, 1);
-    splitter->setChildrenCollapsible(false);
+    m_splitter = new QSplitter(Qt::Horizontal);
+    m_splitter->addWidget(chatPane);
+    m_splitter->addWidget(m_profilePanel);
+    m_splitter->setStretchFactor(0, 1);
+    m_splitter->setStretchFactor(1, 0);
+    m_splitter->setCollapsible(0, false);
+    m_splitter->setCollapsible(1, true);
+    m_splitter->setChildrenCollapsible(true);
+    connect(m_splitter, &QSplitter::splitterMoved, this, [this](int, int) {
+        if (m_layoutReady && !m_applyingLayout) {
+            saveChatLayout();
+        }
+    });
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
-    mainLayout->addWidget(splitter);
+    mainLayout->addWidget(m_splitter);
     setLayout(mainLayout);
+    setMinimumSize(kChatMinWidth, kChatMinHeight);
+    polishToolbarIcons();
 
     m_inputEdit->setFocus();
+}
+
+void ChatWindow::polishToolbarIcons()
+{
+    const QColor ink = palette().color(QPalette::ButtonText);
+    QList<QToolButton *> buttons;
+    if (m_toolbar) {
+        buttons = m_toolbar->findChildren<QToolButton *>();
+    }
+    if (m_profileToggle) {
+        buttons.append(m_profileToggle);
+    }
+    for (int i = 0; i < buttons.size(); ++i) {
+        QToolButton *button = buttons.at(i);
+        const QVariant glyph = button->property("toolGlyph");
+        if (!glyph.isValid()) {
+            continue;
+        }
+        button->setIcon(toolGlyphIcon(static_cast<ToolGlyph>(glyph.toInt()), ink));
+        button->setIconSize(QSize(16, 16));
+        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        const int textWidth = button->sizeHint().width();
+        if (textWidth > 0) {
+            button->setMinimumWidth(textWidth);
+        }
+    }
+}
+
+void ChatWindow::applyProfileVisible(bool visible)
+{
+    if (!m_profilePanel || !m_splitter) {
+        return;
+    }
+    if (m_profileToggle) {
+        const bool blocked = m_profileToggle->blockSignals(true);
+        m_profileToggle->setChecked(visible);
+        m_profileToggle->blockSignals(blocked);
+    }
+    if (visible) {
+        m_profilePanel->setMinimumWidth(196);
+        m_profilePanel->setMaximumWidth(320);
+        m_profilePanel->show();
+        const QList<int> sizes = m_splitter->sizes();
+        if (sizes.size() == 2 && sizes.at(1) < 160) {
+            const int right = kProfilePaneWidth;
+            const int left = qMax(360, width() - right);
+            if (width() < left + right) {
+                resize(left + right, qMax(height(), kChatMinHeight));
+            }
+            m_splitter->setSizes(QList<int>() << left << right);
+        }
+    } else {
+        const int oldWidth = width();
+        const int pane = m_profilePanel->isVisible() ? m_profilePanel->width() : 0;
+        m_profilePanel->hide();
+        m_profilePanel->setMinimumWidth(0);
+        m_profilePanel->setMaximumWidth(0);
+        if (layout()) {
+            layout()->activate();
+        }
+        if (m_layoutReady && !isMaximized() && pane > 40) {
+            int floorWidth = kChatMinWidth;
+            if (m_toolbar) {
+                floorWidth = qMax(floorWidth, m_toolbar->minimumSizeHint().width() + 8);
+            }
+            const int target = qMax(floorWidth, oldWidth - pane);
+            resize(target, qMax(height(), kChatMinHeight));
+        }
+    }
+}
+
+void ChatWindow::saveChatLayout()
+{
+    if (!Global::settings || !m_layoutReady || m_applyingLayout) {
+        return;
+    }
+    QSettings *set = Global::settings;
+    set->beginGroup(QStringLiteral("ChatWindow"));
+    const QRect normal = normalGeometry();
+    if (normal.width() < 100 || normal.height() < 100) {
+        set->endGroup();
+        return;
+    }
+    const int savedWidth = qBound(kChatMinWidth, normal.width(), 4000);
+    const int savedHeight = qBound(kChatMinHeight, normal.height(), 3000);
+    set->setValue(QStringLiteral("width"), savedWidth);
+    set->setValue(QStringLiteral("height"), savedHeight);
+    set->setValue(QStringLiteral("maximized"), isMaximized());
+    set->setValue(QStringLiteral("profileVisible"),
+                  m_profilePanel && m_profilePanel->isVisible());
+    if (m_splitter && m_profilePanel && m_profilePanel->isVisible()) {
+        set->setValue(QStringLiteral("splitter"), m_splitter->saveState());
+    }
+    set->endGroup();
+}
+
+void ChatWindow::restoreChatLayout()
+{
+    m_applyingLayout = true;
+    bool profileVisible = true;
+    int savedWidth = 0;
+    int savedHeight = 0;
+    bool maximized = false;
+    QByteArray splitterState;
+    if (Global::settings) {
+        QSettings *set = Global::settings;
+        set->beginGroup(QStringLiteral("ChatWindow"));
+        savedWidth = set->value(QStringLiteral("width"), 0).toInt();
+        savedHeight = set->value(QStringLiteral("height"), 0).toInt();
+        maximized = set->value(QStringLiteral("maximized"), false).toBool();
+        if (set->contains(QStringLiteral("profileVisible"))) {
+            profileVisible = set->value(QStringLiteral("profileVisible")).toBool();
+        }
+        splitterState = set->value(QStringLiteral("splitter")).toByteArray();
+        set->endGroup();
+    }
+    applyProfileVisible(profileVisible);
+    if (profileVisible && m_splitter && !splitterState.isEmpty()) {
+        m_splitter->restoreState(splitterState);
+        const QList<int> sizes = m_splitter->sizes();
+        if (sizes.size() == 2 && sizes.at(1) < 160) {
+            m_splitter->setSizes(QList<int>() << qMax(360, sizes.at(0))
+                                 << kProfilePaneWidth);
+        }
+    }
+    if (savedWidth >= kChatMinWidth && savedHeight >= kChatMinHeight) {
+        resize(chatSizeWithinScreen(QSize(savedWidth, savedHeight)));
+    } else {
+        resize(chatSizeWithinScreen(sizeHint()));
+    }
+    if (maximized) {
+        setWindowState(windowState() | Qt::WindowMaximized);
+    }
+    m_applyingLayout = false;
+}
+
+void ChatWindow::toggleProfile(bool visible)
+{
+    m_applyingLayout = true;
+    applyProfileVisible(visible);
+    m_applyingLayout = false;
+    if (m_layoutReady) {
+        saveChatLayout();
+        if (Global::settings) {
+            Global::settings->sync();
+        }
+    }
 }
 
 void ChatWindow::refreshPeerCaption()
@@ -1603,7 +1981,54 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::showEvent(QShowEvent *event)
 {
+    if (!m_layoutReady) {
+        m_layoutReady = true;
+        restoreChatLayout();
+    }
     QWidget::showEvent(event);
+    polishToolbarIcons();
+    const QSize minSize = minimumSizeHint();
+    if (width() < minSize.width() || height() < minSize.height()) {
+        m_applyingLayout = true;
+        resize(chatSizeWithinScreen(QSize(qMax(width(), minSize.width()),
+                                           qMax(height(), minSize.height()))));
+        m_applyingLayout = false;
+        saveChatLayout();
+    }
     refreshPeerCaption();
     emit chatShown(m_peerIp);
+}
+
+void ChatWindow::hideEvent(QHideEvent *event)
+{
+    saveChatLayout();
+    if (Global::settings && m_layoutReady) {
+        Global::settings->sync();
+    }
+    QWidget::hideEvent(event);
+}
+
+void ChatWindow::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    if (!m_layoutReady || m_applyingLayout || isMaximized()) {
+        return;
+    }
+    if (width() < kChatMinWidth || height() < kChatMinHeight) {
+        return;
+    }
+    saveChatLayout();
+}
+
+void ChatWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::PaletteChange
+            || event->type() == QEvent::StyleChange) {
+        polishToolbarIcons();
+    }
+    if (event->type() == QEvent::WindowStateChange && m_layoutReady
+            && !m_applyingLayout) {
+        saveChatLayout();
+    }
+    QWidget::changeEvent(event);
 }
