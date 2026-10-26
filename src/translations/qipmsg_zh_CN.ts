@@ -4718,6 +4718,21 @@ Right-click to delete or move</source>
         <source>Dial-up host</source>
         <translation>拨号主机</translation>
     </message>
+    <message>
+        <location filename="../user_manager.cpp" line="1"/>
+        <source>Other addresses for this peer: %1</source>
+        <translation>这个联系人的其它地址：%1</translation>
+    </message>
+    <message>
+        <location filename="../user_manager.cpp" line="1"/>
+        <source>This chat is on %1. The contact list prefers %2.</source>
+        <translation>这次会话在 %1。联系人列表优先用 %2。</translation>
+    </message>
+    <message>
+        <location filename="../user_manager.cpp" line="1"/>
+        <source>Messages and files from the contact list use %1. A fresh 192.168 or 172.16 address is chosen over a fresh 10.x address.</source>
+        <translation>从联系人列表发出的消息和文件使用 %1。192.168 或 172.16 地址若仍在线，会优先于同样在线的 10.x 地址。</translation>
+    </message>
 </context>
 <context>
     <name>WinShare</name>

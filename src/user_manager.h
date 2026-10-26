@@ -19,11 +19,13 @@
 
 #include "owner.h"
 #include "msg.h"
+#include "peerFold.h"
 
 #include <QDateTime>
 #include <QMap>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 class QStandardItemModel;
 class QTimer;
@@ -64,7 +66,21 @@ public:
     QStringList departmentNames() const;
     QStringList reachableIpsInGroup(const QString &groupName) const;
     int userCount() const;
+    // Logical people, not UDP source rows. Two NICs of one login+host
+    // count once. Our own addresses are not in the model.
     int onlineCount() const;
+    int listedPeerCount() const;
+    bool isSelfPeer(const QString &login, const QString &host,
+                    const QString &ip) const;
+    // Groups of model rows. indexes are model rows. preferred is the
+    // row whose IP chat and file send should use.
+    QList<PeerFoldGroup> contactFolds() const;
+    int preferredRowForIp(const QString &ip) const;
+    // One address per logical peer. When reachableOnly is set, a peer
+    // is included only when the preferred address is online or away.
+    // Freshness is the first sort key, so that address is fresh whenever
+    // any address of the peer is fresh.
+    QStringList logicalSendIps(bool reachableOnly) const;
     QString displayNameForIp(const QString &ip) const;
     QString realNameForIp(const QString &ip) const;
     QString memoForIp(const QString &ip) const;
@@ -112,7 +128,7 @@ private:
     void sweepStaleUsers();
     quint32 presenceFlags(quint32 command) const;
     quint32 peerCapsForIp(const QString &ip) const;
-    void loadPersistedPeers();
+    bool loadPersistedPeers();
     void scheduleSavePeers();
     QString peersFilePath() const;
     void notifyUsersChanged();
@@ -121,6 +137,8 @@ private:
                                   const QString &currentGroup) const;
     void applyDialupFlag(int row, bool dialup);
     void unicastPresenceToDialup(quint32 command) const;
+    void pruneSelfRows();
+    QStringList localIpv4List() const;
 
     static Owner m_ourself;
 

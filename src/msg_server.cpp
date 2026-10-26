@@ -240,6 +240,18 @@ void MsgServer::processRecvMsg(Msg msg)
 
 void MsgServer::processEntryMsg(Msg msg)
 {
+    // Hearing our own broadcast on a second NIC must not ANSENTRY back
+    // to ourselves, and must not be stored as a contact. FeiQ is not
+    // self unless login and host both match this machine, so a peer
+    // named FoxWolf on WORK-LAPTOP still gets the normal answer.
+    if (Global::userManager
+            && Global::userManager->isSelfPeer(msg->owner().loginName(),
+                                              msg->owner().host(),
+                                              msg->ip())) {
+        emit newUserMsg(msg);
+        return;
+    }
+
     emit newUserMsg(msg);
 
     // Stealth / FeiQ HideMode: still record the peer so we can see them,

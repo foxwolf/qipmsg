@@ -16,6 +16,7 @@
 
 #include "localMsg.h"
 #include "helper.h"
+#include "peerFold.h"
 #include "winShare.h"
 
 #include <QCryptographicHash>
@@ -157,30 +158,38 @@ LocalPlan LocalMsg::planDelivery(const QString &target, const QString &text,
             || host.contains(QLatin1Char('\\')) || host.contains(QLatin1Char('/'))) {
         return plan;
     }
-    QString found;
-    int matches = 0;
-    bool reachable = false;
+    QList<int> matches;
     for (int i = 0; i < peers.size(); ++i) {
         if (!sameToken(peers.at(i).login, login) || !sameToken(peers.at(i).host, host)) {
             continue;
         }
-        ++matches;
-        found = peers.at(i).ip;
-        if (peers.at(i).reachable) {
-            reachable = true;
-        }
+        matches.append(i);
     }
-    if (matches == 0) {
+    if (matches.isEmpty()) {
         plan.kind = localPlanMissing;
         return plan;
     }
-    if (matches > 1) {
-        plan.kind = localPlanAmbiguous;
-        plan.ip.clear();
-        return plan;
+    // login@host names one person even when that host has two NICs.
+    // The old path returned ERR ambiguous for bob@host on two addresses.
+    // That is the FeiQ dual-home case, so pick the same preferred
+    // address the contact list uses (fresh LAN over fresh 10/8).
+    int chosen = matches.first();
+    if (matches.size() > 1) {
+        QList<PeerFoldEnd> ends;
+        for (int n = 0; n < matches.size(); ++n) {
+            const LocalPeerRef &peer = peers.at(matches.at(n));
+            PeerFoldEnd end;
+            end.ip = peer.ip;
+            end.fresh = peer.reachable;
+            ends.append(end);
+        }
+        const int best = preferredPeerIndex(ends);
+        if (best >= 0 && best < matches.size()) {
+            chosen = matches.at(best);
+        }
     }
-    plan.ip = found;
-    if (reachable) {
+    plan.ip = peers.at(chosen).ip;
+    if (peers.at(chosen).reachable) {
         plan.kind = localPlanSend;
     } else {
         plan.kind = queueEnabled ? localPlanQueue : localPlanOffline;

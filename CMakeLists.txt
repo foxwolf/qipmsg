@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.53.23 LANGUAGES CXX)
+project(qipmsg VERSION 2.54.24 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,6 +59,7 @@ set(SOURCES
     src/msg_window.cpp
     src/offline_queue.cpp
     src/owner.cpp
+    src/peerFold.cpp
     src/pinyin.cpp
     src/portBind.cpp
     src/portConflict.cpp
@@ -158,6 +159,7 @@ set(HEADERS
     src/msg_window.h
     src/offline_queue.h
     src/owner.h
+    src/peerFold.h
     src/pinyin.h
     src/portBind.h
     src/portConflict.h
@@ -228,7 +230,7 @@ endif()
 
 add_executable(qipmsg ${SOURCES} ${HEADERS} ${RESOURCES} ${QM_FILES})
 
-add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp src/recvEndpoints.cpp)
+add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp src/recvEndpoints.cpp src/peerFold.cpp)
 target_include_directories(qipmsgP1Check PRIVATE src)
 
 add_executable(qipmsgBackupCheck
@@ -255,6 +257,7 @@ add_executable(qipmsgQueueCheck
     test/queuecheck/main.cpp
     test/queuecheck/stubs.cpp
     src/offline_queue.cpp
+    src/peerFold.cpp
 )
 target_include_directories(qipmsgQueueCheck PRIVATE src)
 
@@ -280,6 +283,7 @@ add_executable(qipmsgP3Check
     src/winShare.cpp
     src/localMsg.cpp
     src/zoneStore.cpp
+    src/peerFold.cpp
 )
 target_include_directories(qipmsgP3Check PRIVATE src)
 
@@ -303,7 +307,7 @@ if (Qt6_FOUND)
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt6::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt6::Core)
-    target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt6::Core Qt6::Widgets Qt6::Network)
     target_link_libraries(qipmsgP2Check PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
     target_link_libraries(qipmsgP3Check PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
     target_link_libraries(qipmsgPortCheck PRIVATE Qt6::Core Qt6::Network)
@@ -318,7 +322,7 @@ else()
     target_link_libraries(qipmsgBackupCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgShareCheck PRIVATE Qt5::Core)
     target_link_libraries(qipmsgCryptoCheck PRIVATE Qt5::Core)
-    target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets)
+    target_link_libraries(qipmsgQueueCheck PRIVATE Qt5::Core Qt5::Widgets Qt5::Network)
     target_link_libraries(qipmsgP2Check PRIVATE Qt5::Core Qt5::Gui Qt5::Widgets Qt5::Network)
     target_link_libraries(qipmsgP3Check PRIVATE Qt5::Core Qt5::Gui Qt5::Network)
     target_link_libraries(qipmsgPortCheck PRIVATE Qt5::Core Qt5::Network)

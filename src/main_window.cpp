@@ -843,32 +843,104 @@ void MainWindow::updateGroupTitle(QTreeWidgetItem *group, const QString &title)
 void MainWindow::addPeerItem(QTreeWidgetItem *parent, int row)
 {
     UserManager *um = Global::userManager;
+    // `row` is the preferred address of one logical peer. The other
+    // NICs stay in the model for file retry, but they are not extra
+    // top-level contacts. Search and the typing flag still see them.
+    QList<int> foldRows;
+    foldRows << row;
+    const QList<PeerFoldGroup> folds = um->contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        if (folds.at(g).indexes.contains(row)) {
+            foldRows = folds.at(g).indexes;
+            break;
+        }
+    }
+
+    QStringList allIps;
+    for (int i = 0; i < foldRows.size(); ++i) {
+        const QString one = um->ip(foldRows.at(i));
+        if (!one.isEmpty() && !allIps.contains(one)) {
+            allIps << one;
+        }
+    }
+
     const QString name = um->name(row);
     const QString host = um->host(row);
     const QString ip = um->ip(row);
-    const QString memo = um->memoForIp(ip);
+    // A memo typed against either NIC should label the folded row.
+    // The preferred address wins when both have one.
+    QString memo = um->memoForIp(ip);
+    if (memo.isEmpty()) {
+        for (int i = 0; i < allIps.size(); ++i) {
+            memo = um->memoForIp(allIps.at(i));
+            if (!memo.isEmpty()) {
+                break;
+            }
+        }
+    }
     const int presence = um->presence(row);
     const QString display = memo.isEmpty() ? name : memo;
 
+    QStringList extras;
+    for (int i = 0; i < allIps.size(); ++i) {
+        if (allIps.at(i) != ip) {
+            extras << allIps.at(i);
+        }
+    }
+    // Show the send address, and that more exist, without a second row
+    // the user could multi-select and message twice.
+    QString ipShown = ip;
+    if (extras.size() == 1) {
+        ipShown = QString("%1 · +%2").arg(ip, extras.first());
+    } else if (extras.size() > 1) {
+        ipShown = QString("%1 · +%2").arg(ip).arg(extras.size());
+    }
+
     QTreeWidgetItem *item = new QTreeWidgetItem(parent);
     QString subtitle = memo.isEmpty()
-            ? (host.isEmpty() ? ip : QString("%1 · %2").arg(host, ip))
+            ? (host.isEmpty() ? ipShown : QString("%1 · %2").arg(host, ipShown))
             : (host.isEmpty()
-               ? QString("%1 · %2").arg(name, ip)
-               : QString("%1 · %2 · %3").arg(name, host, ip));
-    const bool dialup = um->peerIsDialup(ip);
+               ? QString("%1 · %2").arg(name, ipShown)
+               : QString("%1 · %2 · %3").arg(name, host, ipShown));
+    bool dialup = false;
+    bool share = false;
+    bool typing = false;
+    for (int i = 0; i < allIps.size(); ++i) {
+        if (um->peerIsDialup(allIps.at(i))) {
+            dialup = true;
+        }
+        if (um->peerHasShare(allIps.at(i))) {
+            share = true;
+        }
+        if (m_typingIps.contains(allIps.at(i))) {
+            typing = true;
+        }
+    }
     if (dialup) {
         subtitle = QString("%1 · %2").arg(tr("Dial-up"), subtitle);
     }
-    item->setText(0, QString("%1 %2 %3 %4").arg(display, name, host, ip));
+    item->setText(0, QString("%1 %2 %3 %4").arg(display, name, host, ipShown));
     item->setData(0, Qt::UserRole, ip);
-    item->setData(0, Qt::UserRole + 3, um->group(row));
+    // Same department the tree parent used: the preferred row, or
+    // another NIC when that row's group was empty. Group send matches
+    // this field, so it must not stay blank in that case.
+    QString groupName = um->group(row);
+    if (groupName.isEmpty()) {
+        for (int i = 0; i < foldRows.size(); ++i) {
+            const QString other = um->group(foldRows.at(i));
+            if (!other.isEmpty()) {
+                groupName = other;
+                break;
+            }
+        }
+    }
+    item->setData(0, Qt::UserRole + 3, groupName);
     item->setData(0, Qt::UserRole + 4, subtitle);
     item->setData(0, Qt::UserRole + 6, display);
-    item->setData(0, Qt::UserRole + 9, m_typingIps.contains(ip));
-    item->setData(0, Qt::UserRole + 10,
-                  Global::userManager && Global::userManager->peerHasShare(ip));
+    item->setData(0, Qt::UserRole + 9, typing);
+    item->setData(0, Qt::UserRole + 10, share);
     item->setData(0, Qt::UserRole + 11, dialup);
+    item->setData(0, Qt::UserRole + 12, allIps);
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setSizeHint(0, QSize(180, 52));
 
@@ -949,10 +1021,24 @@ void MainWindow::addRecentItems(QTreeWidgetItem *parent)
         return;
     }
     const QList<RecentContact> rows = Global::recentStore->items();
-    const int limit = qMin(rows.size(), 20);
-    for (int i = 0; i < limit; ++i) {
+    // Recent chats are stored per IP. Two NICs of one person would
+    // otherwise fill this section the same way the friend list did.
+    // Keep the newest snippet. Clicking still opens that IP's history
+    // rather than jumping to the preferred NIC and an empty transcript.
+    // Walk past folded duplicates so the section can still show 20 people.
+    QSet<int> seenFolds;
+    int shown = 0;
+    for (int i = 0; i < rows.size() && shown < 20; ++i) {
         const RecentContact &row = rows.at(i);
         const int userRow = Global::userManager->ipToRow(row.ip);
+        if (userRow >= 0) {
+            const int preferred = Global::userManager->preferredRowForIp(row.ip);
+            const int foldId = preferred >= 0 ? preferred : userRow;
+            if (seenFolds.contains(foldId)) {
+                continue;
+            }
+            seenFolds.insert(foldId);
+        }
         const int presence = userRow == -1
                 ? PRESENCE_STALE : Global::userManager->presence(userRow);
         QString name = row.name;
@@ -994,6 +1080,7 @@ void MainWindow::addRecentItems(QTreeWidgetItem *parent)
         }
         item->setIcon(0, QIcon(peerAvatar(name, presence, 36, row.ip)));
         item->setToolTip(0, tr("Click to open chat\n%1").arg(subtitle));
+        ++shown;
     }
     updateGroupTitle(parent, tr("Recent contacts"));
 }
@@ -1061,16 +1148,40 @@ void MainWindow::rebuildContactTree()
     QTreeWidgetItem *blackGroup = makeGroupItem(tr("Blacklist"), "blacklist");
 
     UserManager *um = Global::userManager;
-    for (int row = 0; row < um->userCount(); ++row) {
+    // One tree row per login+host. The model underneath is still one
+    // record per IP so file receive can try every NIC, and so a chat
+    // that arrived on ZeroTier can stay on that address.
+    const QList<PeerFoldGroup> folds = um->contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        const PeerFoldGroup &fold = folds.at(g);
+        int row = fold.preferred;
+        if (row < 0 || row >= um->userCount()) {
+            continue;
+        }
         const QString ip = um->ip(row);
         if (ip.isEmpty()) {
             continue;
         }
+        // Blacklist follows the address we would send to. An old
+        // blacklist entry for the other NIC does not hide the person;
+        // blacklisting the folded row records the preferred address.
         if (isBlacklisted(ip)) {
             addPeerItem(blackGroup, row);
             continue;
         }
-        const QString group = um->group(row);
+        // Prefer the department on the send address. If that packet
+        // had an empty group, keep a department announced by the other
+        // NIC so FeiQ does not fall into Ungrouped.
+        QString group = um->group(row);
+        if (group.isEmpty()) {
+            for (int n = 0; n < fold.indexes.size(); ++n) {
+                const QString other = um->group(fold.indexes.at(n));
+                if (!other.isEmpty()) {
+                    group = other;
+                    break;
+                }
+            }
+        }
         if (group.isEmpty()) {
             addPeerItem(ungrouped, row);
         } else {
@@ -1217,6 +1328,9 @@ void MainWindow::applyFilterToItem(QTreeWidgetItem *item, const QString &needle)
         const int row = um->ipToRow(ip);
         QStringList fields;
         fields << item->text(0) << item->toolTip(0) << ip;
+        // UserRole+12 is every NIC of this folded contact, so a search
+        // for the ZeroTier address still finds the LAN row.
+        fields << item->data(0, Qt::UserRole + 12).toStringList();
         if (row != -1) {
             fields << um->name(row) << um->host(row) << um->loginName(row)
                    << um->group(row);

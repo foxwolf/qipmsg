@@ -2,11 +2,14 @@
 // Not a GUI test: it links protocolutil.cpp and Qt Core/Network only.
 
 #include "autostart.h"
+#include "peerFold.h"
 #include "protocolutil.h"
 #include "recvEndpoints.h"
 
 #include <QCoreApplication>
+#include <QDate>
 #include <QHostAddress>
+#include <QTime>
 
 #include <cstdio>
 
@@ -268,6 +271,179 @@ int main(int argc, char **argv)
     CHECK(!dirPull.contains(":62:"));
     CHECK(dirPull.at(dirPull.size() - 1) == '\0');
 
+    // Same login+host is one person, ignoring case. The nick is not
+    // part of the key. A different host stays a different person even
+    // when the login is also "foxwolf".
+    CHECK(peerFoldKey(QStringLiteral("foxwolf"), QStringLiteral("hw"))
+          == peerFoldKey(QStringLiteral("FoxWolf"), QStringLiteral("HW")));
+    CHECK(peerFoldKey(QStringLiteral("foxwolf"), QStringLiteral("hw"))
+          != peerFoldKey(QStringLiteral("FoxWolf"), QStringLiteral("WORK-LAPTOP")));
+    CHECK(peerFoldKey(QStringLiteral("FoxWolf"), QStringLiteral("WORK-LAPTOP"))
+          != peerFoldKey(QStringLiteral("FoxWolf"), QStringLiteral("MXGS-WORK")));
+    CHECK(peerFoldKey(QStringLiteral("foxwolf"), QString()).isEmpty());
+    CHECK(peerFoldKey(QString(), QStringLiteral("hw")).isEmpty());
+
+    // "qipmsg" and the avatar digest are not a machine id. "id:" is.
+    CHECK(peerMachineId(QStringLiteral("qipmsg")).isEmpty());
+    CHECK(peerMachineId(QStringLiteral("qipmsg,share,av:abcdef012345")).isEmpty());
+    CHECK(peerMachineId(QStringLiteral("qipmsg,id:Hw-1"))
+          == QLatin1String("id:hw-1"));
+    CHECK(peerMachineId(QString()).isEmpty());
+
+    CHECK(peerAddrSendRank(QStringLiteral("192.168.14.164"))
+          > peerAddrSendRank(QStringLiteral("10.147.19.236")));
+    CHECK(peerAddrSendRank(QStringLiteral("172.16.4.2"))
+          == peerAddrSendRank(QStringLiteral("192.168.4.170")));
+    CHECK(peerAddrSendRank(QStringLiteral("10.147.19.113"))
+          > peerAddrSendRank(QStringLiteral("169.254.1.8")));
+    CHECK(peerAddrSendRank(QStringLiteral("127.0.0.1")) == 0);
+    CHECK(peerAddrSendRank(QStringLiteral("8.8.8.8"))
+          < peerAddrSendRank(QStringLiteral("10.1.1.1")));
+
+    QStringList localIps;
+    localIps << QStringLiteral("192.168.4.170") << QStringLiteral("10.147.19.113");
+    CHECK(peerIsSelf(QStringLiteral("foxwolf"), QStringLiteral("hw"),
+                     QStringLiteral("192.168.4.170"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(peerIsSelf(QStringLiteral("foxwolf"), QStringLiteral("hw"),
+                     QStringLiteral("10.147.19.113"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    // Deprecated WLAN and yesterday's LAN are still this PC.
+    CHECK(peerIsSelf(QStringLiteral("foxwolf"), QStringLiteral("hw"),
+                     QStringLiteral("10.168.1.210"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(peerIsSelf(QStringLiteral("foxwolf"), QStringLiteral("hw"),
+                     QStringLiteral("192.168.1.50"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(peerIsSelf(QStringLiteral("foxwolf"), QStringLiteral("hw"),
+                     QStringLiteral("127.0.0.1"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(peerIsSelf(QString(), QString(), QStringLiteral("127.0.0.1"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    // pytest on 127.0.0.2 is not this login.
+    CHECK(!peerIsSelf(QStringLiteral("pytest"), QStringLiteral("test"),
+                      QStringLiteral("127.0.0.2"),
+                      QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    // FeiQ uses the same login letters and a different host.
+    CHECK(!peerIsSelf(QStringLiteral("FoxWolf"), QStringLiteral("WORK-LAPTOP"),
+                      QStringLiteral("192.168.14.164"),
+                      QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(!peerIsSelf(QStringLiteral("FoxWolf"), QStringLiteral("WORK-LAPTOP"),
+                      QStringLiteral("10.147.19.236"),
+                      QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    CHECK(!peerIsSelf(QStringLiteral("FoxWolf"), QStringLiteral("MXGS-WORK"),
+                      QStringLiteral("10.168.1.122"),
+                      QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+    // Our NIC plus our host, even if the login field is a nick.
+    CHECK(peerIsSelf(QStringLiteral("me"), QStringLiteral("hw"),
+                     QStringLiteral("192.168.4.170"),
+                     QStringLiteral("foxwolf"), QStringLiteral("hw"), localIps));
+
+    PeerFoldInput feiqLan;
+    feiqLan.ip = QStringLiteral("192.168.14.164");
+    feiqLan.login = QStringLiteral("FoxWolf");
+    feiqLan.host = QStringLiteral("WORK-LAPTOP");
+    feiqLan.port = 2425;
+    feiqLan.fresh = true;
+    feiqLan.seen = QDateTime(QDate(2026, 10, 26), QTime(15, 42, 52));
+    PeerFoldInput feiqZt = feiqLan;
+    feiqZt.ip = QStringLiteral("10.147.19.236");
+    feiqZt.login = QStringLiteral("foxwolf");
+    feiqZt.host = QStringLiteral("work-laptop");
+    PeerFoldInput otherHost = feiqLan;
+    otherHost.ip = QStringLiteral("10.168.1.122");
+    otherHost.login = QStringLiteral("FoxWolf");
+    otherHost.host = QStringLiteral("MXGS-WORK");
+    otherHost.fresh = false;
+    PeerFoldInput selfLan;
+    selfLan.ip = QStringLiteral("192.168.4.170");
+    selfLan.login = QStringLiteral("foxwolf");
+    selfLan.host = QStringLiteral("hw");
+    selfLan.port = 12425;
+    selfLan.fresh = true;
+    selfLan.qipToken = QStringLiteral("qipmsg");
+    PeerFoldInput selfZt = selfLan;
+    selfZt.ip = QStringLiteral("10.147.19.113");
+    selfZt.qipToken = QStringLiteral("qipmsg,av:abcdef012345");
+
+    QList<PeerFoldInput> captured;
+    captured << selfLan << selfZt << feiqLan << feiqZt << otherHost;
+    const QList<PeerFoldGroup> capturedGroups = peerFoldGroups(captured);
+    CHECK(capturedGroups.size() == 3);
+    int feiqPreferred = -1;
+    int selfPreferred = -1;
+    int otherCount = 0;
+    for (int i = 0; i < capturedGroups.size(); ++i) {
+        const PeerFoldGroup &group = capturedGroups.at(i);
+        CHECK(group.preferred >= 0);
+        const QString host = captured.at(group.preferred).host.toLower();
+        if (host == QLatin1String("work-laptop")) {
+            CHECK(group.indexes.size() == 2);
+            feiqPreferred = group.preferred;
+        } else if (host == QLatin1String("hw")) {
+            CHECK(group.indexes.size() == 2);
+            selfPreferred = group.preferred;
+        } else {
+            ++otherCount;
+            CHECK(group.indexes.size() == 1);
+        }
+    }
+    CHECK(otherCount == 1);
+    CHECK(feiqPreferred >= 0);
+    CHECK(captured.at(feiqPreferred).ip == QLatin1String("192.168.14.164"));
+    CHECK(selfPreferred >= 0);
+    CHECK(captured.at(selfPreferred).ip == QLatin1String("192.168.4.170"));
+
+    // A live overlay beats a stale LAN. The contact can still be
+    // opened, and file receive keeps both rows in the model.
+    PeerFoldInput staleLan = feiqLan;
+    staleLan.fresh = false;
+    staleLan.seen = QDateTime(QDate(2026, 10, 25), QTime(6, 0, 0));
+    QList<PeerFoldInput> staleFirst;
+    staleFirst << staleLan << feiqZt;
+    const QList<PeerFoldGroup> staleGroups = peerFoldGroups(staleFirst);
+    CHECK(staleGroups.size() == 1);
+    CHECK(staleFirst.at(staleGroups.at(0).preferred).ip
+          == QLatin1String("10.147.19.236"));
+
+    // Two install ids on one hostname do not fold. A token-less row
+    // stays with the id that has more addresses.
+    PeerFoldInput idA = selfLan;
+    idA.qipToken = QStringLiteral("qipmsg,id:aaa");
+    idA.ip = QStringLiteral("192.168.4.170");
+    PeerFoldInput idA2 = idA;
+    idA2.ip = QStringLiteral("10.147.19.113");
+    PeerFoldInput idB = selfLan;
+    idB.qipToken = QStringLiteral("qipmsg,id:bbb");
+    idB.ip = QStringLiteral("192.168.4.171");
+    PeerFoldInput noId = selfLan;
+    noId.qipToken.clear();
+    noId.ip = QStringLiteral("192.168.4.172");
+    QList<PeerFoldInput> clones;
+    clones << idB << idA << noId << idA2;
+    const QList<PeerFoldGroup> cloneGroups = peerFoldGroups(clones);
+    CHECK(cloneGroups.size() == 2);
+    bool sawAaa = false;
+    bool sawBbb = false;
+    for (int i = 0; i < cloneGroups.size(); ++i) {
+        const QString id = peerMachineId(
+                    clones.at(cloneGroups.at(i).indexes.first()).qipToken);
+        if (cloneGroups.at(i).indexes.size() == 3) {
+            sawAaa = true;
+            CHECK(clones.at(cloneGroups.at(i).preferred).ip
+                  == QLatin1String("192.168.4.170"));
+        } else {
+            sawBbb = true;
+            CHECK(cloneGroups.at(i).indexes.size() == 1);
+            CHECK(id == QLatin1String("id:bbb") || id.isEmpty());
+        }
+    }
+    CHECK(sawAaa);
+    CHECK(sawBbb);
+
+    // 2.53.23 fileattr checks stay next to the fold checks. Folding
+    // contacts does not change how a later FeiQ attachment is classified:
+    // the kind is still the low 8 bits of fileattr.
     // Attachment fileattr: low 8 bits are the kind. Option bits must not
     // knock a later FeiQ offer off the regular/dir download path.
     const FileAttachParsed plain = ProtocolUtil::parseFileAttachment(

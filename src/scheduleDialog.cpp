@@ -129,23 +129,40 @@ void ScheduleDialog::fillPeers(const QString &selectedIp)
     if (!Global::userManager) {
         return;
     }
-    bool seen = keep.isEmpty();
-    const int rows = Global::userManager->userCount();
-    for (int row = 0; row < rows; ++row) {
+    // One combo entry per person, on the address chat would use.
+    // A reminder that still names the other NIC selects that person
+    // instead of adding a second line.
+    QString wanted = keep;
+    if (!wanted.isEmpty()) {
+        const int preferred = Global::userManager->preferredRowForIp(wanted);
+        if (preferred >= 0) {
+            const QString preferredIp = Global::userManager->ip(preferred);
+            if (!preferredIp.isEmpty()) {
+                wanted = preferredIp;
+            }
+        }
+    }
+    bool seen = wanted.isEmpty();
+    const QList<PeerFoldGroup> folds = Global::userManager->contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        const int row = folds.at(g).preferred;
+        if (row < 0) {
+            continue;
+        }
         const QString ip = Global::userManager->ip(row);
         if (ip.isEmpty()) {
             continue;
         }
         const QString name = Global::userManager->displayNameForIp(ip);
         m_peerCombo->addItem(QString("%1 (%2)").arg(name, ip), ip);
-        if (ip == keep) {
+        if (ip == wanted) {
             seen = true;
         }
     }
-    if (!keep.isEmpty() && !seen) {
-        m_peerCombo->addItem(keep, keep);
+    if (!wanted.isEmpty() && !seen) {
+        m_peerCombo->addItem(wanted, wanted);
     }
-    const int index = m_peerCombo->findData(keep);
+    const int index = m_peerCombo->findData(wanted);
     m_peerCombo->setCurrentIndex(index < 0 ? 0 : index);
 }
 
