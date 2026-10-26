@@ -33,11 +33,14 @@
 #include "window_manager.h"
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QHostAddress>
 #include <QFileInfo>
 #include <QDir>
 #include <QTextCodec>
+
+#include <cerrno>
 
 #ifdef Q_OS_WIN
 #ifndef WIN32_LEAN_AND_MEAN
@@ -57,6 +60,160 @@ struct TransferFile
     int type;
     QMap<int, QString> extendAttr;
 };
+
+namespace {
+
+const char *qtSocketErrorName(QAbstractSocket::SocketError err)
+{
+    switch (err) {
+    case QAbstractSocket::ConnectionRefusedError:
+        return "ConnectionRefusedError";
+    case QAbstractSocket::RemoteHostClosedError:
+        return "RemoteHostClosedError";
+    case QAbstractSocket::HostNotFoundError:
+        return "HostNotFoundError";
+    case QAbstractSocket::SocketAccessError:
+        return "SocketAccessError";
+    case QAbstractSocket::SocketResourceError:
+        return "SocketResourceError";
+    case QAbstractSocket::SocketTimeoutError:
+        return "SocketTimeoutError";
+    case QAbstractSocket::DatagramTooLargeError:
+        return "DatagramTooLargeError";
+    case QAbstractSocket::NetworkError:
+        return "NetworkError";
+    case QAbstractSocket::AddressInUseError:
+        return "AddressInUseError";
+    case QAbstractSocket::SocketAddressNotAvailableError:
+        return "SocketAddressNotAvailableError";
+    case QAbstractSocket::UnsupportedSocketOperationError:
+        return "UnsupportedSocketOperationError";
+    case QAbstractSocket::UnfinishedSocketOperationError:
+        return "UnfinishedSocketOperationError";
+    case QAbstractSocket::ProxyAuthenticationRequiredError:
+        return "ProxyAuthenticationRequiredError";
+    case QAbstractSocket::SslHandshakeFailedError:
+        return "SslHandshakeFailedError";
+    case QAbstractSocket::ProxyConnectionRefusedError:
+        return "ProxyConnectionRefusedError";
+    case QAbstractSocket::ProxyConnectionClosedError:
+        return "ProxyConnectionClosedError";
+    case QAbstractSocket::ProxyConnectionTimeoutError:
+        return "ProxyConnectionTimeoutError";
+    case QAbstractSocket::ProxyNotFoundError:
+        return "ProxyNotFoundError";
+    case QAbstractSocket::ProxyProtocolError:
+        return "ProxyProtocolError";
+    case QAbstractSocket::OperationError:
+        return "OperationError";
+    case QAbstractSocket::SslInternalError:
+        return "SslInternalError";
+    case QAbstractSocket::SslInvalidUserDataError:
+        return "SslInvalidUserDataError";
+    case QAbstractSocket::TemporaryError:
+        return "TemporaryError";
+    case QAbstractSocket::UnknownSocketError:
+        return "UnknownSocketError";
+    default:
+        return "OtherSocketError";
+    }
+}
+
+const char *qtSocketStateName(QAbstractSocket::SocketState state)
+{
+    switch (state) {
+    case QAbstractSocket::UnconnectedState:
+        return "Unconnected";
+    case QAbstractSocket::HostLookupState:
+        return "HostLookup";
+    case QAbstractSocket::ConnectingState:
+        return "Connecting";
+    case QAbstractSocket::ConnectedState:
+        return "Connected";
+    case QAbstractSocket::BoundState:
+        return "Bound";
+    case QAbstractSocket::ListeningState:
+        return "Listening";
+    case QAbstractSocket::ClosingState:
+        return "Closing";
+    default:
+        return "OtherState";
+    }
+}
+
+int nativeSocketCode()
+{
+#ifdef Q_OS_WIN
+    return int(WSAGetLastError());
+#else
+    return errno;
+#endif
+}
+
+const char *nativeSocketName(int code)
+{
+#ifdef Q_OS_WIN
+    switch (code) {
+    case 0:
+        return "ok";
+    case WSAEINTR:
+        return "WSAEINTR";
+    case WSAEACCES:
+        return "WSAEACCES";
+    case WSAEWOULDBLOCK:
+        return "WSAEWOULDBLOCK";
+    case WSAENETDOWN:
+        return "WSAENETDOWN";
+    case WSAENETUNREACH:
+        return "WSAENETUNREACH";
+    case WSAENETRESET:
+        return "WSAENETRESET";
+    case WSAECONNABORTED:
+        return "WSAECONNABORTED";
+    case WSAECONNRESET:
+        return "WSAECONNRESET";
+    case WSAENOBUFS:
+        return "WSAENOBUFS";
+    case WSAENOTCONN:
+        return "WSAENOTCONN";
+    case WSAESHUTDOWN:
+        return "WSAESHUTDOWN";
+    case WSAETIMEDOUT:
+        return "WSAETIMEDOUT";
+    case WSAECONNREFUSED:
+        return "WSAECONNREFUSED";
+    case WSAEHOSTUNREACH:
+        return "WSAEHOSTUNREACH";
+    default:
+        return "other";
+    }
+#else
+    switch (code) {
+    case 0:
+        return "ok";
+    case ECONNREFUSED:
+        return "ECONNREFUSED";
+    case ECONNRESET:
+        return "ECONNRESET";
+    case ETIMEDOUT:
+        return "ETIMEDOUT";
+    case EPIPE:
+        return "EPIPE";
+    case ECONNABORTED:
+        return "ECONNABORTED";
+    case ENETUNREACH:
+        return "ENETUNREACH";
+    case EHOSTUNREACH:
+        return "EHOSTUNREACH";
+    case EAGAIN:
+        return "EAGAIN";
+    default:
+        return "other";
+    }
+#endif
+}
+
+} // namespace
 
 QList<RecvEndpoint> RecvFileTransfer::endpointsFor(RecvFileHandle h) const
 {
@@ -140,20 +297,68 @@ bool RecvFileTransfer::connectFileHost(const QString &ip, quint16 port,
             return true;
         }
         if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState) {
-            m_errorString = m_tcpSocket.errorString();
-            if (m_errorString.isEmpty()) {
-                m_errorString = QStringLiteral("connect failed");
-            }
+            m_errorString = socketFailText(QStringLiteral("connect"));
             return false;
         }
         waited += 200;
     }
-    m_errorString = m_tcpSocket.errorString();
-    if (m_errorString.isEmpty()) {
-        m_errorString = QStringLiteral("connect timeout");
-    }
+    m_errorString = socketFailText(QStringLiteral("connect"));
     m_tcpSocket.abort();
     return false;
+}
+
+bool RecvFileTransfer::pullBytesQueued() const
+{
+    return m_tcpSocket.bytesToWrite() == 0
+            && m_tcpSocket.state() == QAbstractSocket::ConnectedState;
+}
+
+QString RecvFileTransfer::socketFailText(const QString &phase) const
+{
+    QString text = m_tcpSocket.errorString();
+    if (text.isEmpty()) {
+        text = QStringLiteral("no text");
+    }
+    const int nativeCode = nativeSocketCode();
+    return QString("%1 qt=%2 %3 state=%4 %5 native=%6 %7 avail=%8 pending=%9 text=%10")
+            .arg(phase)
+            .arg(int(m_tcpSocket.error()))
+            .arg(QLatin1String(qtSocketErrorName(m_tcpSocket.error())))
+            .arg(int(m_tcpSocket.state()))
+            .arg(QLatin1String(qtSocketStateName(m_tcpSocket.state())))
+            .arg(nativeCode)
+            .arg(QLatin1String(nativeSocketName(nativeCode)))
+            .arg(m_tcpSocket.bytesAvailable())
+            .arg(m_tcpSocket.bytesToWrite())
+            .arg(text);
+}
+
+bool RecvFileTransfer::writePullRequest(const QByteArray &block)
+{
+    const QByteArray hex = block.left(256).toHex();
+    qInfo("RecvFileTransfer: payload bytes=%d hex=%s%s",
+          int(block.size()),
+          hex.constData(),
+          block.size() > 256 ? "..." : "");
+
+    const qint64 wrote = m_tcpSocket.write(block);
+    if (wrote != qint64(block.size())) {
+        m_errorString = socketFailText(QStringLiteral("write"));
+        return false;
+    }
+    m_tcpSocket.flush();
+    // flush() on a short GETFILE hands the bytes to the kernel and empties
+    // Qt's write buffer. waitForBytesWritten() then returns false at once
+    // and does not replace the socket error left by connectToHost(), which
+    // is UnknownSocketError. Its translated text is "未知错误". The peer
+    // has the handshake; reading the file must continue.
+    if (pullBytesQueued()) {
+        return true;
+    }
+    if (!waitForSocket(3000, false) && !pullBytesQueued()) {
+        return false;
+    }
+    return true;
 }
 
 void RecvFileTransfer::rememberFileHost(RecvFileHandle h, const QString &ip,
@@ -213,9 +418,9 @@ void RecvFileTransfer::startTransfer()
                     const QString why = m_errorString.isEmpty()
                             ? m_tcpSocket.errorString() : m_errorString;
                     failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
-                    qWarning("RecvFileTransfer: %s:%u %s",
-                             qPrintable(ep.ip), static_cast<unsigned>(ep.port),
-                             qPrintable(why));
+                    qWarning().nospace()
+                            << "RecvFileTransfer: " << ep.ip << ':' << ep.port
+                            << ' ' << why;
                     stopHost = true;
                     break;
                 }
@@ -253,9 +458,9 @@ void RecvFileTransfer::startTransfer()
                             .arg(ep.ip).arg(ep.port)
                             .arg(QLatin1String(pullVersions[variant]))
                             .arg(why);
-                qWarning("RecvFileTransfer: %s:%u ver=%s %s",
-                         qPrintable(ep.ip), static_cast<unsigned>(ep.port),
-                         pullVersions[variant], qPrintable(why));
+                qWarning().nospace()
+                        << "RecvFileTransfer: " << ep.ip << ':' << ep.port
+                        << " ver=" << pullVersions[variant] << ' ' << why;
                 // A later header or address is only safe before any payload.
                 if (h->bytesReaded() > marked) {
                     stopHost = true;
@@ -294,9 +499,7 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     h->setStartTime();
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
-    m_tcpSocket.write(sendBlock);
-    m_tcpSocket.flush();
-    if (!waitForSocket(3000, false)) {
+    if (!writePullRequest(sendBlock)) {
         return false;
     }
 
@@ -339,12 +542,13 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
         const qint64 remain = bytesToRead - bytesReaded;
         const qint64 toRead = qMin(m_tcpSocket.bytesAvailable(), remain);
         if (toRead <= 0) {
-            break;
+            m_errorString = socketFailText(QStringLiteral("read"));
+            goto recv_file_error;
         }
 
         const QByteArray chunk = m_tcpSocket.read(toRead);
         if (chunk.isEmpty()) {
-            m_errorString = m_tcpSocket.errorString();
+            m_errorString = socketFailText(QStringLiteral("read"));
             goto recv_file_error;
         }
         bytesReaded += chunk.size();
@@ -432,9 +636,7 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
     h->setStartTime();
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
-    m_tcpSocket.write(sendBlock);
-    m_tcpSocket.flush();
-    if (!waitForSocket(3000, false)) {
+    if (!writePullRequest(sendBlock)) {
         return false;
     }
 
@@ -859,13 +1061,24 @@ void RecvFileTransfer::stopTransfer()
 
 bool RecvFileTransfer::waitForSocket(int totalMs, bool readyRead)
 {
-    int waited = 0;
-    while (waited < totalMs) {
+    QElapsedTimer clock;
+    clock.start();
+    while (clock.elapsed() < totalMs) {
         if (isAbortTransfer.load()) {
             m_errorString = tr("Transfer cancelled");
             return false;
         }
-        const int step = qMin(200, totalMs - waited);
+        if (readyRead && m_tcpSocket.bytesAvailable() > 0) {
+            return true;
+        }
+        if (!readyRead && pullBytesQueued()) {
+            return true;
+        }
+        const int remain = totalMs - int(clock.elapsed());
+        if (remain <= 0) {
+            break;
+        }
+        const int step = qMin(200, remain);
         const bool ready = readyRead
                 ? m_tcpSocket.waitForReadyRead(step)
                 : m_tcpSocket.waitForBytesWritten(step);
@@ -873,18 +1086,31 @@ bool RecvFileTransfer::waitForSocket(int totalMs, bool readyRead)
             m_errorString = tr("Transfer cancelled");
             return false;
         }
-        if (ready) {
+        if (readyRead && m_tcpSocket.bytesAvailable() > 0) {
             return true;
         }
-        if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState
-                || (m_tcpSocket.error() != QAbstractSocket::SocketTimeoutError
-                    && m_tcpSocket.error() != QAbstractSocket::UnknownSocketError)) {
-            m_errorString = m_tcpSocket.errorString();
+        if (!readyRead && (ready || pullBytesQueued())) {
+            return true;
+        }
+        const bool stale = m_tcpSocket.error() == QAbstractSocket::SocketTimeoutError
+                || m_tcpSocket.error() == QAbstractSocket::UnknownSocketError;
+        if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState || !stale) {
+            if (readyRead && m_tcpSocket.bytesAvailable() > 0) {
+                return true;
+            }
+            m_errorString = socketFailText(readyRead
+                    ? QStringLiteral("read") : QStringLiteral("write"));
             return false;
         }
-        waited += step;
     }
-    m_errorString = m_tcpSocket.errorString();
+    if (readyRead && m_tcpSocket.bytesAvailable() > 0) {
+        return true;
+    }
+    if (!readyRead && pullBytesQueued()) {
+        return true;
+    }
+    m_errorString = socketFailText(readyRead
+            ? QStringLiteral("read") : QStringLiteral("write"));
     return false;
 }
 

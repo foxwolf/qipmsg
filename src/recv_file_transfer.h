@@ -56,6 +56,9 @@ private slots:
 
 private:
     QByteArray constructRecvFileDatagram(RecvFileHandle h);
+    bool writePullRequest(const QByteArray &block);
+    bool pullBytesQueued() const;
+    QString socketFailText(const QString &phase) const;
     QList<RecvEndpoint> endpointsFor(RecvFileHandle h) const;
     bool connectFileHost(const QString &ip, quint16 port, int timeoutMs);
     void rememberFileHost(RecvFileHandle h, const QString &ip, quint16 port);
