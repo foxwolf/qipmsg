@@ -36,6 +36,34 @@ static bool listenSoon(QTcpServer *server, const QHostAddress &address, quint16 
     return false;
 }
 
+// Windows keeps an exclusive bind busy for a short time after closesocket.
+// An immediate second probe can fail even though the port is free a moment
+// later (qipmsgPortCheck fail on released.ok / again.ok).
+static portListenResult probeWhenReleased(const QHostAddress &address,
+                                          quint16 port)
+{
+    portListenResult result;
+    for (int attempt = 0; attempt < 40; ++attempt) {
+        result = PortBind::probe(address, port);
+        if (result.ok()) {
+            return result;
+        }
+        QThread::msleep(50);
+    }
+    const QByteArray udpError = result.udp.error.toLocal8Bit();
+    const QByteArray tcpError = result.tcp.error.toLocal8Bit();
+    std::fprintf(stderr,
+                 "probe %u still down: udp ok=%d kind=%d [%s] tcp ok=%d kind=%d [%s]\n",
+                 static_cast<unsigned>(port),
+                 result.udp.ok ? 1 : 0,
+                 static_cast<int>(result.udp.kind),
+                 udpError.constData(),
+                 result.tcp.ok ? 1 : 0,
+                 static_cast<int>(result.tcp.kind),
+                 tcpError.constData());
+    return result;
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -93,19 +121,22 @@ int main(int argc, char *argv[])
     CHECK(!idle.udp.windowsExcluded);
     CHECK(!idle.tcp.windowsExcluded);
 
-    QTcpServer held;
-    CHECK(held.listen(any, 0));
-    const quint16 taken = held.serverPort();
-    CHECK(taken != 0);
-    const portListenResult blocked = PortBind::probe(any, taken);
-    CHECK(!blocked.ok());
-    CHECK(!blocked.tcp.ok);
-    CHECK(blocked.tcp.kind == portFailKind::inUse);
-    held.close();
+    quint16 taken = 0;
+    {
+        QTcpServer held;
+        CHECK(held.listen(any, 0));
+        taken = held.serverPort();
+        CHECK(taken != 0);
+        const portListenResult blocked = PortBind::probe(any, taken);
+        CHECK(!blocked.ok());
+        CHECK(!blocked.tcp.ok);
+        CHECK(blocked.tcp.kind == portFailKind::inUse);
+        held.close();
+    }
 
-    const portListenResult released = PortBind::probe(any, taken);
+    const portListenResult released = probeWhenReleased(any, taken);
     CHECK(released.ok());
-    const portListenResult again = PortBind::probe(any, taken);
+    const portListenResult again = probeWhenReleased(any, taken);
     CHECK(again.ok());
 
     QTcpServer rebound;
