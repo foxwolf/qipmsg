@@ -39,7 +39,8 @@ class RecvFileTransfer : public QObject
 public:
     RecvFileTransfer(RecvFileMap *recvFileMap, QObject *parent = 0)
         : QObject(parent), m_recvFileMap(recvFileMap),
-        isStopTransfer(false), isAbortTransfer(false) {}
+        isStopTransfer(false), isAbortTransfer(false),
+        m_pullVersionFeiq(false) {}
 
     void resumeTransfer();
 
@@ -83,6 +84,8 @@ private:
 
     bool isStopTransfer;
     std::atomic<bool> isAbortTransfer;
+    // Second TCP header on the same host: version "1_qipmsg" instead of "1".
+    bool m_pullVersionFeiq;
 };
 
 #endif // !RECV_FILE_TRANSFER_H

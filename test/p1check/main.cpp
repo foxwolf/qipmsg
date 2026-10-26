@@ -240,6 +240,34 @@ int main(int argc, char **argv)
     CHECK(ztConfigured.at(0).ip == QLatin1String("10.147.19.236"));
     CHECK(ztConfigured.at(1).ip == QLatin1String("192.168.14.3"));
 
+    // FeiQ's own TCP GETFILE (captured) uses decimal command 96, a hex
+    // packet id, and a trailing NUL. Hex command "60" is atol()'d as 60.
+    const char feiqShape[] =
+            "1:1501516970:Administrator:DONGGE-32E5DBE1:96:597ee52c:0:0:";
+    const QByteArray pull = ProtocolUtil::makeFilePullRequest(
+                QByteArray("1"), QByteArray("1501516970"),
+                QByteArray("Administrator"), QByteArray("DONGGE-32E5DBE1"),
+                IPMSG_GETFILEDATA, 0x597ee52cLL, 0, 0, true);
+    CHECK(pull == QByteArray(feiqShape, int(sizeof(feiqShape))));
+    CHECK(pull.contains(":96:"));
+    CHECK(!pull.contains(":60:"));
+
+    const QByteArray wide = ProtocolUtil::makeFilePullRequest(
+                QByteArray("1_qipmsg"), QByteArray("9"),
+                QByteArray("fox"), QByteArray("hw"),
+                IPMSG_GETFILEDATA, 1523368691537LL, 10, 0, true);
+    CHECK(wide.startsWith("1_qipmsg:9:fox:hw:96:162afd98751:a:0:"));
+    CHECK(wide.endsWith(QByteArray(1, '\0')));
+    CHECK(!wide.contains(":60:"));
+
+    const QByteArray dirPull = ProtocolUtil::makeFilePullRequest(
+                QByteArray("1"), QByteArray("3"),
+                QByteArray("a"), QByteArray("b"),
+                IPMSG_GETDIRFILES, 16, 2, 0, false);
+    CHECK(dirPull.startsWith("1:3:a:b:98:10:2:"));
+    CHECK(!dirPull.contains(":62:"));
+    CHECK(dirPull.at(dirPull.size() - 1) == '\0');
+
     if (g_fails != 0) {
         std::fprintf(stderr, "%d checks failed\n", g_fails);
         return 1;

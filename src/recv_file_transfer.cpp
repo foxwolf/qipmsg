@@ -26,6 +26,7 @@
 #include "resume_store.h"
 #include "fileHashIndex.h"
 #include "ipmsg.h"
+#include "protocolutil.h"
 #include "msg_thread.h"
 #include "send_msg.h"
 #include "msg.h"
@@ -189,63 +190,80 @@ void RecvFileTransfer::startTransfer()
         const QList<RecvEndpoint> endpoints = endpointsFor(h);
         bool transferred = false;
         QStringList failures;
-        for (int i = 0; i < endpoints.size(); ++i) {
+        if (h->type() == IPMSG_FILE_REGULAR) {
+            applyResumeIfNeeded(h);
+        }
+        for (int i = 0; i < endpoints.size() && !transferred; ++i) {
             if (isAbortTransfer.load()) {
                 goto transfer_fail;
             }
             const RecvEndpoint ep = endpoints.at(i);
-            if (!connectFileHost(ep.ip, ep.port, TCP_CONNECT_TIMEOUT_MS)) {
+            // "1" is classic IPMSG. FeiQ's own GETFILE starts with "1_lbt…"
+            // and iptux only became compatible after a "1_" version prefix.
+            const char *pullVersions[] = { "1", "1_qipmsg" };
+            bool stopHost = false;
+            for (int variant = 0; variant < 2 && !stopHost; ++variant) {
+                if (isAbortTransfer.load()) {
+                    goto transfer_fail;
+                }
+                if (!connectFileHost(ep.ip, ep.port, TCP_CONNECT_TIMEOUT_MS)) {
+                    if (isAbortTransfer.load()) {
+                        goto transfer_fail;
+                    }
+                    const QString why = m_errorString.isEmpty()
+                            ? m_tcpSocket.errorString() : m_errorString;
+                    failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
+                    qWarning("RecvFileTransfer: %s:%u %s",
+                             qPrintable(ep.ip), static_cast<unsigned>(ep.port),
+                             qPrintable(why));
+                    stopHost = true;
+                    break;
+                }
+
+                m_pullVersionFeiq = (variant == 1);
+                const qint64 marked = h->bytesReaded();
+                bool ok = false;
+                if (h->type() == IPMSG_FILE_REGULAR) {
+                    ok = recvFileRegular(h);
+                } else if (h->type() == IPMSG_FILE_DIR) {
+                    ok = recvFileDir(h);
+                } else {
+                    m_errorString = QStringLiteral("unsupported file type");
+                    failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port)
+                                .arg(m_errorString);
+                    stopHost = true;
+                    break;
+                }
+                if (ok) {
+                    rememberFileHost(h, ep.ip, ep.port);
+                    transferred = true;
+                    if (i > 0 || variant > 0) {
+                        qInfo("RecvFileTransfer: file port %s:%u ver=%s",
+                              qPrintable(ep.ip), static_cast<unsigned>(ep.port),
+                              pullVersions[variant]);
+                    }
+                    break;
+                }
                 if (isAbortTransfer.load()) {
                     goto transfer_fail;
                 }
                 const QString why = m_errorString.isEmpty()
                         ? m_tcpSocket.errorString() : m_errorString;
-                failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
-                qWarning("RecvFileTransfer: %s:%u %s",
+                failures << QString("%1:%2 ver=%3 %4")
+                            .arg(ep.ip).arg(ep.port)
+                            .arg(QLatin1String(pullVersions[variant]))
+                            .arg(why);
+                qWarning("RecvFileTransfer: %s:%u ver=%s %s",
                          qPrintable(ep.ip), static_cast<unsigned>(ep.port),
-                         qPrintable(why));
-                continue;
-            }
-
-            if (h->type() == IPMSG_FILE_REGULAR) {
-                applyResumeIfNeeded(h);
-            }
-            const qint64 marked = h->bytesReaded();
-            bool ok = false;
-            if (h->type() == IPMSG_FILE_REGULAR) {
-                ok = recvFileRegular(h);
-            } else if (h->type() == IPMSG_FILE_DIR) {
-                ok = recvFileDir(h);
-            } else {
-                m_errorString = QStringLiteral("unsupported file type");
-                failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port)
-                            .arg(m_errorString);
-                break;
-            }
-            if (ok) {
-                rememberFileHost(h, ep.ip, ep.port);
-                transferred = true;
-                if (i > 0) {
-                    qInfo("RecvFileTransfer: file port %s:%u",
-                          qPrintable(ep.ip), static_cast<unsigned>(ep.port));
+                         pullVersions[variant], qPrintable(why));
+                // A later header or address is only safe before any payload.
+                if (h->bytesReaded() > marked) {
+                    stopHost = true;
+                    break;
                 }
-                break;
+                h->setState(RecvFile::ToRecv);
+                m_tcpSocket.abort();
             }
-            if (isAbortTransfer.load()) {
-                goto transfer_fail;
-            }
-            const QString why = m_errorString.isEmpty()
-                    ? m_tcpSocket.errorString() : m_errorString;
-            failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
-            qWarning("RecvFileTransfer: %s:%u %s",
-                     qPrintable(ep.ip), static_cast<unsigned>(ep.port),
-                     qPrintable(why));
-            // A later address is only safe before any payload from this one.
-            if (h->bytesReaded() > marked) {
-                break;
-            }
-            h->setState(RecvFile::ToRecv);
-            m_tcpSocket.abort();
         }
         if (!transferred) {
             m_errorString = failures.join(QStringLiteral("; "));
@@ -277,7 +295,26 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
+    m_tcpSocket.flush();
     if (!waitForSocket(3000, false)) {
+        return false;
+    }
+
+    qint64 bytesReaded = 0;
+    const qint64 startOffset = h->offset();
+    qint64 bytesToRead;
+    if (m_recvFileMap->state() == RecvFileMap::Retry) {
+        bytesToRead = h->size() - startOffset;
+    } else {
+        bytesToRead = h->size();
+    }
+
+    // Do not create or truncate the local file until FeiQ accepts the
+    // header. A rejected GETFILE closes the socket with zero payload;
+    // opening first would wipe a resume file before the 1_qipmsg retry.
+    if (bytesToRead > 0
+            && m_tcpSocket.bytesAvailable() <= 0
+            && !waitForSocket(3000, true)) {
         return false;
     }
 
@@ -292,15 +329,6 @@ bool RecvFileTransfer::recvFileRegular(RecvFileHandle h)
     if (!file.open(flags)) {
         m_errorString = file.errorString();
         return false;
-    }
-
-    qint64 bytesReaded = 0;
-    const qint64 startOffset = h->offset();
-    qint64 bytesToRead;
-    if (m_recvFileMap->state() == RecvFileMap::Retry) {
-        bytesToRead = h->size() - startOffset;
-    } else {
-        bytesToRead = h->size();
     }
     qint64 lastPersist = 0;
     while (bytesReaded < bytesToRead) {
@@ -405,6 +433,7 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
 
     QByteArray sendBlock(constructRecvFileDatagram(h));
     m_tcpSocket.write(sendBlock);
+    m_tcpSocket.flush();
     if (!waitForSocket(3000, false)) {
         return false;
     }
@@ -621,34 +650,41 @@ bool RecvFileTransfer::saveData(QByteArray recvBlock, QFile &file)
 
 QByteArray RecvFileTransfer::constructRecvFileDatagram(RecvFileHandle h)
 {
-    QString s = QString("%1:%2:%3:%4").arg(IPMSG_VERSION)
-        .arg(Helper::packetNoString())
-        .arg(Global::userManager->ourself().loginName())
-        .arg(Global::userManager->ourself().host());
+    const QByteArray version = m_pullVersionFeiq
+            ? QByteArray("1_qipmsg")
+            : QByteArray::number(IPMSG_VERSION);
+    const QByteArray requestNo = Global::transferCodec->encode(
+            Helper::packetNoString());
+    const QByteArray login = Global::transferCodec->encode(
+            Global::userManager->ourself().loginName());
+    const QByteArray host = Global::transferCodec->encode(
+            Global::userManager->ourself().host());
 
-    int flags = 0;
+    quint32 flags = 0;
+    bool withOffset = false;
+    qint64 offset = 0;
     if (h->type() == IPMSG_FILE_REGULAR) {
         flags = IPMSG_GETFILEDATA;
+        withOffset = true;
+        if (m_recvFileMap->state() == RecvFileMap::Retry) {
+            offset = h->offset();
+        }
     } else if (h->type() == IPMSG_FILE_DIR) {
         flags = IPMSG_GETDIRFILES;
     }
 
-    s.append(":");
-    // FeiQ 2013 TCP GETFILEDATA/GETDIRFILES uses a hex command field.
-    // ServeSocket also accepts classic decimal, so qipmsg↔qipmsg still works.
-    s.append(QString("%1:%2:%3:").arg(flags, 0, 16)
-            .arg(h->packetNo(), 0, 16)
-            .arg(h->fileId(), 0, 16));
-
-    if (h->type() == IPMSG_FILE_REGULAR) {
-        if (m_recvFileMap->state() == RecvFileMap::Retry) {
-            s.append(QString("%1:").arg(h->offset(), 0, 16));
-        } else {
-            s.append(QString("%1:").arg(0/* offset */, 0, 16));
-        }
-    }
-
-    return Global::transferCodec->encode(s);
+    const QByteArray block = ProtocolUtil::makeFilePullRequest(
+            version, requestNo, login, host, flags,
+            h->packetNo(), h->fileId(), offset, withOffset);
+    qInfo("RecvFileTransfer: handshake %s:%u ver=%s cmd=%u pkt=%s file=%d off=%lld nul=1",
+          qPrintable(m_tcpSocket.peerAddress().toString()),
+          static_cast<unsigned>(m_tcpSocket.peerPort()),
+          version.constData(),
+          static_cast<unsigned>(flags),
+          qPrintable(QString::number(h->packetNo(), 16)),
+          h->fileId(),
+          static_cast<long long>(withOffset ? offset : (qint64)-1));
+    return block;
 }
 
 QString RecvFileTransfer::resumeKey(RecvFileHandle h) const

@@ -77,6 +77,20 @@ public:
     // Seconds left from observed throughput. Negative when unknown.
     static int etaSeconds(qint64 bytesSent, qint64 bytesTotal,
                           qint64 elapsedMs);
+
+    // TCP body that asks the sender for one attachment.
+    // Official IPMSG MakeMsg prints the command with %u and sends the
+    // trailing NUL (atol on the far side). packet id, file id, and offset
+    // stay hex. withOffset is false for GETDIRFILES.
+    static QByteArray makeFilePullRequest(const QByteArray &version,
+                                          const QByteArray &requestPacketNo,
+                                          const QByteArray &loginName,
+                                          const QByteArray &hostName,
+                                          quint32 command,
+                                          qint64 offerPacketNo,
+                                          int fileId,
+                                          qint64 offset,
+                                          bool withOffset);
 };
 
 #endif // !PROTOCOLUTIL_H
