@@ -55,6 +55,10 @@ public:
     }
 
     int type() const { return m_type; }
+    bool parsed() const { return m_parsed; }
+    QString rawAttr() const { return m_rawAttr; }
+    quint32 attrWord() const { return m_attrWord; }
+    QString rawSegment() const { return m_rawSegment; }
 
     qint64 offset() const { return m_offset; }
     void setOffset(qint64 offset) { m_offset = offset; }
@@ -109,6 +113,10 @@ private:
     QString m_saveName;
     qint64 m_size;
     int m_type;
+    bool m_parsed;
+    QString m_rawAttr;
+    quint32 m_attrWord;
+    QString m_rawSegment;
     QMap<int, QString> m_attrMap;
 
     qint64 m_offset;

@@ -17,6 +17,7 @@
 #include "recv_file.h"
 #include "constants.h"
 #include "helper.h"
+#include "protocolutil.h"
 
 #include <QStringList>
 
@@ -24,32 +25,22 @@ RecvFile::RecvFile(QString ip, QString packetNoString, QString info,
                    quint16 peerPort)
     : m_ip(ip), m_connectPort(0), m_peerPort(peerPort),
     m_packetNoString(packetNoString),
+    m_fileId(0), m_size(0), m_type(-1), m_parsed(false), m_attrWord(0),
     m_offset(0), m_bytesReaded(0), m_regularFileCount(0), m_state(NotRecv)
 {
-    info.replace(QString(FILE_NAME_BEFORE), QString(FILE_NAME_ESCAPE));
-
-    QStringList list = info.split(QChar(COMMAND_SEPERATOR));
-
-    if (list.size() >= RECV_FILE_EXTEND_ATTR_POS) {
-        bool ok;
-        m_fileId = list.at(RECV_FILE_ID_POS).toInt(&ok, 10);
-        m_name = list.at(RECV_FILE_NAME_POS);
-        m_name.replace(QString(FILE_NAME_ESCAPE), QString(FILE_NAME_AFTER));
-        m_size = list.at(RECV_FILE_SIZE_POS).toLongLong(&ok, 16);
-        m_type = list.at(RECV_FILE_ATTR_POS).toInt(&ok, 16);
-
-        // Extended file attribution like mtime, atime...
-        for (int i = RECV_FILE_EXTEND_ATTR_POS; i < list.size(); ++i) {
-            QString s = list.at(i);
-            QStringList l = s.split(QChar('='));
-            if (l.size() == 2) {
-                int i = l.at(0).toInt(&ok, 16);
-                if (ok) {
-                    m_attrMap.insert(i, l.at(1));
-                }
-            }
-        }
+    const FileAttachParsed parsed = ProtocolUtil::parseFileAttachment(info);
+    m_parsed = parsed.parsed;
+    m_rawSegment = parsed.segment;
+    m_rawAttr = parsed.rawAttr;
+    m_attrWord = parsed.attrWord;
+    if (!parsed.parsed) {
+        return;
     }
+    m_fileId = parsed.fileId;
+    m_name = parsed.name;
+    m_size = parsed.size;
+    m_type = parsed.type;
+    m_attrMap = parsed.extend;
 }
 
 RecvFile::~RecvFile()
