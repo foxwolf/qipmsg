@@ -22,8 +22,21 @@
 #include <QByteArray>
 #include <QHostAddress>
 #include <QList>
+#include <QMap>
 #include <QString>
 #include <QStringList>
+
+struct FileAttachParsed {
+    bool parsed;
+    int fileId;
+    QString name;
+    qint64 size;
+    QString rawAttr;
+    quint32 attrWord;
+    int type;
+    QString segment;
+    QMap<int, QString> extend;
+};
 
 // Pure helpers for cross-subnet discovery tokens and IPMSG option bits.
 // No sockets and no preferences, so the self-check can link this alone.
@@ -91,6 +104,20 @@ public:
                                           int fileId,
                                           qint64 offset,
                                           bool withOffset);
+
+    // One file-list record after the SENDMSG NUL. segment is the raw text
+    // between '\a' separators, still using "::" for a colon in the name.
+    static FileAttachParsed parseFileAttachment(const QString &segment);
+
+    // Every attachment record in a decoded datagram. Part 0 is the message.
+    // Later NUL parts are split on the file-list separator.
+    static QStringList fileAttachSegments(const QString &packet);
+
+    // fileattr low 8 bits are the kind; the high 24 bits are option flags
+    // (readonly, hidden, archive, system). Clipboard is still one GETFILEDATA
+    // payload. zeroIsRegular covers a FeiQ record whose fileattr is 0.
+    // Returns IPMSG_FILE_REGULAR, IPMSG_FILE_DIR, IPMSG_FILE_RETPARENT, or -1.
+    static int fileAttrKind(quint32 attrWord, bool zeroIsRegular);
 };
 
 #endif // !PROTOCOLUTIL_H

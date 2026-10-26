@@ -388,6 +388,33 @@ void RecvFileTransfer::startTransfer()
 
         m_recvFileMap->setCurrentId(h->fileId());
 
+        qInfo("%s", qPrintable(QStringLiteral(
+                "RecvFileTransfer: offer pkt=%1 file=%2 rawAttr=%3 attrWord=%4 mode=%5 type=%6 name=%7 segHex=%8")
+                .arg(h->packetNoString())
+                .arg(h->fileId())
+                .arg(h->rawAttr())
+                .arg(h->attrWord())
+                .arg(quint32(GET_MODE(h->attrWord())))
+                .arg(h->type())
+                .arg(h->name())
+                .arg(QString::fromLatin1(h->rawSegment().left(96).toUtf8().toHex()))));
+
+        if (h->type() != IPMSG_FILE_REGULAR && h->type() != IPMSG_FILE_DIR) {
+            m_errorString = QStringLiteral(
+                    "unsupported file type raw=%1 attrWord=%2 mode=%3 type=%4 fileId=%5 pkt=%6 name=%7")
+                    .arg(h->rawAttr())
+                    .arg(h->attrWord())
+                    .arg(quint32(GET_MODE(h->attrWord())))
+                    .arg(h->type())
+                    .arg(h->fileId())
+                    .arg(h->packetNoString())
+                    .arg(h->name());
+            qWarning("%s", qPrintable(QStringLiteral("RecvFileTransfer: %1")
+                                      .arg(m_errorString)));
+            h->setState(RecvFile::RecvFail);
+            goto transfer_fail;
+        }
+
         if (tryInstant(h)) {
             continue;
         }
@@ -433,7 +460,15 @@ void RecvFileTransfer::startTransfer()
                 } else if (h->type() == IPMSG_FILE_DIR) {
                     ok = recvFileDir(h);
                 } else {
-                    m_errorString = QStringLiteral("unsupported file type");
+                    m_errorString = QStringLiteral(
+                            "unsupported file type raw=%1 attrWord=%2 mode=%3 type=%4 fileId=%5 pkt=%6 name=%7")
+                            .arg(h->rawAttr())
+                            .arg(h->attrWord())
+                            .arg(quint32(GET_MODE(h->attrWord())))
+                            .arg(h->type())
+                            .arg(h->fileId())
+                            .arg(h->packetNoString())
+                            .arg(h->name());
                     failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port)
                                 .arg(m_errorString);
                     stopHost = true;
@@ -752,8 +787,9 @@ bool RecvFileTransfer::recvFileDir(RecvFileHandle h)
                     return true;
                 }
             } else {
-                m_errorString
-                    = "RecvFileTransfer::recvFileDir: unsupported file type";
+                m_errorString = QString(
+                        "RecvFileTransfer::recvFileDir: unsupported file type %1")
+                        .arg(transferFile.type);
                 return false;
             }
         }
@@ -790,11 +826,18 @@ bool RecvFileTransfer::parseHeader(QByteArray &recvBlock,
         m_errorString = "RecvFileTransfer::parseHeader: get file size error";
         return false;
     }
-    transferFile.type = list.at(TRANSFERFILE_TYPE_POS).toInt(&ok, 16);
-    if (!ok) {
+    quint32 attrWord = 0;
+    const qulonglong attrValue = list.at(TRANSFERFILE_TYPE_POS)
+            .toULongLong(&ok, 16);
+    if (!ok || attrValue > 0xffffffffULL) {
         m_errorString = "RecvFileTransfer::parseHeader: get file type error";
         return false;
     }
+    attrWord = static_cast<quint32>(attrValue);
+    const int kind = ProtocolUtil::fileAttrKind(attrWord, false);
+    transferFile.type = kind >= 0
+            ? kind
+            : static_cast<int>(GET_MODE(attrWord));
 
     // Extended file attribution like mtime, atime...
     for (int i = TRANSFERFILE_ATTR_BEGIN_POS; i < list.size(); ++i) {

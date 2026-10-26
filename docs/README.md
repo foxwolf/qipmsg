@@ -4,7 +4,9 @@
 
 QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户端，兼容飞秋（Feiqiu / FeiQ）等同类局域网通讯工具。
 
-当前版本：**2.53.21**
+当前版本：**2.53.23**
+
+2.53.23 修的是飞秋发来的第二个及以后的文件。2.53.21 上第一次能收完（`handshake cmd=96`，然后 `recvFileFinish`），再次发送则在 TCP 连上之后、GETFILE 发出之前报 `unsupported file type`。文件属性的低 8 位才是类型，高位是只读、隐藏、存档等选项。现在带这些选项的普通文件和目录都会下载；剪贴板属性 `0x20` 和属性 `0` 按普通文件用命令 96 收取。日志在 `initRecvFileInfo` 和 `RecvFileTransfer: offer` 里打印 `rawAttr`。命令仍是十进制 96/98，结尾仍有空字节。这里没有在真机飞秋上复测。
 
 2.53.21 修的是 2.53.20 在飞秋 `cmd=96` 握手已经写出之后，仍报「未知错误」、文件一个字节都没读。短握手被 `flush` 交进内核后，Qt 的 `waitForBytesWritten` 会因为写缓冲已空立刻失败，错误号仍是连接时留下的 UnknownSocketError。现在写缓冲已空且仍然连着，就接着等文件数据。失败日志带 Qt 错误号、套接字状态、WSA/errno，以及握手十六进制。命令仍是十进制 96/98，结尾仍有空字节。
 
@@ -80,6 +82,15 @@ QIpMsg 是 Linux / Windows / macOS 下的 IP Messenger（飞鸽传书）客户�
 - 用户皮肤：`~/.qipmsg/skins/` 下的文件夹或 zip。浅色、暗色、跟随系统仍然可用。QSS 无效时回退到内置样式
 - 网络里可选定一块网卡，并记住它的 MAC（没有 MAC 时记住接口名）。任意 IPv4 时多网卡发现不变
 - 讨论组可指定本机文件夹。在线的 qipmsg 成员能按口令只取这个目录里的文件。飞秋看不到可浏览的共享
+
+## 试用 2.53.23
+
+1. 在 foxwolf（192.168.4.170）上跑 **2.53.23**。飞秋从 WORK-LAPTOP 连续发**两个**小文件给 foxwolf@192.168.4.170。优先看局域网 **192.168.14.3:2425**。
+2. 第一个和第二个都应出现 `MsgWindow::recvFileFinish`。不要只在第一个成功。
+3. 每次接收在 `handshake` 之前应有 `RecvFileTransfer: offer`，其中 `rawAttr=` 是飞秋原文里的 fileattr。`initRecvFileInfo` 也有同样的 `rawAttr`。
+4. 随后仍是 `handshake … cmd=96` 和 `payload … hex=`。不要出现 `cmd=60`，也不要在连上后立刻 `unsupported file type`。
+5. 192.168.14.164 没有文件口时仍可能超时。接着连 192.168.14.3。
+6. 这次不能在开发机上代替真机飞秋。Windows 上换上这个版本后再收第一次和第二次小文件。
 
 ## 试用 2.53.21
 
