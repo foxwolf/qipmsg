@@ -82,8 +82,9 @@ public:
         return m_totalBytesReaded / (double)elapse();
     }
 
-    void startTimer() { m_timer.start(1000); }
-    void stopTimer() { m_timer.stop(); }
+    // Must be safe if a worker calls it: the timer lives on the UI thread.
+    void startTimer();
+    void stopTimer();
 
     States state() const { return m_state; }
     void setState(States state) { m_state = state; }

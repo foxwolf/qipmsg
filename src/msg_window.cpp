@@ -487,6 +487,8 @@ void MsgWindow::saveFile(QList<int> fileIdList, QString saveFileDir)
 void MsgWindow::runRecvFileThread()
 {
     m_recvFileMap.setTransferState(RecvFileMap::Transfer);
+    // Progress ticks touch the button, so the timer stays on this thread.
+    m_recvFileMap.startTimer();
 
     m_recvFileThread = new RecvFileThread(&m_recvFileMap);
 
@@ -524,6 +526,7 @@ void MsgWindow::removeRecvOkFile()
 void MsgWindow::recvFileFinish()
 {
     qDebug("MsgWindow::recvFileFinish");
+    m_recvFileMap.stopTimer();
 
     // if is 'cancelTransfer' been called and we get here, m_recvFileThread is
     // not stopped.
@@ -570,6 +573,7 @@ void MsgWindow::recvFileFinish()
 void MsgWindow::recvFileError(QString errorString)
 {
     qDebug() << "MsgWindow::recvFileError:" << errorString;
+    m_recvFileMap.stopTimer();
 
     // if is 'cancelTransfer' been called and we get here, m_recvFileThread is
     // not stopped.
@@ -668,6 +672,10 @@ void MsgWindow::retryRecvFile()
 
 void MsgWindow::updateTransferStatsInfo()
 {
+    if (m_recvFileMap.currentId() < 0
+            || !m_recvFileMap.m_map.contains(m_recvFileMap.currentId())) {
+        return;
+    }
     fileInfoButton
         ->setText(m_recvFileMap.currentFile()->transferStatsInfo());
 }
