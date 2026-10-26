@@ -67,6 +67,12 @@ public:
     QHostAddress ipAddress() const { return QHostAddress(m_ip); }
     QString ip() const { return m_ip; }
 
+    // TCP address that actually accepted this offer. Empty means use ip().
+    QString connectIp() const { return m_connectIp; }
+    void setConnectIp(const QString &ip) { m_connectIp = ip; }
+    quint16 connectPort() const { return m_connectPort; }
+    void setConnectPort(quint16 port) { m_connectPort = port; }
+
     quint16 peerPort() const { return m_peerPort; }
     void setPeerPort(quint16 port) { m_peerPort = port; }
 
@@ -94,6 +100,8 @@ private:
     double percent() const;
 
     QString m_ip;
+    QString m_connectIp;
+    quint16 m_connectPort;
     quint16 m_peerPort;
     QString m_packetNoString;
     int m_fileId;

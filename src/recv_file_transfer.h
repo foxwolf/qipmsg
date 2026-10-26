@@ -18,6 +18,7 @@
 #define RECV_FILE_TRANSFER_H
 
 #include "recv_file_handle.h"
+#include "recvEndpoints.h"
 
 #include <QMutex>
 #include <QWaitCondition>
@@ -54,6 +55,9 @@ private slots:
 
 private:
     QByteArray constructRecvFileDatagram(RecvFileHandle h);
+    QList<RecvEndpoint> endpointsFor(RecvFileHandle h) const;
+    bool connectFileHost(const QString &ip, quint16 port, int timeoutMs);
+    void rememberFileHost(RecvFileHandle h, const QString &ip, quint16 port);
     bool recvFileRegular(RecvFileHandle h);
     bool recvFileDir(RecvFileHandle h);
     bool saveData(QByteArray recvBlock, QFile &file);

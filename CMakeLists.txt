@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(qipmsg VERSION 2.52.16 LANGUAGES CXX)
+project(qipmsg VERSION 2.53.19 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -68,6 +68,7 @@ set(SOURCES
     src/qipmsg.cpp
     src/recentStore.cpp
     src/recv_file.cpp
+    src/recvEndpoints.cpp
     src/recv_file_finish_dialog.cpp
     src/recv_file_handle.cpp
     src/recv_file_map.cpp
@@ -165,6 +166,7 @@ set(HEADERS
     src/qipmsg.h
     src/recentStore.h
     src/recv_file.h
+    src/recvEndpoints.h
     src/recv_file_finish_dialog.h
     src/recv_file_handle.h
     src/recv_file_map.h
@@ -226,7 +228,7 @@ endif()
 
 add_executable(qipmsg ${SOURCES} ${HEADERS} ${RESOURCES} ${QM_FILES})
 
-add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp)
+add_executable(qipmsgP1Check test/p1check/main.cpp src/protocolutil.cpp src/autostart.cpp src/recvEndpoints.cpp)
 target_include_directories(qipmsgP1Check PRIVATE src)
 
 add_executable(qipmsgBackupCheck

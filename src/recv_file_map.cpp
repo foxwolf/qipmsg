@@ -18,7 +18,28 @@
 #include "constants.h"
 #include "helper.h"
 
+#include <QMetaObject>
 #include <QStringList>
+#include <QThread>
+
+void RecvFileMap::startTimer()
+{
+    if (m_timer.thread() == QThread::currentThread()) {
+        m_timer.start(1000);
+        return;
+    }
+    QMetaObject::invokeMethod(&m_timer, "start", Qt::QueuedConnection,
+                              Q_ARG(int, 1000));
+}
+
+void RecvFileMap::stopTimer()
+{
+    if (m_timer.thread() == QThread::currentThread()) {
+        m_timer.stop();
+        return;
+    }
+    QMetaObject::invokeMethod(&m_timer, "stop", Qt::QueuedConnection);
+}
 
 QString RecvFileMap::fileNameJoin(QString sep) const
 {
