@@ -22,7 +22,8 @@
 
 RecvFile::RecvFile(QString ip, QString packetNoString, QString info,
                    quint16 peerPort)
-    : m_ip(ip), m_peerPort(peerPort), m_packetNoString(packetNoString),
+    : m_ip(ip), m_connectPort(0), m_peerPort(peerPort),
+    m_packetNoString(packetNoString),
     m_offset(0), m_bytesReaded(0), m_regularFileCount(0), m_state(NotRecv)
 {
     info.replace(QString(FILE_NAME_BEFORE), QString(FILE_NAME_ESCAPE));

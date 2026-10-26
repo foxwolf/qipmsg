@@ -3,6 +3,7 @@
 
 #include "autostart.h"
 #include "protocolutil.h"
+#include "recvEndpoints.h"
 
 #include <QCoreApplication>
 #include <QHostAddress>
@@ -133,6 +134,111 @@ int main(int argc, char **argv)
     CHECK(agent.contains("<key>RunAtLoad</key>"));
     CHECK(agent.contains("/Applications/QIpMsg.app/Contents/MacOS/qipmsg"));
     CHECK(AutoStart::windowsValueName() == QLatin1String("QIpMsg"));
+
+    // FeiQ on two NICs: UDP from .164, TCP file port on the configured .3.
+    RecvPeerHint lan;
+    lan.ip = QStringLiteral("192.168.14.164");
+    lan.port = 2425;
+    lan.login = QStringLiteral("win");
+    lan.host = QStringLiteral("WORK-LAPTOP");
+    lan.group = QString::fromUtf8("盛达物联");
+    RecvPeerHint zt = lan;
+    zt.ip = QStringLiteral("10.147.19.236");
+    RecvPeerHint other = lan;
+    other.ip = QStringLiteral("192.168.14.50");
+    other.login = QStringLiteral("other");
+    QList<RecvPeerHint> peers;
+    peers << lan << zt << other;
+
+    const QStringList configured = QStringList()
+            << QStringLiteral("192.168.14.3")
+            << QStringLiteral("192.168.14.0/24")
+            << QStringLiteral("10.9.8.7")
+            << QStringLiteral("192.168.14.255");
+    QList<RecvEndpoint> fromLan = recvFileEndpoints(
+                QStringLiteral("192.168.14.164"), 2425, peers, configured, 2425);
+    CHECK(fromLan.size() == 3);
+    CHECK(fromLan.at(0).ip == QLatin1String("192.168.14.164"));
+    CHECK(fromLan.at(0).port == 2425);
+    CHECK(fromLan.at(1).ip == QLatin1String("192.168.14.3"));
+    CHECK(fromLan.at(1).port == 2425);
+    CHECK(fromLan.at(2).ip == QLatin1String("10.147.19.236"));
+
+    QList<RecvEndpoint> fromZt = recvFileEndpoints(
+                QStringLiteral("10.147.19.236"), 2425, peers, configured, 2425);
+    CHECK(fromZt.size() == 3);
+    CHECK(fromZt.at(0).ip == QLatin1String("10.147.19.236"));
+    CHECK(fromZt.at(1).ip == QLatin1String("192.168.14.3"));
+    CHECK(fromZt.at(2).ip == QLatin1String("192.168.14.164"));
+
+    RecvPeerHint sameLan = lan;
+    sameLan.ip = QStringLiteral("192.168.14.165");
+    sameLan.port = 2425;
+    peers.insert(1, sameLan);
+    QList<RecvEndpoint> withSibling = recvFileEndpoints(
+                QStringLiteral("192.168.14.164"), 0, peers, configured, 2425);
+    CHECK(withSibling.at(0).port == 2425);
+    CHECK(withSibling.at(1).ip == QLatin1String("192.168.14.165"));
+    CHECK(withSibling.at(2).ip == QLatin1String("192.168.14.3"));
+
+    QList<RecvEndpoint> alone = recvFileEndpoints(
+                QStringLiteral("192.168.4.170"), 12425, QList<RecvPeerHint>(),
+                QStringList(), 2425);
+    CHECK(alone.size() == 1);
+    CHECK(alone.at(0).ip == QLatin1String("192.168.4.170"));
+    CHECK(alone.at(0).port == 12425);
+
+    RecvPeerHint folded = lan;
+    folded.host = QStringLiteral("work-laptop");
+    folded.ip = QStringLiteral("192.168.14.166");
+    QList<RecvPeerHint> foldedPeers;
+    foldedPeers << lan << folded;
+    QList<RecvEndpoint> foldedEnds = recvFileEndpoints(
+                lan.ip, 2425, foldedPeers, QStringList(), 2425);
+    CHECK(foldedEnds.size() == 2);
+    CHECK(foldedEnds.at(1).ip == QLatin1String("192.168.14.166"));
+
+    RecvPeerHint blank = lan;
+    blank.login.clear();
+    blank.ip = QStringLiteral("192.168.14.167");
+    RecvPeerHint blank2 = blank;
+    blank2.ip = QStringLiteral("192.168.14.168");
+    QList<RecvPeerHint> blanks;
+    blanks << blank << blank2;
+    QList<RecvEndpoint> noMerge = recvFileEndpoints(
+                blank.ip, 2425, blanks, QStringList(), 2425);
+    CHECK(noMerge.size() == 1);
+
+    RecvPeerHint extraNic = lan;
+    extraNic.ip = QStringLiteral("192.168.14.161");
+    RecvPeerHint extraNic2 = lan;
+    extraNic2.ip = QStringLiteral("192.168.14.162");
+    RecvPeerHint extraNic3 = lan;
+    extraNic3.ip = QStringLiteral("192.168.14.163");
+    QList<RecvPeerHint> crowded;
+    crowded << lan << extraNic << extraNic2 << extraNic3 << zt;
+    QList<RecvEndpoint> keptConfig = recvFileEndpoints(
+                lan.ip, 2425, crowded,
+                QStringList() << QStringLiteral("192.168.14.3"), 2425);
+    bool sawConfigured = false;
+    for (int i = 0; i < keptConfig.size(); ++i) {
+        if (keptConfig.at(i).ip == QLatin1String("192.168.14.3")) {
+            sawConfigured = true;
+        }
+    }
+    CHECK(sawConfigured);
+    CHECK(keptConfig.size() <= 4);
+
+    QList<RecvPeerHint> ztOnly;
+    ztOnly << zt;
+    QList<RecvEndpoint> ztConfigured = recvFileEndpoints(
+                zt.ip, 2425, ztOnly,
+                QStringList() << QStringLiteral("192.168.14.3")
+                              << QStringLiteral("10.9.8.7"),
+                2425);
+    CHECK(ztConfigured.size() == 2);
+    CHECK(ztConfigured.at(0).ip == QLatin1String("10.147.19.236"));
+    CHECK(ztConfigured.at(1).ip == QLatin1String("192.168.14.3"));
 
     if (g_fails != 0) {
         std::fprintf(stderr, "%d checks failed\n", g_fails);

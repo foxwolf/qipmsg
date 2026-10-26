@@ -31,7 +31,9 @@
 #include "msg.h"
 #include "window_manager.h"
 
+#include <QDebug>
 #include <QFile>
+#include <QHostAddress>
 #include <QFileInfo>
 #include <QDir>
 #include <QTextCodec>
@@ -55,6 +57,116 @@ struct TransferFile
     QMap<int, QString> extendAttr;
 };
 
+QList<RecvEndpoint> RecvFileTransfer::endpointsFor(RecvFileHandle h) const
+{
+    quint16 port = h->peerPort();
+    if (port == 0 && Global::userManager) {
+        port = Global::userManager->peerPort(h->ip());
+    }
+    if (port == 0) {
+        port = IPMSG_DEFAULT_PORT;
+    }
+
+    QList<RecvPeerHint> peers;
+    if (Global::userManager) {
+        const int rows = Global::userManager->userCount();
+        for (int row = 0; row < rows; ++row) {
+            RecvPeerHint hint;
+            hint.ip = Global::userManager->ip(row);
+            hint.port = Global::userManager->peerPort(hint.ip);
+            hint.login = Global::userManager->loginName(row);
+            hint.host = Global::userManager->host(row);
+            hint.group = Global::userManager->group(row);
+            peers.append(hint);
+        }
+    }
+
+    QStringList tokens;
+    if (Global::preferences) {
+        tokens = Global::preferences->userSpecifiedBroadcastIpList;
+    }
+
+    QList<RecvEndpoint> endpoints = recvFileEndpoints(
+                h->ip(), port, peers, tokens, IPMSG_DEFAULT_PORT);
+    const QString prefer = h->connectIp().trimmed();
+    if (!prefer.isEmpty()) {
+        const quint16 preferPort = h->connectPort() == 0 ? port : h->connectPort();
+        int found = -1;
+        for (int i = 0; i < endpoints.size(); ++i) {
+            if (endpoints.at(i).ip == prefer && endpoints.at(i).port == preferPort) {
+                found = i;
+                break;
+            }
+        }
+        RecvEndpoint chosen;
+        if (found >= 0) {
+            chosen = endpoints.takeAt(found);
+        } else {
+            chosen.ip = prefer;
+            chosen.port = preferPort;
+        }
+        endpoints.prepend(chosen);
+        while (endpoints.size() > 4) {
+            endpoints.removeLast();
+        }
+    }
+
+    if (endpoints.size() > 1) {
+        QStringList text;
+        for (int i = 0; i < endpoints.size(); ++i) {
+            text << QString("%1:%2").arg(endpoints.at(i).ip)
+                    .arg(endpoints.at(i).port);
+        }
+        qInfo("RecvFileTransfer: try %s", qPrintable(text.join(QStringLiteral(", "))));
+    }
+    return endpoints;
+}
+
+bool RecvFileTransfer::connectFileHost(const QString &ip, quint16 port,
+                                       int timeoutMs)
+{
+    m_tcpSocket.abort();
+    m_errorString.clear();
+    m_tcpSocket.connectToHost(QHostAddress(ip), port);
+    int waited = 0;
+    while (waited < timeoutMs) {
+        if (isAbortTransfer.load()) {
+            m_errorString = tr("Transfer cancelled");
+            m_tcpSocket.abort();
+            return false;
+        }
+        if (m_tcpSocket.waitForConnected(200)) {
+            return true;
+        }
+        if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState) {
+            m_errorString = m_tcpSocket.errorString();
+            if (m_errorString.isEmpty()) {
+                m_errorString = QStringLiteral("connect failed");
+            }
+            return false;
+        }
+        waited += 200;
+    }
+    m_errorString = m_tcpSocket.errorString();
+    if (m_errorString.isEmpty()) {
+        m_errorString = QStringLiteral("connect timeout");
+    }
+    m_tcpSocket.abort();
+    return false;
+}
+
+void RecvFileTransfer::rememberFileHost(RecvFileHandle h, const QString &ip,
+                                        quint16 port)
+{
+    foreach (RecvFileHandle other, m_recvFileMap->m_map) {
+        if (other->ip() == h->ip()
+                && other->packetNoString() == h->packetNoString()) {
+            other->setConnectIp(ip);
+            other->setConnectPort(port);
+        }
+    }
+}
+
 void RecvFileTransfer::startTransfer()
 {
     m_recvFileMap->setStartTime();
@@ -69,55 +181,79 @@ void RecvFileTransfer::startTransfer()
         h->resetStats();
 
         m_recvFileMap->setCurrentId(h->fileId());
-        m_recvFileMap->startTimer();
 
         if (tryInstant(h)) {
             continue;
         }
 
-        m_tcpSocket.disconnectFromHost();
-        quint16 port = h->peerPort();
-        if (port == 0) {
-            port = Global::userManager->peerPort(h->ip());
-        }
-        if (port == 0) {
-            port = IPMSG_DEFAULT_PORT;
-        }
-        m_tcpSocket.connectToHost(h->ipAddress(), port);
-        {
-            int waited = 0;
-            bool connected = false;
-            while (waited < TCP_CONNECT_TIMEOUT_MS) {
+        const QList<RecvEndpoint> endpoints = endpointsFor(h);
+        bool transferred = false;
+        QStringList failures;
+        for (int i = 0; i < endpoints.size(); ++i) {
+            if (isAbortTransfer.load()) {
+                goto transfer_fail;
+            }
+            const RecvEndpoint ep = endpoints.at(i);
+            if (!connectFileHost(ep.ip, ep.port, TCP_CONNECT_TIMEOUT_MS)) {
                 if (isAbortTransfer.load()) {
                     goto transfer_fail;
                 }
-                if (m_tcpSocket.waitForConnected(200)) {
-                    connected = true;
-                    break;
-                }
-                if (m_tcpSocket.state() == QAbstractSocket::UnconnectedState) {
-                    break;
-                }
-                waited += 200;
+                const QString why = m_errorString.isEmpty()
+                        ? m_tcpSocket.errorString() : m_errorString;
+                failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
+                qWarning("RecvFileTransfer: %s:%u %s",
+                         qPrintable(ep.ip), static_cast<unsigned>(ep.port),
+                         qPrintable(why));
+                continue;
             }
-            if (!connected) {
-                m_errorString = m_tcpSocket.errorString();
-                goto transfer_fail;
-            }
-        }
 
-        if (h->type() == IPMSG_FILE_REGULAR) {
-            applyResumeIfNeeded(h);
-            if (!recvFileRegular(h)) {
+            if (h->type() == IPMSG_FILE_REGULAR) {
+                applyResumeIfNeeded(h);
+            }
+            const qint64 marked = h->bytesReaded();
+            bool ok = false;
+            if (h->type() == IPMSG_FILE_REGULAR) {
+                ok = recvFileRegular(h);
+            } else if (h->type() == IPMSG_FILE_DIR) {
+                ok = recvFileDir(h);
+            } else {
+                m_errorString = QStringLiteral("unsupported file type");
+                failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port)
+                            .arg(m_errorString);
+                break;
+            }
+            if (ok) {
+                rememberFileHost(h, ep.ip, ep.port);
+                transferred = true;
+                if (i > 0) {
+                    qInfo("RecvFileTransfer: file port %s:%u",
+                          qPrintable(ep.ip), static_cast<unsigned>(ep.port));
+                }
+                break;
+            }
+            if (isAbortTransfer.load()) {
                 goto transfer_fail;
             }
-        } else if (h->type() == IPMSG_FILE_DIR) {
-            if (!recvFileDir(h)) {
-                goto transfer_fail;
+            const QString why = m_errorString.isEmpty()
+                    ? m_tcpSocket.errorString() : m_errorString;
+            failures << QString("%1:%2 %3").arg(ep.ip).arg(ep.port).arg(why);
+            qWarning("RecvFileTransfer: %s:%u %s",
+                     qPrintable(ep.ip), static_cast<unsigned>(ep.port),
+                     qPrintable(why));
+            // A later address is only safe before any payload from this one.
+            if (h->bytesReaded() > marked) {
+                break;
             }
+            h->setState(RecvFile::ToRecv);
+            m_tcpSocket.abort();
         }
-
-        m_recvFileMap->stopTimer();
+        if (!transferred) {
+            m_errorString = failures.join(QStringLiteral("; "));
+            if (h->state() != RecvFile::RecvOk) {
+                h->setState(RecvFile::RecvFail);
+            }
+            goto transfer_fail;
+        }
     }
 
     m_tcpSocket.disconnectFromHost();
@@ -128,7 +264,6 @@ void RecvFileTransfer::startTransfer()
 transfer_fail:
     m_tcpSocket.disconnectFromHost();
     m_recvFileMap->setEndTime();
-    m_recvFileMap->stopTimer();
     // if 'isAbortTransfer' is true, it's a manually stop, not emit error
     if (!isAbortTransfer.load()) {
         emit recvFileError(m_errorString);
