@@ -284,15 +284,15 @@ void UserManager::notePresenceSound(const QString &ip, int oldPresence,
     // person arriving or leaving. Beep only when the logical peer
     // crosses the online/offline line.
     const QList<PeerFoldGroup> folds = contactFolds();
-    const int selfRow = ipToRow(ip);
+    const int heardRow = ipToRow(ip);
     for (int g = 0; g < folds.size(); ++g) {
         const PeerFoldGroup &fold = folds.at(g);
-        if (selfRow < 0 || !fold.indexes.contains(selfRow)) {
+        if (heardRow < 0 || !fold.indexes.contains(heardRow)) {
             continue;
         }
         for (int n = 0; n < fold.indexes.size(); ++n) {
             const int row = fold.indexes.at(n);
-            if (row == selfRow) {
+            if (row == heardRow) {
                 continue;
             }
             const int sibling = presence(row);
