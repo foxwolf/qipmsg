@@ -17,6 +17,7 @@
 #include "offline_queue.h"
 #include "global.h"
 #include "helper.h"
+#include "peerFold.h"
 
 #include <QAbstractItemView>
 #include <QDialogButtonBox>
@@ -72,17 +73,30 @@ QString OfflineQueue::matchReachableIp(const QString &login, const QString &host
     if (login.isEmpty() || host.isEmpty()) {
         return QString();
     }
-    QString found;
-    foreach (const OfflinePeerHint &peer, peers) {
-        if (!peer.reachable || peer.login != login || peer.host != host) {
+    // Retarget a queued item when the saved IP went stale. Two fresh
+    // NICs of the same login+host used to look ambiguous and the item
+    // stayed stuck. Compare names without case, then take the preferred
+    // fresh address (LAN before 10/8, then the lower IPv4).
+    QList<PeerFoldEnd> ends;
+    for (int i = 0; i < peers.size(); ++i) {
+        const OfflinePeerHint &peer = peers.at(i);
+        if (!peer.reachable) {
             continue;
         }
-        if (!found.isEmpty()) {
-            return QString();
+        if (peer.login.trimmed().compare(login.trimmed(), Qt::CaseInsensitive) != 0
+                || peer.host.trimmed().compare(host.trimmed(), Qt::CaseInsensitive) != 0) {
+            continue;
         }
-        found = peer.ip;
+        PeerFoldEnd end;
+        end.ip = peer.ip;
+        end.fresh = true;
+        ends.append(end);
     }
-    return found;
+    const int best = preferredPeerIndex(ends);
+    if (best < 0) {
+        return QString();
+    }
+    return ends.at(best).ip;
 }
 
 void OfflineQueue::load()

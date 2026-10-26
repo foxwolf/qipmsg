@@ -397,11 +397,14 @@ int WindowManager::broadcastTextToOnline(const QString &text)
     // SENDMSG|SENDCHECKOPT|BROADCASTOPT to each reachable peer (online or
     // away). Stale peers are skipped and not queued. The subnet broadcast
     // address is not used here, so a peer who is already online does not
-    // get a second copy from 255.255.255.255.
+    // get a second copy from 255.255.255.255. A peer with two fresh
+    // addresses is still one recipient: see logicalSendIps.
     int sent = 0;
-    const int rows = Global::userManager->userCount();
-    for (int row = 0; row < rows; ++row) {
-        const QString ip = Global::userManager->ip(row);
+    // One datagram per logical peer. logicalSendIps already drops the
+    // extra NIC, and it returns the LAN address when that NIC is fresh.
+    const QStringList ips = Global::userManager->logicalSendIps(true);
+    for (int i = 0; i < ips.size(); ++i) {
+        const QString ip = ips.at(i);
         if (!Global::userManager->isReachable(ip)) {
             continue;
         }

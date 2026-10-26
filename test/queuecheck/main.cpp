@@ -81,12 +81,29 @@ int main(int argc, char **argv)
           == QLatin1String("10.0.0.9"));
     CHECK(OfflineQueue::matchReachableIp(QString(), QStringLiteral("host-a"), peers)
           .isEmpty());
+    // Two fresh 10/8 addresses of one login+host. The lower IPv4 wins
+    // so the retarget does not flap, and the item is not left stuck.
     OfflinePeerHint other = live;
     other.ip = QStringLiteral("10.0.0.10");
     peers << other;
     CHECK(OfflineQueue::matchReachableIp(QStringLiteral("alice"),
                                           QStringLiteral("host-a"), peers)
-          .isEmpty());
+          == QLatin1String("10.0.0.9"));
+    QList<OfflinePeerHint> feiq;
+    OfflinePeerHint feiqZt;
+    feiqZt.ip = QStringLiteral("10.147.19.236");
+    feiqZt.login = QStringLiteral("foxwolf");
+    feiqZt.host = QStringLiteral("work-laptop");
+    feiqZt.reachable = true;
+    OfflinePeerHint feiqLan;
+    feiqLan.ip = QStringLiteral("192.168.14.164");
+    feiqLan.login = QStringLiteral("FoxWolf");
+    feiqLan.host = QStringLiteral("WORK-LAPTOP");
+    feiqLan.reachable = true;
+    feiq << feiqZt << feiqLan;
+    CHECK(OfflineQueue::matchReachableIp(QStringLiteral("FoxWolf"),
+                                          QStringLiteral("WORK-LAPTOP"), feiq)
+          == QLatin1String("192.168.14.164"));
 
     CHECK(queue->assignIp(textId, QStringLiteral("10.0.0.9")));
     delete queue;

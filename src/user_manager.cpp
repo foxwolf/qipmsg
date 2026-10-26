@@ -31,6 +31,7 @@
 #include "sound_thread.h"
 #include "groupPolicy.h"
 #include "protocolutil.h"
+#include "peerFold.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -38,6 +39,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkInterface>
 #include <QSet>
 #include <QStandardItemModel>
 #include <QStringList>
@@ -51,7 +53,9 @@ UserManager::UserManager(QObject *parent)
 {
     updateOurself();
     createModel();
-    loadPersistedPeers();
+    // The save timer does not exist yet. Remember a dropped self row
+    // and rewrite peers.json once the timer is running.
+    const bool droppedSelf = loadPersistedPeers();
 
     // Persisted peers and the first discovery burst must not beep.
     QTimer::singleShot(PRESENCE_SOUND_ARM_MS, this, [this]() {
@@ -67,6 +71,12 @@ UserManager::UserManager(QObject *parent)
     m_saveTimer->setSingleShot(true);
     connect(m_saveTimer, SIGNAL(timeout()),
             this, SLOT(savePersistedPeers()));
+    if (droppedSelf) {
+        // peers.json still has foxwolf@hw on every old NIC, and
+        // 127.0.0.1. Those rows were not loaded. Write the file back
+        // without them so the next start stays quiet.
+        scheduleSavePeers();
+    }
 }
 
 UserManager::~UserManager()
@@ -87,6 +97,11 @@ void UserManager::updateOurself()
     m_ourself.setHost(Helper::hostname());
     m_ourself.setDisplayLevel(Global::preferences->displayLevel);
     m_ourself.setSignature(Global::preferences->personSign);
+
+    // A nickname or hostname change can turn rows we already stored
+    // into "this machine". Drop them after the model exists. The
+    // constructor calls us before createModel, so the null check matters.
+    pruneSelfRows();
 }
 
 void UserManager::createModel()
@@ -101,6 +116,21 @@ void UserManager::createModel()
 
 void UserManager::newUserMsg(Msg msg)
 {
+    // Our own BR_ENTRY arrives once per NIC (Ethernet and ZeroTier on
+    // hw, plus whatever address we used last week). Those rows are not
+    // contacts. FeiQ with the same login and a different host is not
+    // caught here and is inserted below like any other peer.
+    if (isSelfPeer(msg->owner().loginName(), msg->owner().host(), msg->ip())) {
+        const int row = ipToRow(msg->ip());
+        if (row != -1) {
+            m_model->removeRow(row);
+            scheduleSavePeers();
+            emit userCountUpdated(listedPeerCount());
+            notifyUsersChanged();
+        }
+        return;
+    }
+
     if (!msg->owner().group().isEmpty()
             && !Global::preferences->groupNameList
             .contains(msg->owner().group())) {
@@ -129,7 +159,8 @@ void UserManager::newUserMsg(Msg msg)
         applyDialupFlag(row, dialup);
         scheduleSavePeers();
 
-        emit userCountUpdated(m_model->rowCount());
+        // Tray and the level menu count people, not source addresses.
+        emit userCountUpdated(listedPeerCount());
         notifyUsersChanged();
     }
     notePeerCaps(msg->ip(), msg->flags());
@@ -247,6 +278,29 @@ void UserManager::notePresenceSound(const QString &ip, int oldPresence,
             || newPresence == PRESENCE_AWAY;
     if (wasHere == nowHere) {
         return;
+    }
+
+    // A second NIC of someone who is already on the list is not a new
+    // person arriving or leaving. Beep only when the logical peer
+    // crosses the online/offline line.
+    const QList<PeerFoldGroup> folds = contactFolds();
+    const int selfRow = ipToRow(ip);
+    for (int g = 0; g < folds.size(); ++g) {
+        const PeerFoldGroup &fold = folds.at(g);
+        if (selfRow < 0 || !fold.indexes.contains(selfRow)) {
+            continue;
+        }
+        for (int n = 0; n < fold.indexes.size(); ++n) {
+            const int row = fold.indexes.at(n);
+            if (row == selfRow) {
+                continue;
+            }
+            const int sibling = presence(row);
+            if (sibling == PRESENCE_ONLINE || sibling == PRESENCE_AWAY) {
+                return;
+            }
+        }
+        break;
     }
 
     const QDateTime now = QDateTime::currentDateTime();
@@ -477,6 +531,10 @@ void UserManager::unicastPresenceToDialup(quint32 command) const
     // two dial-up qipmsg peers do not bounce BR_ENTRY forever. ANSENTRY
     // still answers their BR_ENTRY on the existing path.
     const bool exitPacket = GET_MODE(command) == IPMSG_BR_EXIT;
+    // Every address, not the preferred one. A dial-up peer that also
+    // has two NICs needs the unicast on both, because either one may
+    // be the path that misses the subnet broadcast. Self rows are
+    // already gone, so this does not unicast to us.
     for (int row = 0; row < userCount(); ++row) {
         const QString peerIp = ip(row);
         if (peerIp.isEmpty() || !peerIsDialup(peerIp)) {
@@ -749,11 +807,25 @@ QStringList UserManager::reachableIpsInGroup(const QString &groupName) const
     if (key.isEmpty()) {
         return ips;
     }
-    for (int row = 0; row < userCount(); ++row) {
-        if (GroupPolicy::normalizeName(group(row)) != key) {
+    // One send per person. Walking every NIC would deliver the same
+    // text to FeiQ on 192.168.14.164 and again on 10.147.19.236.
+    // The peer stays in the department when any of its addresses
+    // announced that group. The address we return is the preferred one,
+    // which is fresh when any address is fresh.
+    const QList<PeerFoldGroup> folds = contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        const PeerFoldGroup &fold = folds.at(g);
+        bool inGroup = false;
+        for (int n = 0; n < fold.indexes.size(); ++n) {
+            if (GroupPolicy::normalizeName(group(fold.indexes.at(n))) == key) {
+                inGroup = true;
+                break;
+            }
+        }
+        if (!inGroup || fold.preferred < 0) {
             continue;
         }
-        const QString peerIp = ip(row);
+        const QString peerIp = ip(fold.preferred);
         if (peerIp.isEmpty() || !isReachable(peerIp)) {
             continue;
         }
@@ -767,13 +839,127 @@ QStringList UserManager::reachableIpsInGroup(const QString &groupName) const
 int UserManager::onlineCount() const
 {
     int count = 0;
-    for (int row = 0; row < m_model->rowCount(); ++row) {
-        const int p = presence(row);
-        if (p == PRESENCE_ONLINE || p == PRESENCE_AWAY) {
-            ++count;
+    const QList<PeerFoldGroup> folds = contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        const PeerFoldGroup &fold = folds.at(g);
+        for (int n = 0; n < fold.indexes.size(); ++n) {
+            const int p = presence(fold.indexes.at(n));
+            if (p == PRESENCE_ONLINE || p == PRESENCE_AWAY) {
+                ++count;
+                break;
+            }
         }
     }
     return count;
+}
+
+int UserManager::listedPeerCount() const
+{
+    return contactFolds().size();
+}
+
+QStringList UserManager::localIpv4List() const
+{
+    QStringList ips;
+    const QList<QHostAddress> addresses = QNetworkInterface::allAddresses();
+    for (int i = 0; i < addresses.size(); ++i) {
+        if (addresses.at(i).protocol() != QAbstractSocket::IPv4Protocol) {
+            continue;
+        }
+        const QString text = addresses.at(i).toString();
+        if (!text.isEmpty() && !ips.contains(text)) {
+            ips << text;
+        }
+    }
+    return ips;
+}
+
+bool UserManager::isSelfPeer(const QString &login, const QString &host,
+                             const QString &ip) const
+{
+    return peerIsSelf(login, host, ip,
+                      m_ourself.loginName(), m_ourself.host(),
+                      localIpv4List());
+}
+
+void UserManager::pruneSelfRows()
+{
+    if (!m_model) {
+        return;
+    }
+    bool removed = false;
+    for (int row = m_model->rowCount() - 1; row >= 0; --row) {
+        if (!isSelfPeer(loginName(row), host(row), ip(row))) {
+            continue;
+        }
+        m_model->removeRow(row);
+        removed = true;
+    }
+    if (!removed) {
+        return;
+    }
+    scheduleSavePeers();
+    emit userCountUpdated(listedPeerCount());
+    notifyUsersChanged();
+}
+
+QList<PeerFoldGroup> UserManager::contactFolds() const
+{
+    QList<PeerFoldInput> inputs;
+    const int rows = m_model ? m_model->rowCount() : 0;
+    for (int row = 0; row < rows; ++row) {
+        PeerFoldInput input;
+        input.ip = ip(row);
+        input.login = loginName(row);
+        input.host = host(row);
+        input.qipToken = peerQipToken(input.ip);
+        input.port = peerPort(input.ip);
+        const int p = presence(row);
+        input.fresh = (p == PRESENCE_ONLINE || p == PRESENCE_AWAY);
+        input.seen = m_model->data(m_model->index(row, USER_VIEW_IP_COLUMN),
+                                   Qt::UserRole).toDateTime();
+        inputs.append(input);
+    }
+    // Input order is model order, so PeerFoldGroup::indexes are rows.
+    return peerFoldGroups(inputs);
+}
+
+int UserManager::preferredRowForIp(const QString &ip) const
+{
+    const int row = ipToRow(ip);
+    if (row < 0) {
+        return -1;
+    }
+    const QList<PeerFoldGroup> folds = contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        if (folds.at(g).indexes.contains(row)) {
+            return folds.at(g).preferred;
+        }
+    }
+    return row;
+}
+
+QStringList UserManager::logicalSendIps(bool reachableOnly) const
+{
+    QStringList ips;
+    const QList<PeerFoldGroup> folds = contactFolds();
+    for (int g = 0; g < folds.size(); ++g) {
+        const int row = folds.at(g).preferred;
+        if (row < 0) {
+            continue;
+        }
+        const QString peerIp = ip(row);
+        if (peerIp.isEmpty()) {
+            continue;
+        }
+        if (reachableOnly && !isReachable(peerIp)) {
+            continue;
+        }
+        if (!ips.contains(peerIp)) {
+            ips << peerIp;
+        }
+    }
+    return ips;
 }
 
 void UserManager::notifyUsersChanged()
@@ -870,6 +1056,47 @@ QString UserManager::peerCaption(const QString &ip) const
         caption += QLatin1Char('\n');
         caption += tr("Dial-up host");
     }
+
+    // Tell the open chat which NIC this window is bound to, and which
+    // address the contact list would use instead. The window itself
+    // stays on the IP the message arrived from, so a reply can still
+    // follow the path that just worked.
+    const int preferredRow = preferredRowForIp(ip);
+    if (preferredRow >= 0) {
+        const QString preferredIp = this->ip(preferredRow);
+        const QList<PeerFoldGroup> folds = contactFolds();
+        QStringList others;
+        for (int g = 0; g < folds.size(); ++g) {
+            if (!folds.at(g).indexes.contains(preferredRow)) {
+                continue;
+            }
+            for (int n = 0; n < folds.at(g).indexes.size(); ++n) {
+                const int row = folds.at(g).indexes.at(n);
+                const QString other = this->ip(row);
+                if (other.isEmpty() || other == ip) {
+                    continue;
+                }
+                others << other;
+            }
+            break;
+        }
+        if (!others.isEmpty()) {
+            caption += QLatin1Char('\n');
+            caption += tr("Other addresses for this peer: %1")
+                    .arg(others.join(QStringLiteral(", ")));
+        }
+        if (!preferredIp.isEmpty() && preferredIp != ip) {
+            caption += QLatin1Char('\n');
+            caption += tr("This chat is on %1. The contact list prefers %2.")
+                    .arg(ip, preferredIp);
+        } else if (!others.isEmpty()) {
+            caption += QLatin1Char('\n');
+            caption += tr("Messages and files from the contact list use %1. "
+                          "A fresh 192.168 or 172.16 address is chosen over "
+                          "a fresh 10.x address.")
+                    .arg(ip);
+        }
+    }
     return caption;
 }
 
@@ -932,26 +1159,40 @@ void UserManager::adoptRestoredPeers()
     }
     m_memos.clear();
     loadPersistedPeers();
+    // A restored file can still name this machine. Drop those rows
+    // after the load, including any that were already on screen.
+    pruneSelfRows();
     notifyUsersChanged();
-    emit userCountUpdated(m_model ? m_model->rowCount() : 0);
+    emit userCountUpdated(listedPeerCount());
 }
 
-void UserManager::loadPersistedPeers()
+bool UserManager::loadPersistedPeers()
 {
     QFile file(peersFilePath());
     if (!file.exists() || !file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return;
+        return false;
     }
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
     if (!doc.isArray()) {
-        return;
+        return false;
     }
+    bool droppedSelf = false;
 
     const QJsonArray array = doc.array();
     for (int i = 0; i < array.size(); ++i) {
         const QJsonObject obj = array.at(i).toObject();
         const QString ip = obj.value("ip").toString();
         if (ip.isEmpty()) {
+            continue;
+        }
+        const QString loadedLogin = obj.value("login").toString();
+        const QString loadedHost = obj.value("host").toString();
+        // Stale self rows (old WLAN, old LAN, 127.0.0.1) are not
+        // reloaded. The next save drops them from peers.json. A FeiQ
+        // row with a different host is kept, even when the login
+        // matches ours ignoring case.
+        if (isSelfPeer(loadedLogin, loadedHost, ip)) {
+            droppedSelf = true;
             continue;
         }
         const QString memo = obj.value("memo").toString().trimmed();
@@ -965,8 +1206,8 @@ void UserManager::loadPersistedPeers()
         owner.setIp(ip);
         owner.setName(obj.value("name").toString());
         owner.setGroup(obj.value("group").toString());
-        owner.setHost(obj.value("host").toString());
-        owner.setLoginName(obj.value("login").toString());
+        owner.setHost(loadedHost);
+        owner.setLoginName(loadedLogin);
         owner.setSignature(obj.value("sign").toString());
         owner.setPort(static_cast<quint16>(obj.value("port").toInt()));
         const int row = m_model->rowCount();
@@ -983,9 +1224,15 @@ void UserManager::loadPersistedPeers()
     }
 
     if (m_model->rowCount() > 0) {
-        emit userCountUpdated(m_model->rowCount());
+        emit userCountUpdated(listedPeerCount());
         notifyUsersChanged();
     }
+    // During restore the timer already exists, so the rewrite can be
+    // armed here. The constructor arms it after the timer is created.
+    if (droppedSelf && m_saveTimer) {
+        scheduleSavePeers();
+    }
+    return droppedSelf;
 }
 
 void UserManager::savePersistedPeers()

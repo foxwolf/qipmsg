@@ -216,9 +216,18 @@ static void checkLocalPlan()
     plan = LocalMsg::planDelivery(QStringLiteral("Ann@OFFICE"),
                                   QStringLiteral("hello"), peers, false);
     CHECK(plan.kind == localPlanOffline);
+    // bob@host is one person on two addresses. 10.0.0.1 is reachable
+    // and 10.0.0.2 is not, so the fresh address is the send target.
     plan = LocalMsg::planDelivery(QStringLiteral("bob@host"),
                                   QStringLiteral("hello"), peers, true);
-    CHECK(plan.kind == localPlanAmbiguous);
+    CHECK(plan.kind == localPlanSend);
+    CHECK(plan.ip == QStringLiteral("10.0.0.1"));
+    peers.append(makePeer("192.168.14.164", "FoxWolf", "WORK-LAPTOP", true));
+    peers.append(makePeer("10.147.19.236", "foxwolf", "work-laptop", true));
+    plan = LocalMsg::planDelivery(QStringLiteral("FoxWolf@WORK-LAPTOP"),
+                                  QStringLiteral("hello"), peers, false);
+    CHECK(plan.kind == localPlanSend);
+    CHECK(plan.ip == QStringLiteral("192.168.14.164"));
     plan = LocalMsg::planDelivery(QStringLiteral("nope@host"),
                                   QStringLiteral("hello"), peers, true);
     CHECK(plan.kind == localPlanMissing);
