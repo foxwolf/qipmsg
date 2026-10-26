@@ -334,6 +334,41 @@ int ProtocolUtil::etaSeconds(qint64 bytesSent, qint64 bytesTotal,
     return secs < 1 ? 1 : secs;
 }
 
+QByteArray ProtocolUtil::makeFilePullRequest(const QByteArray &version,
+                                            const QByteArray &requestPacketNo,
+                                            const QByteArray &loginName,
+                                            const QByteArray &hostName,
+                                            quint32 command,
+                                            qint64 offerPacketNo,
+                                            int fileId,
+                                            qint64 offset,
+                                            bool withOffset)
+{
+    QByteArray out;
+    out.reserve(version.size() + requestPacketNo.size() + loginName.size()
+                + hostName.size() + 48);
+    out.append(version);
+    out.append(':');
+    out.append(requestPacketNo);
+    out.append(':');
+    out.append(loginName);
+    out.append(':');
+    out.append(hostName);
+    out.append(':');
+    out.append(QByteArray::number(static_cast<qulonglong>(command)));
+    out.append(':');
+    out.append(QByteArray::number(static_cast<qlonglong>(offerPacketNo), 16));
+    out.append(':');
+    out.append(QByteArray::number(fileId, 16));
+    out.append(':');
+    if (withOffset) {
+        out.append(QByteArray::number(static_cast<qlonglong>(offset), 16));
+        out.append(':');
+    }
+    out.append('\0');
+    return out;
+}
+
 QString ProtocolUtil::readReceiptPacketNo(const QString &additionalInfo,
                                           const QString &packetNoField)
 {
