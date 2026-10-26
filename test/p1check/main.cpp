@@ -441,6 +441,139 @@ int main(int argc, char **argv)
     CHECK(sawAaa);
     CHECK(sawBbb);
 
+    // 2.53.23 fileattr checks stay next to the fold checks. Folding
+    // contacts does not change how a later FeiQ attachment is classified:
+    // the kind is still the low 8 bits of fileattr.
+    // Attachment fileattr: low 8 bits are the kind. Option bits must not
+    // knock a later FeiQ offer off the regular/dir download path.
+    const FileAttachParsed plain = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:1:"));
+    CHECK(plain.parsed);
+    CHECK(plain.fileId == 0);
+    CHECK(plain.name == QLatin1String("a.txt"));
+    CHECK(plain.size == 0x10);
+    CHECK(plain.rawAttr == QLatin1String("1"));
+    CHECK(plain.attrWord == 1u);
+    CHECK(plain.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed readonly = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:101:"));
+    CHECK(readonly.parsed);
+    CHECK(readonly.attrWord == 0x101u);
+    CHECK(readonly.type == IPMSG_FILE_REGULAR);
+    CHECK(plain.type == IPMSG_FILE_REGULAR);
+    CHECK(plain.attrWord == 1u);
+
+    const FileAttachParsed archive = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:4001:"));
+    CHECK(archive.parsed);
+    CHECK(archive.attrWord == 0x4001u);
+    CHECK(archive.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed folder = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:dir:0:20:2:"));
+    CHECK(folder.parsed);
+    CHECK(folder.type == IPMSG_FILE_DIR);
+
+    const FileAttachParsed hiddenDir = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:dir:0:20:1002:"));
+    CHECK(hiddenDir.parsed);
+    CHECK(hiddenDir.attrWord == 0x1002u);
+    CHECK(hiddenDir.type == IPMSG_FILE_DIR);
+
+    const FileAttachParsed clip = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:clip.png:10:20:20:"));
+    CHECK(clip.parsed);
+    CHECK(clip.attrWord == 0x20u);
+    CHECK(clip.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed zeroAttr = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:0:"));
+    CHECK(zeroAttr.parsed);
+    CHECK(zeroAttr.attrWord == 0u);
+    CHECK(zeroAttr.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed symlink = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:link:10:20:4:"));
+    CHECK(symlink.parsed);
+    CHECK(symlink.type == IPMSG_FILE_SYMLINK);
+
+    const FileAttachParsed reserved = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:4a:20:1:0:"));
+    CHECK(reserved.parsed);
+    CHECK(reserved.size == 0x4a);
+    CHECK(reserved.rawAttr == QLatin1String("1"));
+    CHECK(reserved.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed colonName = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:C:\\dir\\a.txt:4a:abcdef01:1:"));
+    CHECK(colonName.parsed);
+    CHECK(colonName.name == QLatin1String("C:\\dir\\a.txt"));
+    CHECK(colonName.size == 0x4a);
+    CHECK(colonName.rawAttr == QLatin1String("1"));
+    CHECK(colonName.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed escaped = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:my::file.txt:10:20:1:"));
+    CHECK(escaped.parsed);
+    CHECK(escaped.name == QLatin1String("my:file.txt"));
+    CHECK(escaped.size == 0x10);
+    CHECK(escaped.type == IPMSG_FILE_REGULAR);
+
+    const FileAttachParsed extend = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:101:14=abcdef:"));
+    CHECK(extend.parsed);
+    CHECK(extend.type == IPMSG_FILE_REGULAR);
+    CHECK(extend.attrWord == 0x101u);
+    CHECK(extend.extend.value(IPMSG_FILE_MTIME) == QLatin1String("abcdef"));
+
+    const FileAttachParsed oddAttr = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("0:a.txt:10:20:weird:"));
+    CHECK(oddAttr.parsed);
+    CHECK(oddAttr.rawAttr == QLatin1String("weird"));
+    CHECK(oddAttr.attrWord == 0u);
+    CHECK(oddAttr.type == IPMSG_FILE_REGULAR);
+    CHECK(oddAttr.size == 0x10);
+
+    const FileAttachParsed font = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("font=a:size=1:color=0:style=0:extra=1"));
+    CHECK(!font.parsed);
+
+    CHECK(ProtocolUtil::fileAttrKind(0x101u, true) == IPMSG_FILE_REGULAR);
+    CHECK(ProtocolUtil::fileAttrKind(0x20u, false) == IPMSG_FILE_REGULAR);
+    CHECK(ProtocolUtil::fileAttrKind(0u, false) == -1);
+    CHECK(ProtocolUtil::fileAttrKind(0u, true) == IPMSG_FILE_REGULAR);
+    CHECK(ProtocolUtil::fileAttrKind(0x1002u, false) == IPMSG_FILE_DIR);
+    CHECK(ProtocolUtil::fileAttrKind(IPMSG_FILE_RETPARENT, false)
+          == IPMSG_FILE_RETPARENT);
+    CHECK(ProtocolUtil::fileAttrKind(IPMSG_FILE_SYMLINK, true) == -1);
+
+    const QString secondOffer = QStringLiteral("1:9:user:host:32:hi")
+            + QChar('\0')
+            + QStringLiteral("font=a:size=1:color=0:style=0:extra=1")
+            + QChar('\0')
+            + QStringLiteral("0:b.txt:20:30:101:\a1:c.txt:30:40:2:");
+    const QStringList segments = ProtocolUtil::fileAttachSegments(secondOffer);
+    CHECK(segments.size() == 3);
+    CHECK(!ProtocolUtil::parseFileAttachment(segments.at(0)).parsed);
+    const FileAttachParsed secondFile = ProtocolUtil::parseFileAttachment(
+                segments.at(1));
+    CHECK(secondFile.parsed);
+    CHECK(secondFile.name == QLatin1String("b.txt"));
+    CHECK(secondFile.fileId == 0);
+    CHECK(secondFile.attrWord == 0x101u);
+    CHECK(secondFile.type == IPMSG_FILE_REGULAR);
+    const FileAttachParsed secondDir = ProtocolUtil::parseFileAttachment(
+                segments.at(2));
+    CHECK(secondDir.parsed);
+    CHECK(secondDir.fileId == 1);
+    CHECK(secondDir.type == IPMSG_FILE_DIR);
+
+    const FileAttachParsed decimalId = ProtocolUtil::parseFileAttachment(
+                QStringLiteral("10:a.txt:10:20:1:"));
+    CHECK(decimalId.parsed);
+    CHECK(decimalId.fileId == 10);
+
     if (g_fails != 0) {
         std::fprintf(stderr, "%d checks failed\n", g_fails);
         return 1;

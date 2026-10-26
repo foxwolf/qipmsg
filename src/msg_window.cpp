@@ -434,19 +434,33 @@ void MsgWindow::initRecvFileInfo()
 {
     qDebug() << "MsgWindow::initRecvFileInfo";
 
-    QStringList infoList = m_msg->extendedInfo().split(QChar('\a'),
-            Qt::SkipEmptyParts);
-    foreach (QString info, infoList) {
-        info.replace(QString(FILE_NAME_BEFORE), QString(FILE_NAME_ESCAPE));
-        QStringList l = info.split(QChar(COMMAND_SEPERATOR));
-        if (l.size() < RECV_FILE_EXTEND_ATTR_POS) {
+    QStringList infoList = ProtocolUtil::fileAttachSegments(m_msg->packet());
+    if (infoList.isEmpty()) {
+        infoList = m_msg->extendedInfo().split(QChar('\a'), Qt::SkipEmptyParts);
+    }
+    foreach (const QString &info, infoList) {
+        RecvFile recvFile(m_msg->ip(), m_msg->packetNoString(), info,
+                          m_msg->port());
+        const QString segHex = QString::fromLatin1(
+                    info.left(96).toUtf8().toHex());
+        if (!recvFile.parsed()) {
+            qWarning("%s", qPrintable(QStringLiteral(
+                    "MsgWindow::initRecvFileInfo skip pkt=%1 segHex=%2")
+                    .arg(m_msg->packetNoString(), segHex)));
             continue;
-        } else {
-            RecvFile recvFile(m_msg->ip(), m_msg->packetNoString(), info,
-                              m_msg->port());
-            m_recvFileMap.addFile(recvFile.fileId(), RecvFileHandle(recvFile));
-            m_recvFileModel.addRow(recvFile);
         }
+        qInfo("%s", qPrintable(QStringLiteral(
+                "MsgWindow::initRecvFileInfo pkt=%1 file=%2 rawAttr=%3 attrWord=%4 mode=%5 type=%6 name=%7 segHex=%8")
+                .arg(recvFile.packetNoString())
+                .arg(recvFile.fileId())
+                .arg(recvFile.rawAttr())
+                .arg(recvFile.attrWord())
+                .arg(quint32(GET_MODE(recvFile.attrWord())))
+                .arg(recvFile.type())
+                .arg(recvFile.name())
+                .arg(segHex)));
+        m_recvFileMap.addFile(recvFile.fileId(), RecvFileHandle(recvFile));
+        m_recvFileModel.addRow(recvFile);
     }
 }
 

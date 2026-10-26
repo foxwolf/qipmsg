@@ -334,6 +334,211 @@ int ProtocolUtil::etaSeconds(qint64 bytesSent, qint64 bytesTotal,
     return secs < 1 ? 1 : secs;
 }
 
+namespace {
+
+bool parseHexU32(const QString &text, quint32 *out)
+{
+    QString hex = text.trimmed();
+    if (hex.startsWith(QLatin1String("0x"), Qt::CaseInsensitive)) {
+        hex = hex.mid(2);
+    }
+    if (hex.isEmpty() || !out) {
+        return false;
+    }
+    bool ok = false;
+    const qulonglong value = hex.toULongLong(&ok, 16);
+    if (!ok || value > 0xffffffffULL) {
+        return false;
+    }
+    *out = static_cast<quint32>(value);
+    return true;
+}
+
+bool parseHexI64(const QString &text, qint64 *out)
+{
+    const QString hex = text.trimmed();
+    if (hex.isEmpty() || !out) {
+        return false;
+    }
+    bool ok = false;
+    const qint64 value = hex.toLongLong(&ok, 16);
+    if (!ok) {
+        return false;
+    }
+    *out = value;
+    return true;
+}
+
+QString unescapeFileName(QString name)
+{
+    name.replace(QString(QChar('\a')) + QChar('\a'), QStringLiteral(":"));
+    return name;
+}
+
+void takeExtendAttrs(const QStringList &fields, int begin, QMap<int, QString> *extend)
+{
+    if (!extend) {
+        return;
+    }
+    for (int i = begin; i < fields.size(); ++i) {
+        const QString item = fields.at(i);
+        const int eq = item.indexOf(QLatin1Char('='));
+        if (eq <= 0) {
+            continue;
+        }
+        bool ok = false;
+        const int key = item.left(eq).trimmed().toInt(&ok, 16);
+        if (ok) {
+            extend->insert(key, item.mid(eq + 1));
+        }
+    }
+}
+
+int kindFromWord(quint32 attrWord)
+{
+    const int kind = ProtocolUtil::fileAttrKind(attrWord, true);
+    if (kind >= 0) {
+        return kind;
+    }
+    return static_cast<int>(GET_MODE(attrWord));
+}
+
+FileAttachParsed blankAttachment(const QString &segment)
+{
+    FileAttachParsed parsed;
+    parsed.parsed = false;
+    parsed.fileId = 0;
+    parsed.size = 0;
+    parsed.attrWord = 0;
+    parsed.type = -1;
+    parsed.segment = segment;
+    return parsed;
+}
+
+} // namespace
+
+int ProtocolUtil::fileAttrKind(quint32 attrWord, bool zeroIsRegular)
+{
+    const quint32 mode = GET_MODE(attrWord);
+    if (mode == IPMSG_FILE_DIR) {
+        return IPMSG_FILE_DIR;
+    }
+    if (mode == IPMSG_FILE_RETPARENT) {
+        return IPMSG_FILE_RETPARENT;
+    }
+    if (mode == IPMSG_FILE_REGULAR || mode == IPMSG_FILE_CLIPBOARD) {
+        return IPMSG_FILE_REGULAR;
+    }
+    if (mode == 0 && zeroIsRegular) {
+        return IPMSG_FILE_REGULAR;
+    }
+    return -1;
+}
+
+QStringList ProtocolUtil::fileAttachSegments(const QString &packet)
+{
+    QStringList out;
+    const QStringList parts = packet.split(QChar(QLatin1Char('\0')));
+    for (int i = 1; i < parts.size(); ++i) {
+        const QStringList files = parts.at(i).split(QChar('\a'), Qt::SkipEmptyParts);
+        foreach (const QString &file, files) {
+            if (!file.isEmpty()) {
+                out << file;
+            }
+        }
+    }
+    return out;
+}
+
+FileAttachParsed ProtocolUtil::parseFileAttachment(const QString &segment)
+{
+    FileAttachParsed parsed = blankAttachment(segment);
+    QString info = segment;
+    info.replace(QStringLiteral("::"), QString(QChar('\a')) + QChar('\a'));
+    const QStringList fields = info.split(QLatin1Char(':'));
+    if (fields.size() < 5) {
+        return parsed;
+    }
+
+    bool idOk = false;
+    const int fileId = fields.at(0).trimmed().toInt(&idOk, 10);
+    qint64 classicSize = 0;
+    quint32 classicWord = 0;
+    const bool classicSizeOk = parseHexI64(fields.at(2), &classicSize);
+    const bool classicAttrOk = parseHexU32(fields.at(4), &classicWord);
+    if (classicSizeOk && classicAttrOk) {
+        parsed.parsed = true;
+        parsed.fileId = idOk ? fileId : 0;
+        parsed.name = unescapeFileName(fields.at(1));
+        parsed.size = classicSize;
+        parsed.rawAttr = fields.at(4).trimmed();
+        parsed.attrWord = classicWord;
+        parsed.type = kindFromWord(classicWord);
+        takeExtendAttrs(fields, 5, &parsed.extend);
+        return parsed;
+    }
+
+    QStringList tail = fields;
+    if (!tail.isEmpty() && tail.last().isEmpty()) {
+        tail.removeLast();
+    }
+    QMap<int, QString> extend;
+    while (tail.size() > 5) {
+        const QString item = tail.last();
+        const int eq = item.indexOf(QLatin1Char('='));
+        if (eq <= 0) {
+            break;
+        }
+        bool keyOk = false;
+        const int key = item.left(eq).trimmed().toInt(&keyOk, 16);
+        if (!keyOk) {
+            break;
+        }
+        extend.insert(key, item.mid(eq + 1));
+        tail.removeLast();
+    }
+    if (tail.size() >= 5) {
+        quint32 attrWord = 0;
+        qint64 size = 0;
+        quint32 mtime = 0;
+        const bool attrOk = parseHexU32(tail.last(), &attrWord);
+        const bool sizeOk = parseHexI64(tail.at(tail.size() - 3), &size);
+        const bool mtimeOk = parseHexU32(tail.at(tail.size() - 2), &mtime);
+        Q_UNUSED(mtime);
+        if (attrOk && sizeOk && mtimeOk) {
+            bool rightIdOk = false;
+            const int rightId = tail.at(0).trimmed().toInt(&rightIdOk, 10);
+            QStringList nameParts;
+            for (int i = 1; i < tail.size() - 3; ++i) {
+                nameParts << tail.at(i);
+            }
+            parsed.parsed = true;
+            parsed.fileId = rightIdOk ? rightId : 0;
+            parsed.name = unescapeFileName(nameParts.join(QLatin1Char(':')));
+            parsed.size = size;
+            parsed.rawAttr = tail.last().trimmed();
+            parsed.attrWord = attrWord;
+            parsed.type = kindFromWord(attrWord);
+            parsed.extend = extend;
+            return parsed;
+        }
+    }
+
+    // Size is present but fileattr is not hex. Old toInt stored 0 and the
+    // transfer then refused the file. Keep the record and download it.
+    if (classicSizeOk) {
+        parsed.parsed = true;
+        parsed.fileId = idOk ? fileId : 0;
+        parsed.name = unescapeFileName(fields.at(1));
+        parsed.size = classicSize;
+        parsed.rawAttr = fields.at(4).trimmed();
+        parsed.attrWord = 0;
+        parsed.type = IPMSG_FILE_REGULAR;
+        takeExtendAttrs(fields, 5, &parsed.extend);
+    }
+    return parsed;
+}
+
 QByteArray ProtocolUtil::makeFilePullRequest(const QByteArray &version,
                                             const QByteArray &requestPacketNo,
                                             const QByteArray &loginName,
